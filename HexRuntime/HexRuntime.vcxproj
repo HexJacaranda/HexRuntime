@@ -28,8 +28,10 @@
     <ClInclude Include="Runtime\Core\Exception\RuntimeException.h" />
     <ClInclude Include="Runtime\Core\FieldTable.h" />
     <ClInclude Include="Runtime\Core\InterfaceDispatchTable.h" />
+    <ClInclude Include="Runtime\Core\JIT\Emitter\Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.h" />
+    <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\IR.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.h" />
@@ -61,7 +63,10 @@
     <ClCompile Include="Runtime\Core\Builders\TypeBuilder.cpp" />
     <ClCompile Include="Runtime\Core\Exception\RuntimeException.cpp" />
     <ClCompile Include="Runtime\Core\FieldTable.cpp" />
+    <ClCompile Include="Runtime\Core\GC\GCInterface.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />

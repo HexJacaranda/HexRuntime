@@ -3,6 +3,7 @@
 #include "Emitter.h"
 #include "..\..\Exception\RuntimeException.h"
 #include "..\..\..\Binary.h"
+#include <vector>
 
 namespace RTJE::X86
 {
@@ -47,7 +48,7 @@ namespace RTJE::X86
 	public:
 		static constexpr Int32 PlatformMask = 0b10;
 		static void OperandSlice(EmitContext* context, SlotType To) {
-			throw std::exception("Oops! Operand slice hanppened!");
+			RTE::Throw(Text("Oops! Operand slice hanppened!"));
 			context->EmitState |= (Int8)To;
 		}
 		static void OperandPromote(EmitContext* context, SlotType To) {
@@ -215,7 +216,7 @@ namespace RTJE::X86
 
 	class X86Emitter :public INativeEmitter
 	{
-		HL::System::Collection::Generic::List<AddressFixUp> m_fixups;
+		std::vector<AddressFixUp> m_fixups;
 
 		/// <summary>
 		/// Write by big endianness, mostly used for op

@@ -1,7 +1,6 @@
 #pragma once
 #pragma warning(disable : 4200)
 #include "..\..\..\RuntimeAlias.h"
-#include "..\..\..\..\Include.h"
 
 namespace RTIOS2EE
 {
@@ -96,12 +95,13 @@ namespace RTJE
 		template<class...Args>
 		inline void SetRegisterAvailable(Args&&...registers)
 		{
-			HL::System::Utility::Eval(SetRegisterAvailable(registers)...);
+			
+			
 		}
 		template<class...Args>
 		inline void SetRegisterOccupied(Args&&...registers)
 		{
-			HL::System::Utility::Eval(SetRegisterOccupied(registers)...);
+			
 		}
 		inline Int32 SetRegisterAvailable(Int8 Register) {
 			return GeneralRegisterUsage |= (1 << Register);
