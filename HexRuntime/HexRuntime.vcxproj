@@ -37,6 +37,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
+    <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\OpCodes.h" />
@@ -68,7 +69,9 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />
     <ClCompile Include="Runtime\Core\MethodTable.cpp" />
     <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp" />
@@ -149,7 +152,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>

@@ -72,8 +72,8 @@ namespace RTJ::Hex
 		UnaryArithmeticNode* GenerateUnaryArtithmetic(UInt8 opcode);
 		ConvertNode* GenerateConvert();
 
-		void GenerateJccPP(_RE_ BasicBlockPartitionPoint*& partitions);
-		void GenerateJmpPP(_RE_ BasicBlockPartitionPoint*& partitions);
+		void GenerateJccPP(BasicBlockPartitionPoint*& partitions);
+		void GenerateJmpPP(BasicBlockPartitionPoint*& partitions);
 
 		/// <summary>
 		/// The key standard for generating a statement is that eval stack is empty(balanced).

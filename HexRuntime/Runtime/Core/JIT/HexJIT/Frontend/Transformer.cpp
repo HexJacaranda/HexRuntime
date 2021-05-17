@@ -246,7 +246,7 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 	return new ConvertNode(value, from, to);
 }
 
-void RTJ::Hex::ILTransformer::GenerateJccPP(_RE_ BasicBlockPartitionPoint*& partitions)
+void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto value = mEvalStack.Pop();
 	auto jccOffset = ReadAs<Int16>();
@@ -266,7 +266,7 @@ void RTJ::Hex::ILTransformer::GenerateJccPP(_RE_ BasicBlockPartitionPoint*& part
 		});
 }
 
-void RTJ::Hex::ILTransformer::GenerateJmpPP(_RE_ BasicBlockPartitionPoint*& partitions)
+void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto jmpOffset = ReadAs<Int16>();
 	auto branchedOffset = GetOffset() + jmpOffset;
@@ -520,7 +520,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			//If this is a target from another BB.
 			if (partitionPointWithSameOffset->IsTargetPP())
 				//Fill in in-edges of BB. May introduce itself.
-				basicBlockCurrent->BBIn.Add(getBBFromMap(partitionPointWithSameOffset->ILOffset));
+				basicBlockCurrent->BBIn.push_back(getBBFromMap(partitionPointWithSameOffset->ILOffset));
 			else
 			{
 
@@ -562,9 +562,8 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		//Then we append this to our list.
 		AppendToTwoWayLinkedList(basicBlockHead, basicBlockPrevious, basicBlockCurrent);
 
-		//If this is head. Should be a reachable basic block
-		if (basicBlockCurrent == basicBlockHead)
-			basicBlockCurrent->BBIn.Add(nullptr);
+		//Logically sequential to the previous basic block. 	
+		basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
 		//Update partition point to next one of new basic block.
 		partitionPoint = partitionPointWithSameOffset;

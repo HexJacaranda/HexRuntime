@@ -63,12 +63,12 @@ void RTJE::X86::X86Emitter::WriteREX(SlotType Slot)
 
 inline void RTJE::X86::X86Emitter::NeedFixup(SlotType Slot, AddressFixUpType Type, Int16 Offset)
 {
-	m_fixups.push_back({ GetExecutablePage()->Current(),Slot,Type,Offset });
+	m_fixups.push_back({ GetExecutablePage()->Current(), Slot, Type, Offset });
 }
 
 inline void RTJE::X86::X86Emitter::NeedFixup(SlotType Slot, Int32 Index, AddressFixUpType Type, Int16 Offset)
 {
-	m_fixups.push_back({ Index,Slot,Type,Offset });
+	m_fixups.push_back({ Index, Slot, Type, Offset });
 }
 
 void RTJE::X86::X86Emitter::StartEmitting()

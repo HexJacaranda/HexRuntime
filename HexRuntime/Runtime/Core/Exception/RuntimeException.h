@@ -2,5 +2,5 @@
 #include "..\..\RuntimeAlias.h"
 namespace RTE
 {
-	void Throw(RTString Message);
+	void Throw(RTString Message) noexcept(false);
 }

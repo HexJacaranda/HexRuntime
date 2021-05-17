@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\..\Utility.h"
+#include <vector>
 
 namespace RTJ::Hex
 {
@@ -31,7 +32,8 @@ namespace RTJ::Hex
 		NewArray,
 		Return,
 		BinaryArithmetic,
-		UnaryArithmetic
+		UnaryArithmetic,
+		Phi
 	};
 
 	struct TreeNode
@@ -379,6 +381,10 @@ namespace RTJ::Hex
 		BasicBlock* Next = nullptr;
 		BasicBlock* Prev = nullptr;
 		Statement* Now = nullptr;
+		/// <summary>
+		/// Basic block index.
+		/// </summary>
+		Int32 Index = 0;
 	public:
 		//Branch type that comes out£¨conditional or unconditional or sequential£©
 		Int8 BranchType;
@@ -387,7 +393,7 @@ namespace RTJ::Hex
 		/// </summary>
 		TreeNode* BranchConditionValue = nullptr;
 	public:
-		PointerVectorWithInlineStorage<BasicBlock> BBIn;
+		std::vector<BasicBlock*> BBIn;
 	};
 
 	struct BasicBlockPartitionPoint
@@ -423,14 +429,14 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Phi node to choose branch
 		/// </summary>
-		struct PhiNode
+		struct PhiNode : TreeNode
 		{
-			struct Source
-			{
-				Int64 Value;
-				BasicBlock* From;
-			};
-			Source* Choices;
+			BasicBlock* Belonging;
+			std::vector<void*> Choices;
+		public:
+			PhiNode(BasicBlock* belonging)
+				:TreeNode(NodeKinds::Phi), Belonging(belonging) {
+			}
 		};
 	}
 }

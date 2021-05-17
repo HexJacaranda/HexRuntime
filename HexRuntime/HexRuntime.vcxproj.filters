@@ -156,6 +156,9 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h">
       <Filter>头文件\Runtime\Core\JIT\Emitter</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\ILEmitter.h">
+      <Filter>头文件\Runtime\Core\JIT</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -225,6 +228,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

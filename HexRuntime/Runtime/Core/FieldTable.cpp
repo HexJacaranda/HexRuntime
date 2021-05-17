@@ -1,4 +1,5 @@
 #include "FieldTable.h"
+#include "Exception/RuntimeException.h"
 
 inline RT::UInt16 RTC::FieldSlot::GetStorageType() const
 {
@@ -25,6 +26,7 @@ RTC::FieldSlot* RTC::FieldTable::GetSlot(UInt32 token)const
 	case FieldStorage::NonStatic:   return GetNonStaticFieldStart() + index;
 	case FieldStorage::ThreadLocal: return mTLSField + index;
 	default:
+		RTE::Throw(Text("Invalid token."));
 		break;
 	}
 }
