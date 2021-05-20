@@ -250,8 +250,10 @@ void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partition
 {
 	auto value = mEvalStack.Pop();
 	auto jccOffset = ReadAs<Int32>();
-	auto currentPoint = new BasicBlockPartitionPoint(GetOffset(), value);
-	auto branchedPoint = new BasicBlockPartitionPoint(jccOffset, nullptr);
+	auto currentPoint = new BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
+	currentPoint->TargetILOffset = jccOffset;
+
+	auto branchedPoint = new BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
 	//Append current point into list
 	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x) {
@@ -269,8 +271,8 @@ void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partition
 {
 	auto jmpOffset = ReadAs<Int16>();
 	auto branchedOffset = GetOffset() + jmpOffset;
-	auto currentPoint = new BasicBlockPartitionPoint(GetOffset(), nullptr);
-	auto branchedPoint = new BasicBlockPartitionPoint(branchedOffset, nullptr);
+	auto currentPoint = new BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
+	auto branchedPoint = new BasicBlockPartitionPoint(PPKind::Target, branchedOffset, nullptr);
 	//Append current point into list
 	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x) {
@@ -534,14 +536,26 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		while (ppOfSameOffset != nullptr &&
 			ppOfSameOffset->ILOffset == ilOffset)
 		{
-			//If this is a target from another BB.
-			if (ppOfSameOffset->IsTargetPP())
-				//Fill in in-edges of BB. May introduce itself.
-				basicBlockCurrent->BBIn.push_back(getBBFromMap(ppOfSameOffset->ILOffset));
-			else
+			switch (ppOfSameOffset->Kind)
 			{
-
+			case PPKind::Conditional:
+				//Record condition value
+				basicBlockCurrent->BranchConditionValue = ppOfSameOffset->Value;
+				//Branched BB
+				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
+				break;
+			case PPKind::Unconditional:
+				//Branched BB
+				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
+				break;
+			case PPKind::Target:
+				//If this is a target from another BB.
+				basicBlockCurrent->BBIn.push_back(getBBFromMap(ppOfSameOffset->ILOffset));
+				break;
+			default:
+				RTE::Throw(Text("Unknown PP kind"));
 			}
+
 			//Move on
 			ppOfSameOffset = ppOfSameOffset->Next;
 		}

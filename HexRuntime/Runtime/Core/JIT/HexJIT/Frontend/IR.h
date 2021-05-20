@@ -380,6 +380,9 @@ namespace RTJ::Hex
 	{
 		//IL sequential connection
 	public:
+		/// <summary>
+		/// This can also be used in sequential access of next BB.
+		/// </summary>
 		BasicBlock* Next = nullptr;
 		BasicBlock* Prev = nullptr;
 		Statement* Now = nullptr;
@@ -388,32 +391,34 @@ namespace RTJ::Hex
 		/// </summary>
 		Int32 Index = 0;
 	public:
-		//Branch type that comes out£¨conditional or unconditional or sequential£©
-		Int8 BranchType;
 		/// <summary>
 		/// Stores the condition expression.
 		/// </summary>
 		TreeNode* BranchConditionValue = nullptr;
+		BasicBlock* BranchedBB = nullptr;
 	public:
 		std::vector<BasicBlock*> BBIn;
 	};
 
+	enum class PPKind
+	{
+		Conditional,
+		Unconditional,
+		Target
+	};
+
 	struct BasicBlockPartitionPoint
 	{
-		BasicBlockPartitionPoint(Int32 ilOffset, TreeNode* value)
-			:ILOffset(ilOffset), Value(value) {}
+		BasicBlockPartitionPoint(PPKind kind, Int32 ilOffset, TreeNode* value)
+			:Kind(kind), ILOffset(ilOffset), Value(value) {}
 		BasicBlockPartitionPoint* Next = nullptr;
-		Int32 ILOffset;
-		TreeNode* Value;
-		BasicBlock* Source = nullptr;
 
-		/// <summary>
-		/// Is the target of basic block.
-		/// </summary>
-		/// <returns></returns>
-		bool IsTargetPP()const {
-			return Value == nullptr;
-		}
+		PPKind Kind;
+		Int32 ILOffset;
+
+		//Record the target of jump.
+		Int32 TargetILOffset = 0;
+		TreeNode* Value = nullptr;
 	};
 
 	namespace SSA
