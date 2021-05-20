@@ -363,12 +363,14 @@ namespace RTJ::Hex
 
 	struct Statement
 	{
-		Statement(TreeNode* target, Int32 offset)
+		Statement(TreeNode* target, Int32 offset, Int32 endOffset)
 			:Now(target),
-			ILOffset(offset) {}
+			ILOffset(offset),
+			EndOffset(endOffset) {}
 		//IL sequential connection
 	public:
 		Int32 ILOffset;
+		Int32 EndOffset;
 		Statement* Next = nullptr;
 		Statement* Prev = nullptr;
 		TreeNode* Now;
@@ -432,7 +434,7 @@ namespace RTJ::Hex
 		struct PhiNode : TreeNode
 		{
 			BasicBlock* Belonging;
-			std::vector<void*> Choices;
+			std::vector<TreeNode*> Choices;
 		public:
 			PhiNode(BasicBlock* belonging)
 				:TreeNode(NodeKinds::Phi), Belonging(belonging) {

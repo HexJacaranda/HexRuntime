@@ -118,56 +118,57 @@ namespace RTJ
 		//Arithmetic instructions, 0x30 ~ 0x3F space reserved
 		//---------------------------------------------------
 	public:
+		static constexpr UInt8 BinaryOpBae = 0x21;
+		static constexpr UInt8 UnaryOpBae = 0x11;
+		/// <summary>
+		/// Followed by uint8 operand type
+		/// </summary>
+		IL(Add, 0x30, BinaryOpBae);
 		
 		/// <summary>
 		/// Followed by uint8 operand type
 		/// </summary>
-		IL(Add, 0x30, 0x21);
+		IL(Sub, 0x31, BinaryOpBae);
 		
 		/// <summary>
 		/// Followed by uint8 operand type
 		/// </summary>
-		IL(Sub, 0x31, 0x21);
+		IL(Mul, 0x32, BinaryOpBae);
 		
 		/// <summary>
 		/// Followed by uint8 operand type
 		/// </summary>
-		IL(Mul, 0x32, 0x21);
-		
-		/// <summary>
-		/// Followed by uint8 operand type
-		/// </summary>
-		IL(Div, 0x33, 0x21);
+		IL(Div, 0x33, BinaryOpBae);
 
 		/// <summary>
 		/// And
 		/// </summary>
-		IL(And, 0x34, 0x21);
+		IL(And, 0x34, BinaryOpBae);
 
 		/// <summary>
 		/// Or
 		/// </summary>
-		IL(Or, 0x35, 0x21);
+		IL(Or, 0x35, BinaryOpBae);
 		
 		/// <summary>
 		/// Xor
 		/// </summary>
-		IL(Xor, 0x36, 0x21);
+		IL(Xor, 0x36, BinaryOpBae);
 
 		/// <summary>
 		/// Not
 		/// </summary>
-		IL(Not, 0x37, 0x11);
+		IL(Not, 0x37, UnaryOpBae);
 
 		/// <summary>
 		/// Negative
 		/// </summary>
-		IL(Neg, 0x38, 0x11);
+		IL(Neg, 0x38, UnaryOpBae);
 
 		/// <summary>
 		/// Followed by uint8(from), uint8(to) operand type
 		/// </summary>
-		IL(Conv, 0x39, 0x11);
+		IL(Conv, 0x39, UnaryOpBae);
 		
 		//-----------------------------------------------------
 		//Flow control instructions, 0x40 ~ 0x4F space reserved
@@ -276,7 +277,7 @@ namespace RTJ
 	/// <summary>
 	/// Condition constant is encoded in 8 bits following the stack item slot.
 	/// </summary>
-	class OpCodeCmpCondition
+	class CmpCondition
 	{
 	public:
 		static constexpr UInt8 EQ = 0b0000;

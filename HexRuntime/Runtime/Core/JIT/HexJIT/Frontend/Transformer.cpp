@@ -21,8 +21,8 @@ ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
 	mCodePtr++;
 	if (mCodePtr >= mCodePtrBound)
 		throw 0;
-	mBaeIn = *(mCodePtr) & 0xF0;
-	mBaeOut = *(mCodePtr) & 0x0F;
+	mBaeIn = (mCodePtr[0] & 0xF0) >> 4;
+	mBaeOut = mCodePtr[0] & 0x0F;
 	mCodePtr++;
 }
 
@@ -107,10 +107,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
 	auto ret = new ConstantNode(coreType);
 	switch (coreTypeSize)
 	{
-	case 1: ret->I1 = ReadAs<UInt8>(); break;
-	case 2: ret->I2 = ReadAs<UInt16>(); break;
-	case 4: ret->I4 = ReadAs<UInt32>(); break;
-	case 8: ret->I8 = ReadAs<UInt64>(); break;
+	case 1: ret->I1 = ReadAs<Int8>(); break;
+	case 2: ret->I2 = ReadAs<Int16>(); break;
+	case 4: ret->I4 = ReadAs<Int32>(); break;
+	case 8: ret->I8 = ReadAs<Int64>(); break;
 	case 16:
 		ret->X64InteriorRef[0] = ReadAs<UInt64>();
 		ret->X64InteriorRef[1] = ReadAs<UInt64>();
@@ -249,10 +249,9 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto value = mEvalStack.Pop();
-	auto jccOffset = ReadAs<Int16>();
-	auto branchedOffset = GetOffset() + jccOffset;
+	auto jccOffset = ReadAs<Int32>();
 	auto currentPoint = new BasicBlockPartitionPoint(GetOffset(), value);
-	auto branchedPoint = new BasicBlockPartitionPoint(branchedOffset, nullptr);
+	auto branchedPoint = new BasicBlockPartitionPoint(jccOffset, nullptr);
 	//Append current point into list
 	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x) {
@@ -285,11 +284,11 @@ void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partition
 		});
 }
 
-RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TryGenerateStatement(TreeNode* value, bool isBalancedCritical)
+RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TryGenerateStatement(TreeNode* value, Int32 beginOffset, bool isBalancedCritical)
 {
 	//Is eval stack already balanced?
 	if (mEvalStack.IsBalanced())
-		return new Statement(value, mCodePtr - mJITContext.CodeSegment);
+		return new Statement(value, beginOffset, GetOffset());
 	else
 	{
 		if (!isBalancedCritical)
@@ -306,7 +305,9 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 	Statement* stmtCurrent = nullptr;
 
 #define IL_TRY_GEN_STMT_CRITICAL(OP, CRITICAL) auto node = OP; \
-							stmtCurrent = TryGenerateStatement(node, CRITICAL); \
+							stmtCurrent = TryGenerateStatement(node, \
+																stmtPrevious == nullptr ? 0 : stmtPrevious->EndOffset,\
+																CRITICAL); \
 							if (stmtCurrent == nullptr) { mEvalStack.Push(node); } \
 							else AppendToTwoWayLinkedList(stmtHead, stmtPrevious, stmtCurrent)
 
@@ -335,11 +336,17 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		}
 
 		case OpCodes::Jcc:
+		{
 			GenerateJccPP(partitions);
+			IL_TRY_GEN_STMT_CRITICAL(nullptr, true);
 			break;
+		}
 		case OpCodes::Jmp:
+		{
 			GenerateJmpPP(partitions);
+			IL_TRY_GEN_STMT_CRITICAL(nullptr, true);
 			break;
+		}
 
 
 		//------------------------------------------------------
@@ -474,13 +481,14 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 
 		default:
 			//You should never reach here
-
+			RTE::Throw(Text("Unrecognized IL Opcode."));
 			break;
 		}
 	}
 	if (!mEvalStack.IsBalanced())
 	{
 		//Malformed IL
+		RTE::Throw(Text("Malformed IL."));
 	}
 	return stmtHead;
 
@@ -490,6 +498,14 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 
 RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartitionedStmt, BasicBlockPartitionPoint* partitions)
 {
+	//If no partition points, return directly
+	if (partitions == nullptr)
+	{
+		auto ret = new BasicBlock();
+		ret->Now = unpartitionedStmt;
+		return ret;
+	}
+
 	std::unordered_map<Int32, BasicBlock*> basicBlockMap;
 	auto getBBFromMap = [&](Int32 offset) {
 		auto value = basicBlockMap.find(offset);
@@ -511,23 +527,26 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 
 		basicBlockCurrent = getBBFromMap(ilOffset);
 
-		//Firstly we will introduce all the features for basic block.		
-		auto partitionPointWithSameOffset = partitionPoint;
+		//Firstly we will introduce all the features for basic block.	
+		//Partition points with same offset.
+		auto ppOfSameOffset = partitionPoint;
 		//Find out the partition points describing the current BB.
-		while (partitionPointWithSameOffset != nullptr &&
-			partitionPointWithSameOffset->ILOffset == ilOffset)
+		while (ppOfSameOffset != nullptr &&
+			ppOfSameOffset->ILOffset == ilOffset)
 		{
 			//If this is a target from another BB.
-			if (partitionPointWithSameOffset->IsTargetPP())
+			if (ppOfSameOffset->IsTargetPP())
 				//Fill in in-edges of BB. May introduce itself.
-				basicBlockCurrent->BBIn.push_back(getBBFromMap(partitionPointWithSameOffset->ILOffset));
+				basicBlockCurrent->BBIn.push_back(getBBFromMap(ppOfSameOffset->ILOffset));
 			else
 			{
 
 			}
+			//Move on
+			ppOfSameOffset = ppOfSameOffset->Next;
 		}
 
-		if (partitionPointWithSameOffset == nullptr)
+		if (ppOfSameOffset == nullptr)
 		{
 			//No more partitions available
 
@@ -540,7 +559,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			auto previousOfIterator = beginOfStmts;
 			//Traverse until we meet the next stmt belonging to another basic block.
 			while (iteratorOfStmt != nullptr &&
-				iteratorOfStmt->ILOffset < partitionPointWithSameOffset->ILOffset)
+				iteratorOfStmt->ILOffset < ppOfSameOffset->ILOffset)
 			{
 				previousOfIterator = iteratorOfStmt;
 				iteratorOfStmt = iteratorOfStmt->Next;
@@ -566,7 +585,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
 		//Update partition point to next one of new basic block.
-		partitionPoint = partitionPointWithSameOffset;
+		partitionPoint = ppOfSameOffset;
 	}
 	return basicBlockHead;
 }

@@ -83,7 +83,7 @@ namespace RTJ::Hex
 		/// <param name="value"></param>
 		/// <param name="isBalancedCritical"></param>
 		/// <returns></returns>
-		Statement* TryGenerateStatement(TreeNode* value, bool isBalancedCritical = false);
+		Statement* TryGenerateStatement(TreeNode* value, Int32 beginOffset ,bool isBalancedCritical = false);
 		/// <summary>
 		/// Firstly translate IL to a single basic block then partition it according to the
 		/// information we collected
