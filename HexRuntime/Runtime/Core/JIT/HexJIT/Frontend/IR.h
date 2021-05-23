@@ -2,6 +2,7 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\..\Utility.h"
 #include <vector>
+#include <array>
 
 namespace RTJ::Hex
 {
@@ -63,10 +64,10 @@ namespace RTJ::Hex
 		BinaryNode(NodeKinds kind) :TreeNode(kind) {}
 	};
 
-	struct ConstantNode : UnaryNode
+	struct ConstantNode : TreeNode
 	{
 		ConstantNode(UInt8 coreType)
-			:UnaryNode(NodeKinds::Constant),
+			:TreeNode(NodeKinds::Constant),
 			CoreType(coreType) {}
 		UInt8 CoreType = 0;
 		union
@@ -96,20 +97,20 @@ namespace RTJ::Hex
 		};
 	};
 
-	struct ArgumentNode : UnaryNode
+	struct ArgumentNode : TreeNode
 	{
 		ArgumentNode(UInt8 valueType, Int16 argumentIndex)
-			:UnaryNode(NodeKinds::Argument),
+			:TreeNode(NodeKinds::Argument),
 			ValueType(valueType),
 			ArgumentIndex(argumentIndex) {}
 		UInt8 ValueType = 0;
 		Int16 ArgumentIndex = 0;
 	};
 
-	struct LocalVariableNode : UnaryNode
+	struct LocalVariableNode : TreeNode
 	{
 		LocalVariableNode(UInt8 valueType, Int16 localIndex)
-			:UnaryNode(NodeKinds::LocalVariable),
+			:TreeNode(NodeKinds::LocalVariable),
 			ValueType(valueType),
 			LocalIndex(localIndex) {}
 		UInt8 ValueType = 0;
@@ -126,11 +127,10 @@ namespace RTJ::Hex
 			MethodReference(methodReference),
 			Arguments(arugments),
 			ArgumentCount(argumentCount) {}
-
-		UInt32 MethodReference;
-		TreeNode** Arguments;
 		Int32 ArgumentCount;
-
+		TreeNode** Arguments;
+		UInt32 MethodReference;
+		
 		virtual ~CallNode() {
 			if (Arguments != nullptr)
 			{
@@ -176,11 +176,11 @@ namespace RTJ::Hex
 			:UnaryNode(NodeKinds::Load),
 			Source(source)
 		{}
-		UInt8 LoadType = SLMode::Indirect;
 		/// <summary>
 		/// Only allows array element, field, argument and local
 		/// </summary>
 		TreeNode* Source = nullptr;
+		UInt8 LoadType = SLMode::Indirect;
 		virtual ~LoadNode() {
 			ReleaseNode(Source);
 		}
@@ -200,10 +200,10 @@ namespace RTJ::Hex
 		}
 	};
 
-	struct StaticFieldNode : UnaryNode
+	struct StaticFieldNode : TreeNode
 	{
 		StaticFieldNode(UInt32 fieldReference)
-			:UnaryNode(NodeKinds::StaticField),
+			:TreeNode(NodeKinds::StaticField),
 			FieldReference(fieldReference) {}
 		UInt32 FieldReference;
 	};
@@ -214,31 +214,34 @@ namespace RTJ::Hex
 			:UnaryNode(NodeKinds::InstanceField),
 			FieldReference(fieldReference),
 			Source(source) {}
-		UInt32 FieldReference;
 		TreeNode* Source;
+		UInt32 FieldReference;
 		virtual ~InstanceFieldNode() {
 			ReleaseNode(Source);
 		}
 	};
 
-	struct NewNode : UnaryNode
+	struct NewNode : TreeNode
 	{
 		NewNode(UInt32 ctor)
-			:UnaryNode(NodeKinds::New),
+			:TreeNode(NodeKinds::New),
 			MethodReference(ctor) {}
+		Int32 ArgumentCount;
+		TreeNode** Arguments;
 		UInt32 MethodReference;
 	};
 
 	struct NewArrayNode : TreeNode
 	{
-		NewArrayNode(UInt32 type, TreeNode** dimensions, UInt32 dimensionCount)
+		NewArrayNode(UInt32 type, TreeNode** dimensions, Int32 dimensionCount)
 			:TreeNode(NodeKinds::NewArray),
 			TypeReference(type),
 			Dimensions(dimensions),
 			DimensionCount(dimensionCount) {}
+		Int32 DimensionCount;
+		TreeNode** Dimensions;	
 		UInt32 TypeReference;
-		TreeNode** Dimensions;
-		UInt32 DimensionCount;
+		
 		virtual ~NewArrayNode() {
 			if (Dimensions != nullptr)
 			{
@@ -256,9 +259,9 @@ namespace RTJ::Hex
 			Condition(condition),
 			Left(left),
 			Right(right) {}
-		UInt8 Condition;
 		TreeNode* Left;
 		TreeNode* Right;
+		UInt8 Condition;
 		virtual ~CompareNode() {
 			ReleaseNode(Left);
 			ReleaseNode(Right);
@@ -308,8 +311,8 @@ namespace RTJ::Hex
 			Value(value),
 			Type(type),
 			Opcode(opcode) {}
-		UInt8 Type;
 		TreeNode* Value;
+		UInt8 Type;
 		UInt8 Opcode;
 		virtual ~UnaryArithmeticNode() {
 			ReleaseNode(Value);
@@ -360,6 +363,94 @@ namespace RTJ::Hex
 		/// </summary>
 		Int32 Count = 0;
 	};
+
+	/// <summary>
+	/// Used to access child of unary node.
+	/// </summary>
+	struct UnaryNodeAccessProxy : UnaryNode
+	{
+		UnaryNodeAccessProxy() : UnaryNode(NodeKinds::UnaryArithmetic) {}
+		TreeNode* Value = nullptr;
+	};
+
+	/// <summary>
+	/// Used to access children of binary node.
+	/// </summary>
+	struct BinaryNodeAccessProxy : BinaryNode
+	{
+		BinaryNodeAccessProxy() : BinaryNode(NodeKinds::BinaryArithmetic) {}
+		TreeNode* First = nullptr;
+		TreeNode* Second = nullptr;
+	};
+
+	/// <summary>
+	/// Used to access children of multiple node
+	/// </summary>
+	struct MultipleNodeAccessProxy : TreeNode
+	{
+		MultipleNodeAccessProxy() : TreeNode(NodeKinds::Call) {}
+		Int32 Count = 0;
+		TreeNode** Values = nullptr;
+	};
+
+	template<size_t StackDepth, class Fn>
+	static void TraverseTree(TreeNode* source, Fn&& action)
+	{
+		std::array<TreeNode*, StackDepth> stack{};
+		Int32 index = 0;
+
+		auto pushStack = [&](TreeNode* value) {
+			if (index < stack.size())
+				stack[index++] = value;
+		};
+		auto popStack = [&]() {
+			return stack[--index];
+		};
+
+		while (index > 0)
+		{
+			auto current = popStack();
+			//Do custom action
+			action(current);
+			switch (source->Kind)
+			{
+			//Binary access
+			case NodeKinds::Store:
+			case NodeKinds::Array:
+			case NodeKinds::Compare:
+			case NodeKinds::BinaryArithmetic:
+
+			{
+				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
+				pushStack(proxy->First);
+				pushStack(proxy->Second);
+				break;
+			}
+			//Unary access
+			case NodeKinds::Convert:
+			case NodeKinds::InstanceField:
+			case NodeKinds::Return:
+			case NodeKinds::UnaryArithmetic:
+			case NodeKinds::Convert:
+			case NodeKinds::Duplicate:
+			{
+				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
+				pushStack(proxy->Value);
+				break;
+			}
+			//Multiple access 
+			case NodeKinds::Call:
+			case NodeKinds::New:
+			case NodeKinds::NewArray:
+			{
+				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
+				for (Int32 i = 0; i < proxy->Count; ++i)
+					pushStack(proxy->Values[i]);
+				break;
+			}
+			}
+		}
+	}
 
 	struct Statement
 	{

@@ -40,5 +40,25 @@ RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::AddPhiOperands(Int16 variableIndex
 
 RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode)
 {
-	return nullptr;
+	return phiNode;
+}
+
+RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
+{
+	//Traverse to find every write or read for local variables marked trackable.
+	for (BasicBlock* bbIterator = mTarget; 
+		bbIterator != nullptr; 
+		bbIterator = bbIterator->Next)
+	{
+		for (Statement* stmtIterator = bbIterator->Now;
+			stmtIterator != nullptr;
+			stmtIterator = stmtIterator->Next)
+		{
+			TraverseTree<256>(stmtIterator->Now, [&](TreeNode* node) {
+
+			});
+		}
+	}
+
+	return mTarget;
 }

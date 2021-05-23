@@ -64,7 +64,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 {
-	UnaryNode* field = nullptr;
+	TreeNode* field = nullptr;
 	if (mBaeIn == 0)
 		field = new StaticFieldNode(ReadAs<UInt32>());
 	else if (mBaeIn == 1)

@@ -10,6 +10,7 @@ namespace RTJ::Hex
 	/// </summary>
 	class SSABuilder
 	{
+		BasicBlock* mTarget;
 		std::vector<std::vector<TreeNode*>> mCurrentDefinition;
 		std::vector<BasicBlock*> mBBs;
 	private:
@@ -19,5 +20,6 @@ namespace RTJ::Hex
 		SSA::PhiNode* AddPhiOperands(Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode);
 		SSA::PhiNode* TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode);
 	public:
+		BasicBlock* Build();
 	};
 }
