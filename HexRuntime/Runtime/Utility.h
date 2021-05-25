@@ -27,7 +27,7 @@ namespace RT
 			NodeT* iterator = head;
 			while (iterator != nullptr)
 			{
-				if (predicator(current))
+				if (predicator(iterator))
 				{
 					//Found position
 					current->Next = iterator->Next;

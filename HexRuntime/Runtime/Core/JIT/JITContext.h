@@ -45,6 +45,6 @@ namespace RTJ
 		/// <summary>
 		/// Arguments
 		/// </summary>
-		ArgumentInfo* Arguments;
+		ArgumentInfo* Arguments;	
 	};
 }

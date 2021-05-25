@@ -6,15 +6,6 @@
 
 namespace RTJ::Hex
 {
-	//Standard procedure for releasing pointer
-	template<class T>
-	constexpr static inline void ReleaseNode(T*& target) {
-		if (target != nullptr) {
-			delete target;
-			target = nullptr;
-		}
-	}
-
 	enum class NodeKinds : UInt8
 	{
 		Constant,
@@ -130,15 +121,6 @@ namespace RTJ::Hex
 		Int32 ArgumentCount;
 		TreeNode** Arguments;
 		UInt32 MethodReference;
-		
-		virtual ~CallNode() {
-			if (Arguments != nullptr)
-			{
-				for (Int32 i = 0; i < ArgumentCount; ++i)
-					delete Arguments[i];
-				Arguments = nullptr;
-			}
-		}
 	};
 
 	/// <summary>
@@ -158,11 +140,6 @@ namespace RTJ::Hex
 			Source(source) {}
 		TreeNode* Destination = nullptr;
 		TreeNode* Source = nullptr;
-
-		virtual ~StoreNode() {
-			ReleaseNode(Destination);
-			ReleaseNode(Source);
-		}
 	};
 
 	/// <summary>
@@ -181,9 +158,6 @@ namespace RTJ::Hex
 		/// </summary>
 		TreeNode* Source = nullptr;
 		UInt8 LoadType = SLMode::Indirect;
-		virtual ~LoadNode() {
-			ReleaseNode(Source);
-		}
 	};
 
 	struct ArrayElementNode : BinaryNode
@@ -194,10 +168,6 @@ namespace RTJ::Hex
 			Index(index) {}
 		TreeNode* Array;
 		TreeNode* Index;
-		virtual ~ArrayElementNode() {
-			ReleaseNode(Array);
-			ReleaseNode(Index);
-		}
 	};
 
 	struct StaticFieldNode : TreeNode
@@ -216,9 +186,6 @@ namespace RTJ::Hex
 			Source(source) {}
 		TreeNode* Source;
 		UInt32 FieldReference;
-		virtual ~InstanceFieldNode() {
-			ReleaseNode(Source);
-		}
 	};
 
 	struct NewNode : TreeNode
@@ -226,8 +193,8 @@ namespace RTJ::Hex
 		NewNode(UInt32 ctor)
 			:TreeNode(NodeKinds::New),
 			MethodReference(ctor) {}
-		Int32 ArgumentCount;
-		TreeNode** Arguments;
+		Int32 ArgumentCount = 0;
+		TreeNode** Arguments = nullptr;
 		UInt32 MethodReference;
 	};
 
@@ -241,15 +208,6 @@ namespace RTJ::Hex
 		Int32 DimensionCount;
 		TreeNode** Dimensions;	
 		UInt32 TypeReference;
-		
-		virtual ~NewArrayNode() {
-			if (Dimensions != nullptr)
-			{
-				for (UInt32 i = 0; i < DimensionCount; ++i)
-					delete Dimensions[i];
-				Dimensions = nullptr;
-			}
-		}
 	};
 
 	struct CompareNode : BinaryNode
@@ -262,10 +220,6 @@ namespace RTJ::Hex
 		TreeNode* Left;
 		TreeNode* Right;
 		UInt8 Condition;
-		virtual ~CompareNode() {
-			ReleaseNode(Left);
-			ReleaseNode(Right);
-		}
 	};
 
 	struct ReturnNode : UnaryNode
@@ -274,9 +228,6 @@ namespace RTJ::Hex
 			:UnaryNode(NodeKinds::Return),
 			Ret(ret) {}
 		TreeNode* Ret;
-		virtual ~ReturnNode() {
-			ReleaseNode(Ret);
-		}
 	};
 
 	struct BinaryArithmeticNode : BinaryNode
@@ -295,10 +246,6 @@ namespace RTJ::Hex
 		TreeNode* Right;
 		UInt8 Type;
 		UInt8 Opcode;
-		virtual ~BinaryArithmeticNode() {
-			ReleaseNode(Left);
-			ReleaseNode(Right);
-		}
 	};
 
 	struct UnaryArithmeticNode : UnaryNode
@@ -314,9 +261,6 @@ namespace RTJ::Hex
 		TreeNode* Value;
 		UInt8 Type;
 		UInt8 Opcode;
-		virtual ~UnaryArithmeticNode() {
-			ReleaseNode(Value);
-		}
 	};
 
 	/// <summary>
@@ -335,33 +279,6 @@ namespace RTJ::Hex
 		TreeNode* Value;
 		UInt8 From;
 		UInt8 To;
-		virtual ~ConvertNode() {
-			ReleaseNode(Value);
-		}
-	};
-
-	/// <summary>
-	/// Duplicate node is actually for resource management.
-	/// When met with duplicate node, we won't release its child
-	/// </summary>
-	struct DuplicateNode : UnaryNode
-	{
-		DuplicateNode(TreeNode* target)
-			:UnaryNode(NodeKinds::Duplicate),
-			Target(target) {}
-		/// <summary>
-		/// Ref from current duplicate node, increment count
-		/// </summary>
-		/// <returns></returns>
-		ForcedInline DuplicateNode* Duplicate() {
-			Count++;
-			return this;
-		}
-		TreeNode* Target;
-		/// <summary>
-		/// For releasing itself.
-		/// </summary>
-		Int32 Count = 0;
 	};
 
 	/// <summary>
@@ -431,7 +348,6 @@ namespace RTJ::Hex
 			case NodeKinds::InstanceField:
 			case NodeKinds::Return:
 			case NodeKinds::UnaryArithmetic:
-			case NodeKinds::Convert:
 			case NodeKinds::Duplicate:
 			{
 				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
@@ -467,6 +383,14 @@ namespace RTJ::Hex
 		TreeNode* Now;
 	};
 
+	enum class PPKind
+	{
+		Conditional,
+		Unconditional,
+		Ret,
+		Target
+	};
+
 	struct BasicBlock
 	{
 		//IL sequential connection
@@ -482,6 +406,7 @@ namespace RTJ::Hex
 		/// </summary>
 		Int32 Index = 0;
 	public:
+		PPKind BranchKind;
 		/// <summary>
 		/// Stores the condition expression.
 		/// </summary>
@@ -489,13 +414,6 @@ namespace RTJ::Hex
 		BasicBlock* BranchedBB = nullptr;
 	public:
 		std::vector<BasicBlock*> BBIn;
-	};
-
-	enum class PPKind
-	{
-		Conditional,
-		Unconditional,
-		Target
 	};
 
 	struct BasicBlockPartitionPoint

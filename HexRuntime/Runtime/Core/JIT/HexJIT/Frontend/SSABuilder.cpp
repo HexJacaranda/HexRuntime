@@ -55,7 +55,17 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 			stmtIterator = stmtIterator->Next)
 		{
 			TraverseTree<256>(stmtIterator->Now, [&](TreeNode* node) {
-
+				switch (node->Kind)
+				{
+				case NodeKinds::Store:
+				{
+					break;
+				}
+				case NodeKinds::Load:
+				{
+					break;
+				}
+				}	
 			});
 		}
 	}

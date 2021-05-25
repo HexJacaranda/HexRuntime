@@ -3,6 +3,7 @@
 #include "Runtime/Core/Type/CoreTypes.h"
 #include "Runtime/RuntimeAlias.h"
 #include "Runtime/Core/JIT/JITContext.h"
+#include "Runtime/Core/JIT/HexJIT/JITMemory.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 
 using namespace RTJ;
@@ -47,6 +48,6 @@ int main()
 	context.CodeSegment = il.GetIL();
 	context.SegmentLength = il.GetLength();
 
-	Hex::ILTransformer transformer{ context };
+	Hex::ILTransformer transformer{ context , new Hex::JITMemory() };
 	auto bb = transformer.TransformILFrom();
 }

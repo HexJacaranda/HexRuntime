@@ -52,6 +52,9 @@
     <Filter Include="头文件\Runtime\Core\Exception">
       <UniqueIdentifier>{5a2421f9-a4ee-43b8-a35a-88d1530ac824}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\Interfaces">
+      <UniqueIdentifier>{805d7a80-6563-442c-980d-52acb959c2d2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -159,6 +162,15 @@
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h">
       <Filter>头文件\Runtime\Core\JIT</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITMemory.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h">
+      <Filter>头文件\Runtime\Core\Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -234,6 +246,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

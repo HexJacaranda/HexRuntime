@@ -35,29 +35,29 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 		//Overceed 14 arguments, Extended uint16 will be used
 		if (mBaeIn == 0xF)
 			argumentsCount = ReadAs<UInt16>();
-		arguments = new TreeNode * [argumentsCount];
+		arguments = new(mMemory) TreeNode * [argumentsCount];
 		for (int i = 0; i < argumentsCount; ++i)
 			arguments[i] = mEvalStack.Pop();
 	}
 	//Read method reference token
 	UInt32 methodRef = ReadAs<UInt32>();
-	return new CallNode(methodRef, arguments, argumentsCount);
+	return new(mMemory) CallNode(methodRef, arguments, argumentsCount);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
 {
-	auto local = new LocalVariableNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>());
+	auto local = new(mMemory) LocalVariableNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>());
 	if (SLMode == SLMode::Indirect)
-		return new LoadNode(SLMode::Indirect, local);
+		return new(mMemory) LoadNode(SLMode::Indirect, local);
 	else
 		return local;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
-	auto local = new ArgumentNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>());
+	auto local = new(mMemory) ArgumentNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>());
 	if (SLMode == SLMode::Indirect)
-		return new LoadNode(SLMode::Indirect, local);
+		return new(mMemory) LoadNode(SLMode::Indirect, local);
 	else
 		return local;
 }
@@ -66,9 +66,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 {
 	TreeNode* field = nullptr;
 	if (mBaeIn == 0)
-		field = new StaticFieldNode(ReadAs<UInt32>());
+		field = new(mMemory) StaticFieldNode(ReadAs<UInt32>());
 	else if (mBaeIn == 1)
-		field = new InstanceFieldNode(ReadAs<UInt32>(), mEvalStack.Pop());
+		field = new(mMemory) InstanceFieldNode(ReadAs<UInt32>(), mEvalStack.Pop());
 	else
 	{
 		RTE::Throw(Text("Invalid balance group."));
@@ -76,7 +76,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 	}
 
 	if (SLMode == SLMode::Indirect)
-		return new LoadNode(SLMode::Indirect, field);
+		return new(mMemory) LoadNode(SLMode::Indirect, field);
 	else
 		return field;
 }
@@ -85,9 +85,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMo
 {
 	auto index = mEvalStack.Pop();
 	auto array = mEvalStack.Pop();
-	auto arrayElement = new ArrayElementNode(array, index);
+	auto arrayElement = new(mMemory) ArrayElementNode(array, index);
 	if (SLMode == SLMode::Indirect)
-		return new LoadNode(SLMode::Indirect, arrayElement);
+		return new(mMemory) LoadNode(SLMode::Indirect, arrayElement);
 	else
 		return arrayElement;
 }
@@ -95,7 +95,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMo
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
 {
 	auto stringToken = ReadAs<UInt32>();
-	auto ret = new ConstantNode(CoreTypes::String);
+	auto ret = new(mMemory) ConstantNode(CoreTypes::String);
 	ret->X86Ref = stringToken;
 	return ret;
 }
@@ -104,7 +104,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
 {
 	UInt8 coreType = ReadAs<UInt8>();
 	Int32 coreTypeSize = CoreTypes::SizeOfCoreType[coreType];
-	auto ret = new ConstantNode(coreType);
+	auto ret = new(mMemory) ConstantNode(coreType);
 	switch (coreTypeSize)
 	{
 	case 1: ret->I1 = ReadAs<Int8>(); break;
@@ -126,13 +126,13 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 {
 	if (mBaeIn == 1)
 		//Static field store
-		return new StoreNode(new StaticFieldNode(ReadAs<UInt32>()), mEvalStack.Pop());
+		return new(mMemory) StoreNode(new(mMemory) StaticFieldNode(ReadAs<UInt32>()), mEvalStack.Pop());
 	else if (mBaeIn == 2)
 	{
 		//Instance field store
 		auto value = mEvalStack.Pop();
 		auto object = mEvalStack.Pop();
-		return new StoreNode(new InstanceFieldNode(ReadAs<UInt32>(), object), value);
+		return new(mMemory) StoreNode(new(mMemory) InstanceFieldNode(ReadAs<UInt32>(), object), value);
 	}
 	else
 	{
@@ -143,15 +143,15 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 {
-	return new StoreNode(
-		new ArgumentNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>()),
+	return new(mMemory) StoreNode(
+		new(mMemory) ArgumentNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>()),
 		mEvalStack.Pop());
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
-	return new StoreNode(
-		new LocalVariableNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>()),
+	return new(mMemory) StoreNode(
+		new(mMemory) LocalVariableNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>()),
 		mEvalStack.Pop());
 }
 
@@ -161,8 +161,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
 	auto index = mEvalStack.Pop();
 	auto array = mEvalStack.Pop();
 
-	return new StoreNode(
-		new ArrayElementNode(array, index),
+	return new(mMemory) StoreNode(
+		new(mMemory) ArrayElementNode(array, index),
 		value);
 }
 
@@ -170,12 +170,12 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreToAddress()
 {
 	auto value = mEvalStack.Pop();
 	auto address = mEvalStack.Pop();
-	return new StoreNode(address, value);
+	return new(mMemory) StoreNode(address, value);
 }
 
 RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
 {
-	return new NewNode(ReadAs<UInt32>());
+	return new(mMemory) NewNode(ReadAs<UInt32>());
 }
 
 RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
@@ -187,40 +187,39 @@ RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 		//Overceed 14 dimensions, Extended uint32 will be used
 		if (mBaeIn == 0xF)
 			dimensionCount = ReadAs<Int32>();
-		dimensions = new TreeNode * [dimensionCount];
+		dimensions = new(mMemory) TreeNode * [dimensionCount];
 		for (int i = 0; i < dimensionCount; ++i)
 			dimensions[i] = mEvalStack.Pop();
 	}
 	//Read method reference token
 	UInt32 typeRef = ReadAs<UInt32>();
-	return new NewArrayNode(typeRef, dimensions, dimensionCount);
+	return new(mMemory) NewArrayNode(typeRef, dimensions, dimensionCount);
 }
 
 RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()
 {
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
-	return new CompareNode(ReadAs<UInt8>(), left, right);
+	return new(mMemory) CompareNode(ReadAs<UInt8>(), left, right);
 }
 
-RTJ::Hex::DuplicateNode* RTJ::Hex::ILTransformer::GenerateDuplicate()
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateDuplicate()
 {
-	auto target = mEvalStack.Top();
-	if (target->Is(NodeKinds::Duplicate))
-	{
-		//To avoid a second wrapping and allocation, we return target directly
-		//and increment its count to ensure duplicate node won't be released multiple times.
-		return target->As<DuplicateNode>()->Duplicate();
-	}
-	return new DuplicateNode(target);
+	return mEvalStack.Top();
 }
 
-RTJ::Hex::ReturnNode* RTJ::Hex::ILTransformer::GenerateReturn()
+RTJ::Hex::ReturnNode* RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitions)
 {
+	
 	TreeNode* ret = nullptr;
 	if (mBaeIn == 1)
 		ret = mEvalStack.Pop();
-	return new ReturnNode(ret);
+	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Ret, GetOffset(), ret);
+	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
+		[&](BasicBlockPartitionPoint* x) {
+			return currentPoint->ILOffset <= x->ILOffset;
+	});
+	return new(mMemory) ReturnNode(ret);
 }
 
 RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmetic(UInt8 opcode)
@@ -228,14 +227,14 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
 	UInt8 kind = ReadAs<UInt8>();
-	return new BinaryArithmeticNode(left, right, kind, opcode);
+	return new(mMemory) BinaryArithmeticNode(left, right, kind, opcode);
 }
 
 RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic(UInt8 opcode)
 {
 	auto value = mEvalStack.Pop();
 	UInt8 kind = ReadAs<UInt8>();
-	return new UnaryArithmeticNode(value, kind, opcode);
+	return new(mMemory) UnaryArithmeticNode(value, kind, opcode);
 }
 
 RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
@@ -243,17 +242,17 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 	auto value = mEvalStack.Pop();
 	UInt8 from = ReadAs<UInt8>();
 	UInt8 to = ReadAs<UInt8>();
-	return new ConvertNode(value, from, to);
+	return new(mMemory) ConvertNode(value, from, to);
 }
 
 void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto value = mEvalStack.Pop();
 	auto jccOffset = ReadAs<Int32>();
-	auto currentPoint = new BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
+	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
 	currentPoint->TargetILOffset = jccOffset;
 
-	auto branchedPoint = new BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
+	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
 	//Append current point into list
 	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x) {
@@ -271,8 +270,8 @@ void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partition
 {
 	auto jmpOffset = ReadAs<Int16>();
 	auto branchedOffset = GetOffset() + jmpOffset;
-	auto currentPoint = new BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
-	auto branchedPoint = new BasicBlockPartitionPoint(PPKind::Target, branchedOffset, nullptr);
+	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
+	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, branchedOffset, nullptr);
 	//Append current point into list
 	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x) {
@@ -290,7 +289,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TryGenerateStatement(TreeNode* val
 {
 	//Is eval stack already balanced?
 	if (mEvalStack.IsBalanced())
-		return new Statement(value, beginOffset, GetOffset());
+		return new(mMemory) Statement(value, beginOffset, GetOffset());
 	else
 	{
 		if (!isBalancedCritical)
@@ -333,7 +332,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		}
 		case OpCodes::Ret:
 		{
-			IL_TRY_GEN_STMT_CRITICAL(GenerateReturn(), true);
+			IL_TRY_GEN_STMT_CRITICAL(GenerateReturn(partitions), true);
 			break;
 		}
 
@@ -503,10 +502,11 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 	//If no partition points, return directly
 	if (partitions == nullptr)
 	{
-		auto ret = new BasicBlock();
+		auto ret = new(mMemory) BasicBlock();
 		ret->Now = unpartitionedStmt;
 		return ret;
 	}
+	//Notice: Partitions are ordered by IL offset
 
 	std::unordered_map<Int32, BasicBlock*> basicBlockMap;
 	auto getBBFromMap = [&](Int32 offset) {
@@ -514,7 +514,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		if (value != basicBlockMap.end())
 			return value->second;
 		else
-			return basicBlockMap[offset] = new BasicBlock();
+			return basicBlockMap[offset] = new(mMemory) BasicBlock();
 	};
 	BasicBlock* basicBlockHead = nullptr;
 	BasicBlock* basicBlockPrevious = nullptr;
@@ -536,6 +536,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		while (ppOfSameOffset != nullptr &&
 			ppOfSameOffset->ILOffset == ilOffset)
 		{
+			basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 			switch (ppOfSameOffset->Kind)
 			{
 			case PPKind::Conditional:
@@ -547,6 +548,9 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			case PPKind::Unconditional:
 				//Branched BB
 				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
+				break;
+			case PPKind::Ret:
+				basicBlockCurrent->BranchConditionValue = ppOfSameOffset->Value;
 				break;
 			case PPKind::Target:
 				//If this is a target from another BB.
@@ -595,16 +599,24 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		//Then we append this to our list.
 		AppendToTwoWayLinkedList(basicBlockHead, basicBlockPrevious, basicBlockCurrent);
 
-		//Logically sequential to the previous basic block. 	
-		basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
+		if(basicBlockPrevious == nullptr || 
+			basicBlockPrevious->BranchKind != PPKind::Ret)
+			//Logically sequential to the previous basic block if there is no return. 	
+			basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
-		//Update partition point to next one of new basic block.
+
+		//Update partition point to next one of new(mMemory) basic block.
 		partitionPoint = ppOfSameOffset;
 	}
 	return basicBlockHead;
 }
 
-RTJ::Hex::ILTransformer::ILTransformer(JITContext const& context) :mJITContext(context) {
+RTJ::Hex::ILTransformer::ILTransformer(
+	JITContext const& context,
+	JITMemory* memory
+)
+	:mJITContext(context),
+	mMemory(memory) {
 	mCodePtr = mJITContext.CodeSegment;
 	mPreviousCodePtr = mJITContext.CodeSegment;
 	mCodePtrBound = mJITContext.CodeSegment + mJITContext.SegmentLength;

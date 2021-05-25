@@ -28,6 +28,7 @@
     <ClInclude Include="Runtime\Core\Exception\RuntimeException.h" />
     <ClInclude Include="Runtime\Core\FieldTable.h" />
     <ClInclude Include="Runtime\Core\InterfaceDispatchTable.h" />
+    <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.h" />
@@ -37,6 +38,8 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITMemory.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />
@@ -71,6 +74,7 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp" />
     <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />
     <ClCompile Include="Runtime\Core\MethodTable.cpp" />

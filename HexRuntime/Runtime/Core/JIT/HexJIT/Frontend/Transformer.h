@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\JITContext.h"
+#include "..\JITMemory.h"
 #include "IR.h"
 #include "EvaluationStack.h"
 
@@ -16,6 +17,7 @@ namespace RTJ::Hex
 		const UInt8* mCodePtrBound = nullptr;
 		const UInt8* mPreviousCodePtr = nullptr;
 		EvaluationStack mEvalStack;
+		JITMemory* mMemory = nullptr;
 		// Current instruction BAE state
 
 		UInt8 mBaeIn = 0;
@@ -66,8 +68,8 @@ namespace RTJ::Hex
 		NewNode* GenerateNew();
 		NewArrayNode* GenerateNewArray();
 		CompareNode* GenerateCompare();
-		DuplicateNode* GenerateDuplicate();
-		ReturnNode* GenerateReturn();
+		TreeNode* GenerateDuplicate();
+		ReturnNode* GenerateReturn(BasicBlockPartitionPoint*& partitions);
 		BinaryArithmeticNode* GenerateBinaryArithmetic(UInt8 opcode);
 		UnaryArithmeticNode* GenerateUnaryArtithmetic(UInt8 opcode);
 		ConvertNode* GenerateConvert();
@@ -98,7 +100,7 @@ namespace RTJ::Hex
 		/// <returns></returns>
 		BasicBlock* PartitionToBB(Statement* unpartitionedStmt, BasicBlockPartitionPoint* partitions);
 	public:
-		ILTransformer(JITContext const&);
+		ILTransformer(JITContext const& context, JITMemory* memory);
 		BasicBlock* TransformILFrom();
 		
 	};
