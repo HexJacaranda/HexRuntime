@@ -53,20 +53,16 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 {
 	auto localIndex = ReadAs<Int16>();
 	auto local = new(mMemory) LocalVariableNode(GetRawContext()->LocalVariables[localIndex].Type.CoreType, localIndex);
-	if (SLMode == SLMode::Indirect)
-		return new(mMemory) LoadNode(SLMode::Indirect, local);
-	else
-		return local;
+	//Keep uniformity for convenience of traversal in SSA building
+	return new(mMemory) LoadNode(SLMode, local);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto argumentIndex = ReadAs<Int16>();
 	auto argument = new(mMemory) ArgumentNode(GetRawContext()->Arguments[argumentIndex].Type.CoreType, argumentIndex);
-	if (SLMode == SLMode::Indirect)
-		return new(mMemory) LoadNode(SLMode::Indirect, argument);
-	else
-		return argument;
+	//Keep uniformity for convenience of traversal in SSA building
+	return new(mMemory) LoadNode(SLMode, argument);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)

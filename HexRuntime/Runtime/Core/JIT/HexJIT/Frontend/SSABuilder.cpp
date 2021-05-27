@@ -111,45 +111,36 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 			stmtIterator = stmtIterator->Next)
 		{
 			auto node = stmtIterator->Now;
-			switch (node->Kind)
-			{
-			case NodeKinds::Store:
+			//The store node is always a stmt
+			if (node->Kind == NodeKinds::Store)
 			{
 				auto store = node->As<StoreNode>();
 				auto kind = store->Destination->Kind;
-				auto index = 0;
+				auto index = -1;
 
 				if (kind == NodeKinds::LocalVariable)
 					index = store->Destination->As<LocalVariableNode>()->LocalIndex;
 				else if (kind == NodeKinds::Argument)
 					index = store->Destination->As<ArgumentNode>()->ArgumentIndex;
-				else
-					break;
 
-				if (IsVariableTrackable(kind, index))
+				if (index != -1 && IsVariableTrackable(kind, index))
 					WriteVariable(kind, index, bbIterator->Index, store->Destination);
-				break;
 			}
-			case NodeKinds::Load:
-			{
-				auto load = node->As<LoadNode>();			
+
+			TraverseTree<256>(node, [&](TreeNode* value) {
+				auto load = node->As<LoadNode>();
 				auto kind = load->Source->Kind;
-				auto index = 0;
+				auto index = -1;
 
 				if (kind == NodeKinds::LocalVariable)
 					index = load->Source->As<LocalVariableNode>()->LocalIndex;
 				else if (kind == NodeKinds::Argument)
 					index = load->Source->As<ArgumentNode>()->ArgumentIndex;
-				else
-					break;
 
-				if (IsVariableTrackable(kind, index))
+				if (index != -1 && IsVariableTrackable(kind, index))
 					stmtIterator->Now = ReadVariable(kind, index, bbIterator->Index);
-				break;
-			}
-			}
+			});		
 		}
 	}
-
 	return mTarget;
 }
