@@ -108,4 +108,24 @@ namespace RT
 			return mStorage[index];
 		}
 	};
+
+	template<class T>
+	struct Array
+	{
+		T* Elements;
+		Int32 Count;
+
+		T* begin()const {
+			return Elements;
+		}
+		T* end()const {
+			return Elements + Count;
+		}
+		T& operator[](Int32 index) {
+			return Elements[index];
+		}
+		T const& operator[](Int32 index)const {
+			return Elements[index];
+		}
+	};
 }

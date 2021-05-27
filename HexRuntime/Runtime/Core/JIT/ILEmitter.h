@@ -99,5 +99,17 @@ namespace RTJ
 		/// <param name="entry"></param>
 		/// <param name="offset"></param>
 		void UpdateEntry(FlowEntry entry, Int32 offset);
+		/// <summary>
+		/// Emit load local variable or argument
+		/// </summary>
+		/// <param name="opcode"></param>
+		/// <param name="index"></param>
+		void EmitLoad(UInt8 opcode, Int16 index);
+		/// <summary>
+		/// Emit store local variable or argument
+		/// </summary>
+		/// <param name="opcode"></param>
+		/// <param name="index"></param>
+		void EmitStore(UInt8 opcode, Int16 index);
 	};
 }

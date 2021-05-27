@@ -6,12 +6,17 @@
 
 ForcedInline RT::Int32 RTJ::Hex::ILTransformer::GetOffset() const
 {
-	return mCodePtr - mJITContext.CodeSegment;
+	return mCodePtr - mJITContext->Context->CodeSegment;
 }
 
 ForcedInline RT::Int32 RTJ::Hex::ILTransformer::GetPreviousOffset() const
 {
-	return mPreviousCodePtr - mJITContext.CodeSegment;
+	return mPreviousCodePtr - mJITContext->Context->CodeSegment;
+}
+
+ForcedInline RTJ::JITContext* RTJ::Hex::ILTransformer::GetRawContext() const
+{
+	return mJITContext->Context;
 }
 
 ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
@@ -46,7 +51,8 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
 {
-	auto local = new(mMemory) LocalVariableNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>());
+	auto localIndex = ReadAs<Int16>();
+	auto local = new(mMemory) LocalVariableNode(GetRawContext()->LocalVariables[localIndex].Type.CoreType, localIndex);
 	if (SLMode == SLMode::Indirect)
 		return new(mMemory) LoadNode(SLMode::Indirect, local);
 	else
@@ -55,11 +61,12 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
-	auto local = new(mMemory) ArgumentNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>());
+	auto argumentIndex = ReadAs<Int16>();
+	auto argument = new(mMemory) ArgumentNode(GetRawContext()->Arguments[argumentIndex].Type.CoreType, argumentIndex);
 	if (SLMode == SLMode::Indirect)
-		return new(mMemory) LoadNode(SLMode::Indirect, local);
+		return new(mMemory) LoadNode(SLMode::Indirect, argument);
 	else
-		return local;
+		return argument;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
@@ -143,15 +150,19 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 {
+	auto argumentIndex = ReadAs<Int16>();
+	auto coreType = GetRawContext()->Arguments[argumentIndex].Type.CoreType;
 	return new(mMemory) StoreNode(
-		new(mMemory) ArgumentNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>()),
+		new(mMemory) ArgumentNode(coreType, argumentIndex),
 		mEvalStack.Pop());
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
+	auto localIndex = ReadAs<Int16>();
+	auto coreType = GetRawContext()->LocalVariables[localIndex].Type.CoreType;
 	return new(mMemory) StoreNode(
-		new(mMemory) LocalVariableNode(OpCodeOperandTypeConstant::I1, ReadAs<Int16>()),
+		new(mMemory) LocalVariableNode(coreType, localIndex),
 		mEvalStack.Pop());
 }
 
@@ -245,7 +256,7 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 	return new(mMemory) ConvertNode(value, from, to);
 }
 
-void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto value = mEvalStack.Pop();
 	auto jccOffset = ReadAs<Int32>();
@@ -264,6 +275,7 @@ void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partition
 		[&](BasicBlockPartitionPoint* x) {
 			return branchedPoint->ILOffset <= x->ILOffset;
 		});
+	return value;
 }
 
 void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partitions)
@@ -338,8 +350,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 
 		case OpCodes::Jcc:
 		{
-			GenerateJccPP(partitions);
-			IL_TRY_GEN_STMT_CRITICAL(nullptr, true);
+			IL_TRY_GEN_STMT_CRITICAL(GenerateJccPP(partitions), true);
 			break;
 		}
 		case OpCodes::Jmp:
@@ -521,6 +532,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 	BasicBlock* basicBlockCurrent = nullptr;
 
 	Statement* beginOfStmts = unpartitionedStmt;
+	Int32 basicBlockIndex = 0;
 
 	auto partitionPoint = partitions;
 	while (partitionPoint != nullptr)
@@ -528,6 +540,10 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		auto ilOffset = partitionPoint->ILOffset;
 
 		basicBlockCurrent = getBBFromMap(ilOffset);
+		//Set basic block index
+		basicBlockCurrent->Index = basicBlockIndex;
+		basicBlockIndex++;
+		mJITContext->BBs.push_back(basicBlockCurrent);
 
 		//Firstly we will introduce all the features for basic block.	
 		//Partition points with same offset.
@@ -536,7 +552,6 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		while (ppOfSameOffset != nullptr &&
 			ppOfSameOffset->ILOffset == ilOffset)
 		{
-			basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 			switch (ppOfSameOffset->Kind)
 			{
 			case PPKind::Conditional:
@@ -544,13 +559,19 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 				basicBlockCurrent->BranchConditionValue = ppOfSameOffset->Value;
 				//Branched BB
 				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
+				//Set branch kind
+				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 				break;
 			case PPKind::Unconditional:
 				//Branched BB
 				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
+				//Set branch kind
+				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 				break;
 			case PPKind::Ret:
 				basicBlockCurrent->BranchConditionValue = ppOfSameOffset->Value;
+				//Set branch kind
+				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 				break;
 			case PPKind::Target:
 				//If this is a target from another BB.
@@ -577,7 +598,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			auto previousOfIterator = beginOfStmts;
 			//Traverse until we meet the next stmt belonging to another basic block.
 			while (iteratorOfStmt != nullptr &&
-				iteratorOfStmt->ILOffset < ppOfSameOffset->ILOffset)
+				iteratorOfStmt->ILOffset < partitionPoint->ILOffset)
 			{
 				previousOfIterator = iteratorOfStmt;
 				iteratorOfStmt = iteratorOfStmt->Next;
@@ -595,7 +616,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			//Update the location where we should start next time.
 			beginOfStmts = iteratorOfStmt;
 		}
-
+		
 		//Then we append this to our list.
 		AppendToTwoWayLinkedList(basicBlockHead, basicBlockPrevious, basicBlockCurrent);
 
@@ -605,21 +626,21 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
 
-		//Update partition point to next one of new(mMemory) basic block.
+		//Update partition point to next one of new basic block.
 		partitionPoint = ppOfSameOffset;
 	}
 	return basicBlockHead;
 }
 
 RTJ::Hex::ILTransformer::ILTransformer(
-	JITContext const& context,
+	HexJITContext* context,
 	JITMemory* memory
 )
 	:mJITContext(context),
 	mMemory(memory) {
-	mCodePtr = mJITContext.CodeSegment;
-	mPreviousCodePtr = mJITContext.CodeSegment;
-	mCodePtrBound = mJITContext.CodeSegment + mJITContext.SegmentLength;
+	mCodePtr = mJITContext->Context->CodeSegment;
+	mPreviousCodePtr = mJITContext->Context->CodeSegment;
+	mCodePtrBound = mJITContext->Context->CodeSegment + mJITContext->Context->SegmentLength;
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::TransformILFrom()

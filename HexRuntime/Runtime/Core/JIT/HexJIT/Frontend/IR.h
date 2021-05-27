@@ -432,26 +432,25 @@ namespace RTJ::Hex
 
 	namespace SSA
 	{
-		struct DeclareNode
-		{
-
-		};
-
-		struct AssignNode
-		{
-
-		};
-
 		/// <summary>
 		/// Phi node to choose branch
 		/// </summary>
 		struct PhiNode : TreeNode
 		{
-			BasicBlock* Belonging;
+			BasicBlock* Belonging = nullptr;
 			std::vector<TreeNode*> Choices;
+			TreeNode* OriginValue = nullptr;
 		public:
-			PhiNode(BasicBlock* belonging)
-				:TreeNode(NodeKinds::Phi), Belonging(belonging) {
+			PhiNode(TreeNode* value):
+				TreeNode(NodeKinds::Phi),
+				OriginValue(value) {
+			}
+			PhiNode(BasicBlock* belongs) :
+				TreeNode(NodeKinds::Phi),
+				Belonging(belongs) {
+			}
+			bool IsRemoved()const {
+				return Belonging == nullptr;
 			}
 		};
 	}

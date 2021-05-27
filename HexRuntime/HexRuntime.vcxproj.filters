@@ -209,9 +209,6 @@
     <ClCompile Include="Runtime\Core\Builders\TypeBuilder.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Type\TypeRepresentation.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

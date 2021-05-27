@@ -84,7 +84,6 @@
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
     <ClCompile Include="Runtime\Core\Type\AssemblyContext.cpp" />
     <ClCompile Include="Runtime\Core\Type\Type.cpp" />
-    <ClCompile Include="Runtime\Core\Type\TypeRepresentation.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

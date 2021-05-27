@@ -1,16 +1,19 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "..\..\Utility.h"
+#include "..\Type\TypeRepresentation.h"
+#include <vector>
 
 namespace RTJ
 {
 	struct LocalVariableInfo
 	{
-		UInt32 TypeReference;
+		TypeRepresentation Type;
 	};
 
 	struct ArgumentInfo
 	{
-		UInt32 TypeReference;
+		TypeRepresentation Type;
 		UInt64 DefaultValue;
 	};
 
@@ -41,10 +44,10 @@ namespace RTJ
 		/// <summary>
 		/// Local variable
 		/// </summary>
-		LocalVariableInfo* LocalVariables;
+		std::vector<LocalVariableInfo> LocalVariables;
 		/// <summary>
 		/// Arguments
 		/// </summary>
-		ArgumentInfo* Arguments;	
+		std::vector<ArgumentInfo> Arguments;
 	};
 }

@@ -1,29 +1,33 @@
 #pragma once
 #include "..\..\..\RuntimeAlias.h"
-#include "Frontend/IR.h"
+#include "..\..\..\Utility.h"
+#include "Frontend\IR.h"
+#include "..\JITContext.h"
 #include <vector>
 
 namespace RTJ::Hex
 {
-	struct RWRecord
+	enum class SSATrackability
 	{
-		UInt8 Flag;
-		TreeNode** UpdatePoint;
+		Pending,
+		Ok,
+		Forbidden,
 	};
 
 	struct HexJITContext
 	{
+		JITContext* Context;
 		/// <summary>
 		/// Indicate the trackability of local variable
 		/// </summary>
-		bool* LocalVariableSSATrackable;
+		std::vector<SSATrackability> LocalSSATrackability;
 		/// <summary>
 		/// Indicate the trackability of arugments
 		/// </summary>
-		bool* ArgumentsVariableSSATrackable;
+		std::vector<SSATrackability> ArgumentSSATrackability;
 		/// <summary>
-		/// Record the writes/reads of local/argument variables
+		/// Index to basic block
 		/// </summary>
-		std::vector<RWRecord> SSARWRecords;
+		std::vector<BasicBlock*> BBs;
 	};
 }

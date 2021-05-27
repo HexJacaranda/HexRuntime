@@ -26,7 +26,6 @@ namespace Runtime
 
 #define RT  Runtime
 #define RTC Runtime::Core
-#define RTD Runtime::Core::Descriptor
 #define RTO Runtime::Core::ManagedObject
 #define RTB Runtime::Core::Builder
 #define RTM Runtime::Core::Meta

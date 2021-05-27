@@ -1,6 +1,6 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
-#include "..\..\JITContext.h"
+#include "..\HexJITContext.h"
 #include "..\JITMemory.h"
 #include "IR.h"
 #include "EvaluationStack.h"
@@ -12,7 +12,7 @@ namespace RTJ::Hex
 	/// </summary>
 	class ILTransformer
 	{
-		JITContext mJITContext;
+		HexJITContext* mJITContext;
 		const UInt8* mCodePtr = nullptr;
 		const UInt8* mCodePtrBound = nullptr;
 		const UInt8* mPreviousCodePtr = nullptr;
@@ -47,6 +47,12 @@ namespace RTJ::Hex
 		ForcedInline Int32 GetPreviousOffset()const;
 
 		/// <summary>
+		/// Get the raw context of our context
+		/// </summary>
+		/// <returns></returns>
+		ForcedInline JITContext* GetRawContext()const;
+
+		/// <summary>
 		/// Decode the instruction at current memory
 		/// </summary>
 		/// <param name="opcode">opcode value</param>
@@ -74,7 +80,7 @@ namespace RTJ::Hex
 		UnaryArithmeticNode* GenerateUnaryArtithmetic(UInt8 opcode);
 		ConvertNode* GenerateConvert();
 
-		void GenerateJccPP(BasicBlockPartitionPoint*& partitions);
+		TreeNode* GenerateJccPP(BasicBlockPartitionPoint*& partitions);
 		void GenerateJmpPP(BasicBlockPartitionPoint*& partitions);
 
 		/// <summary>
@@ -100,8 +106,7 @@ namespace RTJ::Hex
 		/// <returns></returns>
 		BasicBlock* PartitionToBB(Statement* unpartitionedStmt, BasicBlockPartitionPoint* partitions);
 	public:
-		ILTransformer(JITContext const& context, JITMemory* memory);
+		ILTransformer(HexJITContext* context, JITMemory* memory);
 		BasicBlock* TransformILFrom();
-		
 	};
 }

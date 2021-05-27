@@ -1,40 +1,82 @@
 #include "SSABuilder.h"
 #include "IR.h"
+#include "..\..\..\Type\CoreTypes.h"
 
-void RTJ::Hex::SSABuilder::WriteVariable(Int16 variableIndex, Int32 blockIndex, TreeNode* value)
+void RTJ::Hex::SSABuilder::DecideSSATrackability()
 {
-	mCurrentDefinition[variableIndex][blockIndex] = value;
+	/*
+	 * Usually we won't track any type modified with pointer or
+	 * marked not primitive. But the nullability of reference
+	 * is involved in tracking for eliminating redundant checks
+	 */
+
+	auto isTrackable = [](TypeRepresentation const& type) {
+		if (type.CoreType < CoreTypes::Struct || type.CoreType == CoreTypes::Ref)
+			return SSATrackability::Ok;
+		return SSATrackability::Forbidden;
+	};
+	auto rawContext = mJITContext->Context;
+	if (rawContext->LocalVariables.size())
+		mJITContext->LocalSSATrackability = std::move(
+			std::vector<SSATrackability>(rawContext->LocalVariables.size()));
+	if (rawContext->Arguments.size())
+		mJITContext->ArgumentSSATrackability = std::move(
+			std::vector<SSATrackability>(rawContext->Arguments.size()));
+
+	for (Int32 i = 0; i < rawContext->LocalVariables.size(); ++i)
+		mJITContext->LocalSSATrackability[i] = isTrackable(rawContext->LocalVariables[i].Type);
+
+	for (Int32 i = 0; i < rawContext->Arguments.size(); ++i)
+		mJITContext->ArgumentSSATrackability[i] = isTrackable(rawContext->Arguments[i].Type);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(Int16 variableIndex, Int32 blockIndex)
+bool RTJ::Hex::SSABuilder::IsVariableTrackable(NodeKinds kind, Int16 variableIndex)
 {
-	auto ret = mCurrentDefinition[variableIndex][blockIndex];
+	return mJITContext->LocalSSATrackability[variableIndex] == SSATrackability::Ok;
+}
+
+void RTJ::Hex::SSABuilder::WriteVariable(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, TreeNode* value)
+{
+	if (kind == NodeKinds::LocalVariable)
+		mLocalDefinition[variableIndex][blockIndex] = value;
+	else
+		mArgumentDefinition[variableIndex][blockIndex] = value;
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(NodeKinds kind, Int16 variableIndex, Int32 blockIndex)
+{
+	TreeNode* ret = nullptr;
+	if (kind == NodeKinds::LocalVariable)
+		ret = mLocalDefinition[variableIndex][blockIndex];
+	else
+		ret = mArgumentDefinition[variableIndex][blockIndex];
+
 	if (ret != nullptr)
 		return ret;
-	return ReadVariableLookUp(variableIndex, blockIndex);
+	return ReadVariableLookUp(kind, variableIndex, blockIndex);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(Int16 variableIndex, Int32 blockIndex)
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int16 variableIndex, Int32 blockIndex)
 {
-	BasicBlock* block = mBBs[blockIndex];
+	BasicBlock* block = mJITContext->BBs[blockIndex];
 	TreeNode* value = nullptr;
 	if (block->BBIn.size() == 1)
-		value = ReadVariable(variableIndex, block->Index);
+		value = ReadVariable(kind, variableIndex, block->Index);
 	else
 	{
 		auto phi = new SSA::PhiNode(block);		
-		WriteVariable(variableIndex, blockIndex, phi);
-		value = AddPhiOperands(variableIndex, blockIndex, phi);
+		WriteVariable(kind, variableIndex, blockIndex, phi);
+		value = AddPhiOperands(kind, variableIndex, blockIndex, phi);
 	}
-	WriteVariable(variableIndex, blockIndex, value);
+	WriteVariable(kind, variableIndex, blockIndex, value);
 	return value;
 }
 
-RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::AddPhiOperands(Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
+RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
 {
-	BasicBlock* block = mBBs[blockIndex];
+	BasicBlock* block = mJITContext->BBs[blockIndex];
 	for (auto&& predecessor : block->BBIn)
-		phiNode->Choices.push_back(ReadVariable(variableIndex, predecessor->Index));
+		phiNode->Choices.push_back(ReadVariable(kind, variableIndex, predecessor->Index));
 	return TryRemoveRedundantPhiNode(phiNode);
 }
 
@@ -43,30 +85,69 @@ RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::Phi
 	return phiNode;
 }
 
+RTJ::Hex::SSABuilder::SSABuilder(HexJITContext* jitContext) :
+	mJITContext(jitContext),
+	mTarget(jitContext->BBs[0]) 
+{
+
+}
+
 RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 {
+	//Initialize
+	DecideSSATrackability();
+	mArgumentDefinition = std::move(
+		std::vector<std::unordered_map<Int16, TreeNode*>>(mJITContext->Context->Arguments.size()));
+	mLocalDefinition = std::move(
+		std::vector<std::unordered_map<Int16, TreeNode*>>(mJITContext->Context->LocalVariables.size()));
+
 	//Traverse to find every write or read for local variables marked trackable.
 	for (BasicBlock* bbIterator = mTarget; 
 		bbIterator != nullptr; 
 		bbIterator = bbIterator->Next)
 	{
 		for (Statement* stmtIterator = bbIterator->Now;
-			stmtIterator != nullptr;
+			stmtIterator != nullptr && stmtIterator->Now != nullptr;
 			stmtIterator = stmtIterator->Next)
 		{
-			TraverseTree<256>(stmtIterator->Now, [&](TreeNode* node) {
-				switch (node->Kind)
-				{
-				case NodeKinds::Store:
-				{
+			auto node = stmtIterator->Now;
+			switch (node->Kind)
+			{
+			case NodeKinds::Store:
+			{
+				auto store = node->As<StoreNode>();
+				auto kind = store->Destination->Kind;
+				auto index = 0;
+
+				if (kind == NodeKinds::LocalVariable)
+					index = store->Destination->As<LocalVariableNode>()->LocalIndex;
+				else if (kind == NodeKinds::Argument)
+					index = store->Destination->As<ArgumentNode>()->ArgumentIndex;
+				else
 					break;
-				}
-				case NodeKinds::Load:
-				{
+
+				if (IsVariableTrackable(kind, index))
+					WriteVariable(kind, index, bbIterator->Index, store->Destination);
+				break;
+			}
+			case NodeKinds::Load:
+			{
+				auto load = node->As<LoadNode>();			
+				auto kind = load->Source->Kind;
+				auto index = 0;
+
+				if (kind == NodeKinds::LocalVariable)
+					index = load->Source->As<LocalVariableNode>()->LocalIndex;
+				else if (kind == NodeKinds::Argument)
+					index = load->Source->As<ArgumentNode>()->ArgumentIndex;
+				else
 					break;
-				}
-				}	
-			});
+
+				if (IsVariableTrackable(kind, index))
+					stmtIterator->Now = ReadVariable(kind, index, bbIterator->Index);
+				break;
+			}
+			}
 		}
 	}
 

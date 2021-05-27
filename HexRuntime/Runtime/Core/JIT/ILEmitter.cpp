@@ -105,3 +105,19 @@ void RTJ::ILEmitter::UpdateEntry(FlowEntry entry, Int32 offset)
 {
 	*(Int32*)(mIL + entry.Offset) = offset;
 }
+
+void RTJ::ILEmitter::EmitLoad(UInt8 opcode, Int16 index)
+{
+	Requires(OpcodeSize + sizeof(Int16));
+	Write(opcode);
+	Write(OpCodes::LdArgBae);
+	Write(index);
+}
+
+void RTJ::ILEmitter::EmitStore(UInt8 opcode, Int16 index)
+{
+	Requires(OpcodeSize + sizeof(Int16));
+	Write(opcode);
+	Write(OpCodes::StArgBae);
+	Write(index);
+}
