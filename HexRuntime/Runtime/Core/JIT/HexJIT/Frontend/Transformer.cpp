@@ -3,6 +3,7 @@
 #include "..\..\..\..\Utility.h"
 #include "..\..\..\Exception\RuntimeException.h"
 #include <unordered_map>
+#include <assert.h>
 
 ForcedInline RT::Int32 RTJ::Hex::ILTransformer::GetOffset() const
 {
@@ -222,8 +223,10 @@ RTJ::Hex::ReturnNode* RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitio
 	if (mBaeIn == 1)
 		ret = mEvalStack.Pop();
 	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Ret, GetOffset(), ret);
-	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
-		[&](BasicBlockPartitionPoint* x) {
+	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
+		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
+			if (currentPoint->ILOffset == x->ILOffset && x->Kind == PPKind::Target)
+				option = InsertOption::Before;
 			return currentPoint->ILOffset <= x->ILOffset;
 	});
 	return new(mMemory) ReturnNode(ret);
@@ -259,16 +262,18 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPo
 	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
 	currentPoint->TargetILOffset = jccOffset;
 
-	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
+	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, GetOffset(), nullptr);
 	//Append current point into list
-	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
-		[&](BasicBlockPartitionPoint* x) {
+	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
+		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
+			if (currentPoint->ILOffset == x->ILOffset && x->Kind == PPKind::Target)
+				option = InsertOption::Before;
 			return currentPoint->ILOffset <= x->ILOffset;
 		});
 
 	//Append branched to list
-	AppendToOneWayLinkedListOrdered(partitions, branchedPoint,
-		[&](BasicBlockPartitionPoint* x) {
+	LinkedList::AppendOneWayOrdered(partitions, branchedPoint,
+		[&](BasicBlockPartitionPoint* x, InsertOption&) {
 			return branchedPoint->ILOffset <= x->ILOffset;
 		});
 	return value;
@@ -276,19 +281,22 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPo
 
 void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partitions)
 {
-	auto jmpOffset = ReadAs<Int16>();
-	auto branchedOffset = GetOffset() + jmpOffset;
+	auto jmpOffset = ReadAs<Int32>();
 	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
-	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, branchedOffset, nullptr);
+	currentPoint->TargetILOffset = jmpOffset;
+
+	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, GetOffset(), nullptr);
 	//Append current point into list
-	AppendToOneWayLinkedListOrdered(partitions, currentPoint,
-		[&](BasicBlockPartitionPoint* x) {
+	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
+		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
+			if (currentPoint->ILOffset == x->ILOffset && x->Kind == PPKind::Target)
+				option = InsertOption::Before;
 			return currentPoint->ILOffset <= x->ILOffset;
 		});
 
 	//Append branched to list
-	AppendToOneWayLinkedListOrdered(partitions, branchedPoint,
-		[&](BasicBlockPartitionPoint* x) {
+	LinkedList::AppendOneWayOrdered(partitions, branchedPoint,
+		[&](BasicBlockPartitionPoint* x, InsertOption&) {
 			return branchedPoint->ILOffset <= x->ILOffset;
 		});
 }
@@ -318,7 +326,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 																stmtPrevious == nullptr ? 0 : stmtPrevious->EndOffset,\
 																CRITICAL); \
 							if (stmtCurrent == nullptr) { mEvalStack.Push(node); } \
-							else AppendToTwoWayLinkedList(stmtHead, stmtPrevious, stmtCurrent)
+							else LinkedList::AppendTwoWay(stmtHead, stmtPrevious, stmtCurrent)
 
 	//Try generate statement for operation and thread it if possible
 #define IL_TRY_GEN_STMT(OP) IL_TRY_GEN_STMT_CRITICAL(OP, false)
@@ -507,7 +515,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartitionedStmt, BasicBlockPartitionPoint* partitions)
 {
 	//If no partition points, return directly
-	if (partitions == nullptr)
+	if (partitions == nullptr || unpartitionedStmt == nullptr)
 	{
 		auto ret = new(mMemory) BasicBlock();
 		ret->Now = unpartitionedStmt;
@@ -530,23 +538,51 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 	Statement* beginOfStmts = unpartitionedStmt;
 	Int32 basicBlockIndex = 0;
 
+	/*A BB may be described by two parts: Target(s) and its ending control flow.
+	* Target PP may be multiple and they should be of the same offset (BB1).
+	* There may not be any leading target for BB (BB3).
+	* And there may not be any ending control flow (BB2).
+	* A comprehensive case: (BB1: Target -> Target -> Jcc) -> (BB2: Target) -> (BB3: Jmp)
+	*/
+
 	auto partitionPoint = partitions;
 	while (partitionPoint != nullptr)
-	{
-		auto ilOffset = partitionPoint->ILOffset;
-
-		basicBlockCurrent = getBBFromMap(ilOffset);
+	{		
+		//Get the offset of basic block according to the beginning stmt
+		basicBlockCurrent = getBBFromMap(beginOfStmts->ILOffset);
 		//Set basic block index
 		basicBlockCurrent->Index = basicBlockIndex;
 		basicBlockIndex++;
+		//Add index to BB mapping
 		mJITContext->BBs.push_back(basicBlockCurrent);
 
+		auto ilOffset = partitionPoint->ILOffset;
 		//Firstly we will introduce all the features for basic block.	
+		
 		//Partition points with same offset.
 		auto ppOfSameOffset = partitionPoint;
-		//Find out the partition points describing the current BB.
+
+		//Set the properties of current BB
+
+		//With leading target PP(s)
+		if (partitionPoint->Kind == PPKind::Target)
+		{		
+			//Ignore leading pp(s)
+			while (ppOfSameOffset != nullptr &&
+				ppOfSameOffset->ILOffset == ilOffset &&
+				ppOfSameOffset->Kind == PPKind::Target)
+			{
+				ppOfSameOffset = ppOfSameOffset->Next;
+			}
+			//If not null, update the il offset for ending control flow
+			if (ppOfSameOffset != nullptr)
+				ilOffset = ppOfSameOffset->ILOffset;
+		}
+		
+		//Should not be target PP
 		while (ppOfSameOffset != nullptr &&
-			ppOfSameOffset->ILOffset == ilOffset)
+			ppOfSameOffset->ILOffset == ilOffset &&
+			ppOfSameOffset->Kind != PPKind::Target)
 		{
 			switch (ppOfSameOffset->Kind)
 			{
@@ -557,27 +593,26 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
 				//Set branch kind
 				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
+				//Add current BB to BBIn
+				basicBlockCurrent->BranchedBB->BBIn.push_back(basicBlockCurrent);
 				break;
 			case PPKind::Unconditional:
 				//Branched BB
 				basicBlockCurrent->BranchedBB = getBBFromMap(ppOfSameOffset->TargetILOffset);
 				//Set branch kind
 				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
+				//Add current BB to BBIn
+				basicBlockCurrent->BranchedBB->BBIn.push_back(basicBlockCurrent);
 				break;
 			case PPKind::Ret:
 				basicBlockCurrent->BranchConditionValue = ppOfSameOffset->Value;
 				//Set branch kind
 				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 				break;
-			case PPKind::Target:
-				//If this is a target from another BB.
-				basicBlockCurrent->BBIn.push_back(getBBFromMap(ppOfSameOffset->ILOffset));
-				break;
 			default:
 				RTE::Throw(Text("Unknown PP kind"));
 			}
 
-			//Move on
 			ppOfSameOffset = ppOfSameOffset->Next;
 		}
 
@@ -613,14 +648,14 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			beginOfStmts = iteratorOfStmt;
 		}
 		
-		//Then we append this to our list.
-		AppendToTwoWayLinkedList(basicBlockHead, basicBlockPrevious, basicBlockCurrent);
-
-		if(basicBlockPrevious == nullptr || 
-			basicBlockPrevious->BranchKind != PPKind::Ret)
+		//Append to linked list will change the previous BB to current
+		if (basicBlockPrevious == nullptr ||
+			basicBlockPrevious->BranchKind == PPKind::Conditional)
 			//Logically sequential to the previous basic block if there is no return. 	
 			basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
+		//Then we append this to our list.
+		LinkedList::AppendTwoWay(basicBlockHead, basicBlockPrevious, basicBlockCurrent);
 
 		//Update partition point to next one of new basic block.
 		partitionPoint = ppOfSameOffset;

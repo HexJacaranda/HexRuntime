@@ -61,7 +61,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	TreeNode* value = nullptr;
 	if (block->BBIn.size() == 1)
-		value = ReadVariable(kind, variableIndex, block->Index);
+		value = ReadVariable(kind, variableIndex, block->BBIn[0]->Index);
 	else
 	{
 		auto phi = new SSA::PhiNode(block);		
@@ -118,27 +118,26 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 				auto kind = store->Destination->Kind;
 				auto index = -1;
 
-				if (kind == NodeKinds::LocalVariable)
+				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
 					index = store->Destination->As<LocalVariableNode>()->LocalIndex;
-				else if (kind == NodeKinds::Argument)
-					index = store->Destination->As<ArgumentNode>()->ArgumentIndex;
 
 				if (index != -1 && IsVariableTrackable(kind, index))
-					WriteVariable(kind, index, bbIterator->Index, store->Destination);
+					WriteVariable(kind, index, bbIterator->Index, store->Source);
 			}
 
-			TraverseTree<256>(node, [&](TreeNode* value) {
-				auto load = node->As<LoadNode>();
+			TraverseTree<256>(node, [&](TreeNode*& value) {
+				if (!value->Is(NodeKinds::Load))
+					return;
+
+				auto load = value->As<LoadNode>();
 				auto kind = load->Source->Kind;
 				auto index = -1;
 
-				if (kind == NodeKinds::LocalVariable)
+				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
 					index = load->Source->As<LocalVariableNode>()->LocalIndex;
-				else if (kind == NodeKinds::Argument)
-					index = load->Source->As<ArgumentNode>()->ArgumentIndex;
 
 				if (index != -1 && IsVariableTrackable(kind, index))
-					stmtIterator->Now = ReadVariable(kind, index, bbIterator->Index);
+					value = ReadVariable(kind, index, bbIterator->Index);
 			});		
 		}
 	}

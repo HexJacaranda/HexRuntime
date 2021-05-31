@@ -66,13 +66,9 @@ void SSABuild()
 	* LdLoc 1
 	* Cmp EQ
 	* Jcc label
-	* LdC 2
-	* StLoc 0
 	* LdLoc 0
 	* Ret
 	* .label:
-	* LdC 4
-	* StLoc 1
 	* LdLoc 1
 	* Ret
 	*/
@@ -88,17 +84,12 @@ void SSABuild()
 	il.EmitCompare(CmpCondition::EQ);
 
 	auto entry = il.EmitJcc(0);
-
-	il.EmitLdC(CoreTypes::I4, 2);
-	il.EmitStore(OpCodes::StLoc, 0);
 	il.EmitLoad(OpCodes::LdLoc, 0);
 	il.Emit(OpCodes::Ret, 0x10);
 
 	auto update = il.GetOffset();
 	il.UpdateEntry(entry, update);
 
-	il.EmitLdC(CoreTypes::I4, 4);
-	il.EmitStore(OpCodes::StLoc, 1);
 	il.EmitLoad(OpCodes::LdLoc, 1);
 	il.Emit(OpCodes::Ret, 0x10);
 
@@ -111,8 +102,9 @@ void SSABuild()
 	Hex::HexJITContext hexContext;
 	hexContext.Context = &context;
 
+	Hex::JITMemory hexMemory;
 	
-	Hex::ILTransformer transformer{ &hexContext , new Hex::JITMemory() };
+	Hex::ILTransformer transformer{ &hexContext , &hexMemory };
 	auto bb = transformer.TransformILFrom();
 
 	Hex::SSABuilder ssaBuilder{ &hexContext };

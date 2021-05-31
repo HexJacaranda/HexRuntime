@@ -88,24 +88,26 @@ namespace RTJ::Hex
 		};
 	};
 
-	struct ArgumentNode : TreeNode
-	{
-		ArgumentNode(UInt8 valueType, Int16 argumentIndex)
-			:TreeNode(NodeKinds::Argument),
-			ValueType(valueType),
-			ArgumentIndex(argumentIndex) {}
-		UInt8 ValueType = 0;
-		Int16 ArgumentIndex = 0;
-	};
-
 	struct LocalVariableNode : TreeNode
 	{
 		LocalVariableNode(UInt8 valueType, Int16 localIndex)
 			:TreeNode(NodeKinds::LocalVariable),
 			ValueType(valueType),
 			LocalIndex(localIndex) {}
+		LocalVariableNode(NodeKinds kind, UInt8 valueType, Int16 localIndex)
+			:TreeNode(kind),
+			ValueType(valueType),
+			LocalIndex(localIndex) {}
+
 		UInt8 ValueType = 0;
 		Int16 LocalIndex = 0;
+	};
+
+	struct ArgumentNode : LocalVariableNode
+	{
+		ArgumentNode(UInt8 valueType, Int16 argumentIndex)
+			: LocalVariableNode(NodeKinds::Argument, valueType, argumentIndex) {
+		}
 	};
 
 	struct CallNode : TreeNode
@@ -313,23 +315,27 @@ namespace RTJ::Hex
 	template<size_t StackDepth, class Fn>
 	static void TraverseTree(TreeNode* source, Fn&& action)
 	{
-		std::array<TreeNode*, StackDepth> stack{};
+		//Store reference for modifying pointer
+		std::array<TreeNode**, StackDepth> stack{};
 		Int32 index = 0;
 
-		auto pushStack = [&](TreeNode* value) {
+		auto pushStack = [&](TreeNode** value) {
 			if (index < stack.size())
 				stack[index++] = value;
 		};
 		auto popStack = [&]() {
 			return stack[--index];
 		};
+		//Push stack first
+		pushStack(&source);
 
 		while (index > 0)
 		{
-			auto current = popStack();
+			auto currentReference = popStack();
+			auto&& current = *currentReference;
 			//Do custom action
 			action(current);
-			switch (source->Kind)
+			switch (current->Kind)
 			{
 			//Binary access
 			case NodeKinds::Store:
@@ -339,8 +345,8 @@ namespace RTJ::Hex
 
 			{
 				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
-				pushStack(proxy->First);
-				pushStack(proxy->Second);
+				pushStack(&proxy->First);
+				pushStack(&proxy->Second);
 				break;
 			}
 			//Unary access
@@ -351,7 +357,7 @@ namespace RTJ::Hex
 			case NodeKinds::Duplicate:
 			{
 				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
-				pushStack(proxy->Value);
+				pushStack(&proxy->Value);
 				break;
 			}
 			//Multiple access 
@@ -361,7 +367,7 @@ namespace RTJ::Hex
 			{
 				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
 				for (Int32 i = 0; i < proxy->Count; ++i)
-					pushStack(proxy->Values[i]);
+					pushStack(&proxy->Values[i]);
 				break;
 			}
 			}
@@ -383,6 +389,12 @@ namespace RTJ::Hex
 		TreeNode* Now;
 	};
 
+	/// <summary>
+	/// PP kind indicates the property of partition point.
+	/// PPKind::Target should always be ordered after other kinds
+	/// in case there are many PPs with same offsets to distinguish
+	/// the BB it should belong to
+	/// </summary>
 	enum class PPKind
 	{
 		Conditional,
