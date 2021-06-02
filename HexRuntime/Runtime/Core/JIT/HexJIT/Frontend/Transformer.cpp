@@ -100,7 +100,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
 {
 	auto stringToken = ReadAs<UInt32>();
 	auto ret = new(mMemory) ConstantNode(CoreTypes::String);
-	ret->X86Ref = stringToken;
+	ret->StringToken = stringToken;
 	return ret;
 }
 
@@ -115,10 +115,6 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
 	case 2: ret->I2 = ReadAs<Int16>(); break;
 	case 4: ret->I4 = ReadAs<Int32>(); break;
 	case 8: ret->I8 = ReadAs<Int64>(); break;
-	case 16:
-		ret->X64InteriorRef[0] = ReadAs<UInt64>();
-		ret->X64InteriorRef[1] = ReadAs<UInt64>();
-		break;
 	case -1:
 		//Should never reach here.
 		break;
@@ -563,21 +559,17 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		auto ppOfSameOffset = partitionPoint;
 
 		//Set the properties of current BB
-
-		//With leading target PP(s)
-		if (partitionPoint->Kind == PPKind::Target)
-		{		
-			//Ignore leading pp(s)
-			while (ppOfSameOffset != nullptr &&
-				ppOfSameOffset->ILOffset == ilOffset &&
-				ppOfSameOffset->Kind == PPKind::Target)
-			{
-				ppOfSameOffset = ppOfSameOffset->Next;
-			}
-			//If not null, update the il offset for ending control flow
-			if (ppOfSameOffset != nullptr)
-				ilOffset = ppOfSameOffset->ILOffset;
+ 
+		//Ignore leading pp(s)
+		while (ppOfSameOffset != nullptr &&
+			ppOfSameOffset->ILOffset == ilOffset &&
+			ppOfSameOffset->Kind == PPKind::Target)
+		{
+			ppOfSameOffset = ppOfSameOffset->Next;
 		}
+		//If not null, update the il offset for ending control flow
+		if (ppOfSameOffset != nullptr)
+			ilOffset = ppOfSameOffset->ILOffset;
 		
 		//Should not be target PP
 		while (ppOfSameOffset != nullptr &&
@@ -664,11 +656,10 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 }
 
 RTJ::Hex::ILTransformer::ILTransformer(
-	HexJITContext* context,
-	JITMemory* memory
+	HexJITContext* context
 )
 	:mJITContext(context),
-	mMemory(memory) {
+	mMemory(context->Memory) {
 	mCodePtr = mJITContext->Context->CodeSegment;
 	mPreviousCodePtr = mJITContext->Context->CodeSegment;
 	mCodePtrBound = mJITContext->Context->CodeSegment + mJITContext->Context->SegmentLength;

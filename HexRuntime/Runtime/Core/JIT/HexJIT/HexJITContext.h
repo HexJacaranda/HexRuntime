@@ -3,6 +3,7 @@
 #include "..\..\..\Utility.h"
 #include "Frontend\IR.h"
 #include "..\JITContext.h"
+#include "JITMemory.h"
 #include <vector>
 
 namespace RTJ::Hex
@@ -16,6 +17,10 @@ namespace RTJ::Hex
 
 	struct HexJITContext
 	{
+		/// <summary>
+		/// Allocator
+		/// </summary>
+		JITMemory* Memory;
 		JITContext* Context;
 		/// <summary>
 		/// Indicate the trackability of local variable
@@ -29,5 +34,6 @@ namespace RTJ::Hex
 		/// Index to basic block
 		/// </summary>
 		std::vector<BasicBlock*> BBs;
+
 	};
 }

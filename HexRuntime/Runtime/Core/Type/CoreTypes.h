@@ -78,5 +78,9 @@ namespace RTC
 		static constexpr UInt8 Array = 0x12;
 		static constexpr UInt8 String = 0x13;
 		static constexpr UInt8 Delegate = 0x14;
+	public:
+		inline static bool IsPrimitive(UInt8 coreType) {
+			return coreType < Struct;
+		}
 	};
 }

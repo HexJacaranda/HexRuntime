@@ -49,10 +49,12 @@ void BasicBlockPartition()
 	context.CodeSegment = il.GetIL();
 	context.SegmentLength = il.GetLength();
 
+	Hex::JITMemory hexMemory;
 	Hex::HexJITContext hexContext;
 	hexContext.Context = &context;
+	hexContext.Memory = &hexMemory;
 
-	Hex::ILTransformer transformer{ &hexContext , new Hex::JITMemory() };
+	Hex::ILTransformer transformer{ &hexContext };
 	auto bb = transformer.TransformILFrom();
 }
 
@@ -99,12 +101,14 @@ void SSABuild()
 	context.LocalVariables.push_back({ { 0, CoreTypes::I4 } });
 	context.LocalVariables.push_back({ { 0, CoreTypes::I4 } });
 
+	Hex::JITMemory hexMemory;
+
 	Hex::HexJITContext hexContext;
 	hexContext.Context = &context;
-
-	Hex::JITMemory hexMemory;
+	hexContext.Memory = &hexMemory;
 	
-	Hex::ILTransformer transformer{ &hexContext , &hexMemory };
+	
+	Hex::ILTransformer transformer{ &hexContext };
 	auto bb = transformer.TransformILFrom();
 
 	Hex::SSABuilder ssaBuilder{ &hexContext };
@@ -113,5 +117,6 @@ void SSABuild()
 
 int main()
 {
-	SSABuild();
+	for (int i = 0; i < 100000; ++i)
+		SSABuild();
 }

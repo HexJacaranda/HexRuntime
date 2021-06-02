@@ -60,7 +60,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int
 {
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	TreeNode* value = nullptr;
-	if (block->BBIn.size() == 1)
+	if (block->BBIn.size() == 1 && block->BBIn[0] != nullptr)
 		value = ReadVariable(kind, variableIndex, block->BBIn[0]->Index);
 	else
 	{

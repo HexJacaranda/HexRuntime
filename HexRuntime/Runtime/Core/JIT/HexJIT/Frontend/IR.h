@@ -67,24 +67,9 @@ namespace RTJ::Hex
 			Int16 I2;
 			Int32 I4;
 			Int64 I8;
-			/// <summary>
-			/// For pointer
-			/// </summary>
-			UInt32 X86Ref;
-
-			/// <summary>
-			/// For pointer
-			/// </summary>
-			UInt64 X64Ref;
-
-			/// <summary>
-			/// For interior pointer
-			/// </summary>
-			Int32 X86InteriorRef[2];
-			/// <summary>
-			/// For interior pointer
-			/// </summary>
-			Int64 X64InteriorRef[2];
+			float R4;
+			double R8;
+			UInt32 StringToken;
 		};
 	};
 
@@ -331,8 +316,7 @@ namespace RTJ::Hex
 
 		while (index > 0)
 		{
-			auto currentReference = popStack();
-			auto&& current = *currentReference;
+			auto&& current = *popStack();
 			//Do custom action
 			action(current);
 			switch (current->Kind)
@@ -372,6 +356,75 @@ namespace RTJ::Hex
 			}
 			}
 		}
+	}
+
+	template<class Fn>
+	static void TraverseTreeBottomUp(Int8* stackSpace, Int32 upperBound, TreeNode* source, Fn&& action)
+	{
+		using NodeReference = TreeNode**;
+		NodeReference* stack = (NodeReference*)stackSpace;
+
+		Int32 index = 0;
+		Int32 previousIndex = 0;
+
+		auto pushStack = [&](TreeNode** value) {
+			if (index < upperBound)
+				stack[index++] = value;
+		};
+
+		auto popStack = [&]() {
+			return stack[--index];
+		};
+		
+		//Push them all to stack
+		do
+		{
+			for (Int32 i = previousIndex; i < index; ++i)
+			{
+				auto&& current = *stack[previousIndex];
+				switch (current->Kind)
+				{
+					//Binary access
+				case NodeKinds::Store:
+				case NodeKinds::Array:
+				case NodeKinds::Compare:
+				case NodeKinds::BinaryArithmetic:
+
+				{
+					BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
+					pushStack(&proxy->First);
+					pushStack(&proxy->Second);
+					break;
+				}
+				//Unary access
+				case NodeKinds::Convert:
+				case NodeKinds::InstanceField:
+				case NodeKinds::Return:
+				case NodeKinds::UnaryArithmetic:
+				case NodeKinds::Duplicate:
+				{
+					UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
+					pushStack(&proxy->Value);
+					break;
+				}
+				//Multiple access 
+				case NodeKinds::Call:
+				case NodeKinds::New:
+				case NodeKinds::NewArray:
+				{
+					MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
+					for (Int32 i = 0; i < proxy->Count; ++i)
+						pushStack(&proxy->Values[i]);
+					break;
+				}
+				}
+			}
+
+			previousIndex = index;
+		} while (index != previousIndex);
+		
+		while (index > 0)
+			std::forward<Fn>(action)(*popStack());
 	}
 
 	struct Statement

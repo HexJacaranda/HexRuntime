@@ -106,7 +106,7 @@ namespace RTJ::Hex
 		/// <returns></returns>
 		BasicBlock* PartitionToBB(Statement* unpartitionedStmt, BasicBlockPartitionPoint* partitions);
 	public:
-		ILTransformer(HexJITContext* context, JITMemory* memory);
+		ILTransformer(HexJITContext* context);
 		BasicBlock* TransformILFrom();
 	};
 }
