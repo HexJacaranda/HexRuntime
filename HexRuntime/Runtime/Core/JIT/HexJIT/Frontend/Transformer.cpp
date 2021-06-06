@@ -536,33 +536,37 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 
 	/*A BB may be described by two parts: Target(s) and its ending control flow.
 	* Target PP may be multiple and they should be of the same offset (BB1).
-	* There may not be any leading target for BB (BB3).
-	* And there may not be any ending control flow (BB2).
-	* A comprehensive case: (BB1: Target -> Target -> Jcc) -> (BB2: Target) -> (BB3: Jmp)
+	* May contain no PP but be partitioned by PPs from other BBs (BB2) 
+	* There may not be any leading target for BB (BB4).
+	* And there may not be any ending control flow (BB3).
+	* A comprehensive case: (BB1: Target -> Target -> Jcc) -> (BB2:) -> (BB3: Target) -> (BB4: Jmp)
 	*/
 
 	auto partitionPoint = partitions;
 	while (partitionPoint != nullptr)
 	{		
+		auto basicBlockBeginOffset = beginOfStmts->ILOffset;
 		//Get the offset of basic block according to the beginning stmt
-		basicBlockCurrent = getBBFromMap(beginOfStmts->ILOffset);
+		basicBlockCurrent = getBBFromMap(basicBlockBeginOffset);
 		//Set basic block index
 		basicBlockCurrent->Index = basicBlockIndex;
 		basicBlockIndex++;
 		//Add index to BB mapping
 		mJITContext->BBs.push_back(basicBlockCurrent);
 
-		auto ilOffset = partitionPoint->ILOffset;
 		//Firstly we will introduce all the features for basic block.	
-		
 		//Partition points with same offset.
 		auto ppOfSameOffset = partitionPoint;
+		auto ilOffset = basicBlockBeginOffset;
 
 		//Set the properties of current BB
  
-		//Ignore leading pp(s)
+		/*Ignore leading PP(s) of current BB
+		* But carefully consider the scenario of BB2 given in example, the offset of current stmt is
+		* the one to trust. Otherwise you may mistakenly consume target PPs of the next BB (BB3 in example).
+		*/
 		while (ppOfSameOffset != nullptr &&
-			ppOfSameOffset->ILOffset == ilOffset &&
+			ppOfSameOffset->ILOffset == basicBlockBeginOffset &&
 			ppOfSameOffset->Kind == PPKind::Target)
 		{
 			ppOfSameOffset = ppOfSameOffset->Next;
