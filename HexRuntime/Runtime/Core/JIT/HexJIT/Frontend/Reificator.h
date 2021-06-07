@@ -12,5 +12,7 @@ namespace RTJ::Hex
 		HexJITContext* mJITContext;
 	public:
 		Reificator(HexJITContext* context);
+		
+		BasicBlock* Reificate();
 	};
 }

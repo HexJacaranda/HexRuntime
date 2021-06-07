@@ -424,6 +424,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		case OpCodes::Sub:
 		case OpCodes::Mul:
 		case OpCodes::Div:
+		case OpCodes::Mod:
 		case OpCodes::And:
 		case OpCodes::Or:
 		case OpCodes::Xor:

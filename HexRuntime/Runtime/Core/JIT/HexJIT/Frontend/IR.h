@@ -66,7 +66,7 @@ namespace RTJ::Hex
 			Int8 I1;
 			Int16 I2;
 			Int32 I4;
-			Int64 I8;
+			Int64 I8 = 0;
 			float R4;
 			double R8;
 			UInt32 StringToken;

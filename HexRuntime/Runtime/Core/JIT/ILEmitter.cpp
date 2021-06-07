@@ -13,11 +13,14 @@ void RTJ::ILEmitter::Requires(Int32 count)
 		UInt8* newIL = (UInt8*)std::malloc(newCapacity);
 		if (newIL == nullptr)
 			RTE::Throw(Text("OOM"));
-		std::memcpy(newIL, mIL, size);
-		std::free(mIL);
-		mIL = newIL;
-		mCurrent = newIL + size;	
-		mCapacity = newCapacity;
+		else
+		{
+			std::memcpy(newIL, mIL, size);
+			std::free(mIL);
+			mIL = newIL;
+			mCurrent = newIL + size;
+			mCapacity = newCapacity;
+		}
 	}
 }
 

@@ -11,19 +11,30 @@ namespace RTJ::Hex
 	/// </summary>
 	class SSAOptimizer
 	{
-		JITMemory* mMemory;
-		HexJITContext* mJITContext;
 		static constexpr Int32 SpaceCount = 1024;
+		JITMemory* mMemory;
+		HexJITContext* mJITContext;	
 		Int8* mTraversalSpace;
+		/// <summary>
+		/// Fold binary
+		/// </summary>
+		/// <param name="node"></param>
+		/// <returns></returns>
+		TreeNode* FoldBinaryOpConstant(BinaryArithmeticNode* node);
+		/// <summary>
+		/// Fold unary
+		/// </summary>
+		TreeNode* FoldUnaryOpConstant(UnaryArithmeticNode* node);
+		/// <summary>
+		/// Call for each stmt
+		/// </summary>
+		void FoldConstant(Statement* stmt);
+		/// <summary>
+		/// Prune the unnecessary BBIns to possibly eliminate dead code
+		/// </summary>
+		void PruneFlowGraph(BasicBlock* basicBlock);
 	public:
 		SSAOptimizer(HexJITContext* context);
-	private:
-		/// <summary>
-		/// Assuming the
-		/// </summary>
-		TreeNode* FoldBinaryOpConstant(BinaryArithmeticNode* node);
-		void DoConstantFolding(Statement* stmt);
-	public:
 		BasicBlock* Optimize();
 	};
 }

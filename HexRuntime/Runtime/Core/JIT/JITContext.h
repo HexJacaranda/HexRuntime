@@ -17,7 +17,7 @@ namespace RTJ
 		UInt64 DefaultValue;
 	};
 
-	class JITContext
+	struct JITContext
 	{
 	public:
 		class Performance

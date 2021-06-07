@@ -141,34 +141,39 @@ namespace RTJ
 		IL(Div, 0x33, BinaryOpBae);
 
 		/// <summary>
+		/// Followed by uint8 operand type
+		/// </summary>
+		IL(Mod, 0x34, BinaryOpBae);
+
+		/// <summary>
 		/// And
 		/// </summary>
-		IL(And, 0x34, BinaryOpBae);
+		IL(And, 0x35, BinaryOpBae);
 
 		/// <summary>
 		/// Or
 		/// </summary>
-		IL(Or, 0x35, BinaryOpBae);
+		IL(Or, 0x36, BinaryOpBae);
 		
 		/// <summary>
 		/// Xor
 		/// </summary>
-		IL(Xor, 0x36, BinaryOpBae);
+		IL(Xor, 0x37, BinaryOpBae);
 
 		/// <summary>
 		/// Not
 		/// </summary>
-		IL(Not, 0x37, UnaryOpBae);
+		IL(Not, 0x38, UnaryOpBae);
 
 		/// <summary>
 		/// Negative
 		/// </summary>
-		IL(Neg, 0x38, UnaryOpBae);
+		IL(Neg, 0x39, UnaryOpBae);
 
 		/// <summary>
 		/// Followed by uint8(from), uint8(to) operand type
 		/// </summary>
-		IL(Conv, 0x39, UnaryOpBae);
+		IL(Conv, 0x3A, UnaryOpBae);
 		
 		//-----------------------------------------------------
 		//Flow control instructions, 0x40 ~ 0x4F space reserved
