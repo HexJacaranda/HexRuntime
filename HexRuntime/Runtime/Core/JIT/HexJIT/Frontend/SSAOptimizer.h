@@ -26,9 +26,9 @@ namespace RTJ::Hex
 		/// </summary>
 		TreeNode* FoldUnaryOpConstant(UnaryArithmeticNode* node);
 		/// <summary>
-		/// Call for each stmt
+		/// Call for each root node of stmt
 		/// </summary>
-		void FoldConstant(Statement* stmt);
+		void FoldConstant(TreeNode*& stmtRoot);
 		/// <summary>
 		/// Prune the unnecessary BBIns to possibly eliminate dead code
 		/// </summary>

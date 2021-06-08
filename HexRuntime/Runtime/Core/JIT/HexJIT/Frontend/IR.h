@@ -43,8 +43,6 @@ namespace RTJ::Hex
 		ForcedInline T* As() {
 			return (T*)this;
 		}
-
-		virtual ~TreeNode() = default;
 	};
 
 	struct UnaryNode : TreeNode {
@@ -63,12 +61,13 @@ namespace RTJ::Hex
 		UInt8 CoreType = 0;
 		union
 		{
+			Boolean Bool;
 			Int8 I1;
 			Int16 I2;
 			Int32 I4;
 			Int64 I8 = 0;
-			float R4;
-			double R8;
+			Float R4;
+			Double R8;
 			UInt32 StringToken;
 		};
 	};
@@ -359,7 +358,7 @@ namespace RTJ::Hex
 	}
 
 	template<class Fn>
-	static void TraverseTreeBottomUp(Int8* stackSpace, Int32 upperBound, TreeNode* source, Fn&& action)
+	static void TraverseTreeBottomUp(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
 		using NodeReference = TreeNode**;
 		NodeReference* stack = (NodeReference*)stackSpace;
@@ -376,6 +375,8 @@ namespace RTJ::Hex
 			return stack[--index];
 		};
 		
+		pushStack(&source);
+
 		//Push them all to stack
 		do
 		{
@@ -453,7 +454,18 @@ namespace RTJ::Hex
 		Conditional,
 		Unconditional,
 		Ret,
-		Target
+		Target,
+		Try,
+		/// <summary>
+		/// Catch block may always have previous try block
+		/// in its BBIn
+		/// </summary>
+		Catch,
+		/// <summary>
+		/// Finally block always have previous try block
+		/// int its BBIn
+		/// </summary>
+		Finally
 	};
 
 	struct BasicBlock

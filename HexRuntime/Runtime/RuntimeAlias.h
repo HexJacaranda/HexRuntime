@@ -11,6 +11,9 @@ namespace Runtime
 	using UInt16 = unsigned __int16;
 	using UInt32 = unsigned __int32;
 	using UInt64 = unsigned __int64;
+	using Float = float;
+	using Double = double;
+	using Boolean = bool;
 
 	
 #ifdef _M_AMD64

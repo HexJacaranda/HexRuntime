@@ -11,8 +11,12 @@ RTJ::Hex::SSAOptimizer::SSAOptimizer(HexJITContext* context) :
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticNode* node)
 {
-#define EVAL_CASE(CORE_TYPE) case CoreTypes::CORE_TYPE: \
+#define EVAL_NEG_CASE(CORE_TYPE) case CoreTypes::CORE_TYPE: \
 	evaluatedNode->CORE_TYPE = -constant->CORE_TYPE; \
+	break
+
+#define EVAL_NOT_CASE(CORE_TYPE) case CoreTypes::CORE_TYPE: \
+	evaluatedNode->CORE_TYPE = ~constant->CORE_TYPE; \
 	break
 
 	if (node->Value->Is(NodeKinds::Constant))
@@ -24,16 +28,22 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticN
 		case OpCodes::Neg:
 			switch (constant->CoreType)
 			{
-				EVAL_CASE(I1);
-				EVAL_CASE(I2);
-				EVAL_CASE(I4);
-				EVAL_CASE(I8);
-				EVAL_CASE(R4);
-				EVAL_CASE(R8);
+				EVAL_NEG_CASE(I1);
+				EVAL_NEG_CASE(I2);
+				EVAL_NEG_CASE(I4);
+				EVAL_NEG_CASE(I8);
+				EVAL_NEG_CASE(R4);
+				EVAL_NEG_CASE(R8);
 			}
 			break;
 		case OpCodes::Not:
-			evaluatedNode->I1 = !constant->I1;
+			switch (constant->CoreType)
+			{
+				EVAL_NOT_CASE(I1);
+				EVAL_NOT_CASE(I2);
+				EVAL_NOT_CASE(I4);
+				EVAL_NOT_CASE(I8);
+			}
 			break;
 		}
 	}
@@ -43,9 +53,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticN
 #undef EVAL_CASE
 }
 
-void RTJ::Hex::SSAOptimizer::FoldConstant(Statement* stmt)
+void RTJ::Hex::SSAOptimizer::FoldConstant(TreeNode*& stmtRoot)
 {
-	TraverseTreeBottomUp(mTraversalSpace, SpaceCount, stmt->Now, 
+	TraverseTreeBottomUp(mTraversalSpace, SpaceCount, stmtRoot,
 		[&](TreeNode*& node) 
 		{
 			switch (node->Kind)
@@ -66,7 +76,18 @@ void RTJ::Hex::SSAOptimizer::FoldConstant(Statement* stmt)
 
 void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
 {
-	
+	//Only for conditional now
+	if (basicBlock->BranchKind == PPKind::Conditional)
+	{
+		//Fold constant first
+		FoldConstant(basicBlock->BranchConditionValue);
+		
+		if (basicBlock->BranchConditionValue->Is(NodeKinds::Constant))
+		{
+			//Already constant
+
+		}
+	}
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeticNode* node)
@@ -158,7 +179,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSAOptimizer::Optimize()
 			stmtIterator != nullptr && stmtIterator->Now != nullptr;
 			stmtIterator = stmtIterator->Next)
 		{
-			FoldConstant(stmtIterator);
+			FoldConstant(stmtIterator->Now);
 		}
 		PruneFlowGraph(bbIterator);
 	}
