@@ -6,6 +6,7 @@
 #include "Runtime/Core/JIT/HexJIT/JITMemory.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
+#include "Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
 
 using namespace RTJ;
 using namespace RTC;
@@ -58,7 +59,7 @@ void BasicBlockPartition()
 	auto bb = transformer.TransformILFrom();
 }
 
-void SSABuild()
+void SSABuildAndOptimize()
 {
 	/*LdC 2
 	* StLoc 0
@@ -113,10 +114,13 @@ void SSABuild()
 
 	Hex::SSABuilder ssaBuilder{ &hexContext };
 	bb = ssaBuilder.Build();
+
+	Hex::SSAOptimizer ssaOptimizer{ &hexContext };
+	bb = ssaOptimizer.Optimize();
 }
 
 int main()
 {
 	for (int i = 0; i < 100000; ++i)
-		SSABuild();
+		SSABuildAndOptimize();
 }

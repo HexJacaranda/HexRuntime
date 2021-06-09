@@ -1,6 +1,7 @@
 #include "SSAOptimizer.h"
 #include "..\..\..\Type\CoreTypes.h"
 #include "..\..\OpCodes.h"
+#include "..\..\..\Exception\RuntimeException.h"
 
 RTJ::Hex::SSAOptimizer::SSAOptimizer(HexJITContext* context) :
 	mJITContext(context),
@@ -46,6 +47,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticN
 			}
 			break;
 		}
+		return evaluatedNode;
 	}
 	else
 		return node;
@@ -53,46 +55,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticN
 #undef EVAL_CASE
 }
 
-void RTJ::Hex::SSAOptimizer::FoldConstant(TreeNode*& stmtRoot)
-{
-	TraverseTreeBottomUp(mTraversalSpace, SpaceCount, stmtRoot,
-		[&](TreeNode*& node) 
-		{
-			switch (node->Kind)
-			{
-			case NodeKinds::BinaryArithmetic:
-			{
-				node = FoldBinaryOpConstant(node->As<BinaryArithmeticNode>());
-				break;
-			}
-			case NodeKinds::UnaryArithmetic:
-			{
-				node = FoldUnaryOpConstant(node->As<UnaryArithmeticNode>());
-				break;
-			}
-			}
-		});
-}
-
-void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
-{
-	//Only for conditional now
-	if (basicBlock->BranchKind == PPKind::Conditional)
-	{
-		//Fold constant first
-		FoldConstant(basicBlock->BranchConditionValue);
-		
-		if (basicBlock->BranchConditionValue->Is(NodeKinds::Constant))
-		{
-			//Already constant
-
-		}
-	}
-}
-
 RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeticNode* node)
 {
-	auto integerEval = [](auto left, auto right, UInt8 opcode) 
+	auto integerEval = [](auto left, auto right, UInt8 opcode)
 	{
 		switch (opcode)
 		{
@@ -146,7 +111,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeti
 		auto right = node->Right->As<ConstantNode>();
 		auto coreType = left->CoreType;
 		//Cannot fold non-primitive constant
-		if (!CoreTypes::IsPrimitive(coreType)) 
+		if (!CoreTypes::IsPrimitive(coreType))
 			return node;
 		auto evaluatedNode = new (mMemory) ConstantNode(left->CoreType);
 		switch (left->CoreType)
@@ -165,6 +130,108 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeti
 
 #undef EVAL_INTEGER_CASE
 #undef EVAL_FLOAT_CASE
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldCompareConstant(CompareNode* node) {
+
+#define COMPARE_OP_IN_CORE_TYPE(CORE_TYPE, OP) \
+	case CoreTypes::CORE_TYPE: \
+		evaluatedNode->I1 = !!(left->CORE_TYPE OP right->CORE_TYPE); \
+		break
+
+#define COMPARE_OP(OP) \
+	switch(left->CoreType) \
+	{ \
+		COMPARE_OP_IN_CORE_TYPE(I1, OP);\
+		COMPARE_OP_IN_CORE_TYPE(I2, OP);\
+		COMPARE_OP_IN_CORE_TYPE(I4, OP);\
+		COMPARE_OP_IN_CORE_TYPE(I8, OP);\
+		COMPARE_OP_IN_CORE_TYPE(R4, OP);\
+		COMPARE_OP_IN_CORE_TYPE(R8, OP);\
+	} break
+
+
+	if (node->Left->Is(NodeKinds::Constant) &&
+		node->Right->Is(NodeKinds::Constant))
+	{
+		auto left = node->Left->As<ConstantNode>();
+		auto right = node->Right->As<ConstantNode>();
+		auto evaluatedNode = new(mMemory) ConstantNode(CoreTypes::I1);
+		switch (node->Condition)
+		{
+		case CmpCondition::EQ:
+			COMPARE_OP(== );
+		case CmpCondition::GE:
+			COMPARE_OP(>= );
+		case CmpCondition::GT:
+			COMPARE_OP(> );
+		case CmpCondition::LE:
+			COMPARE_OP(<= );
+		case CmpCondition::LT:
+			COMPARE_OP(< );
+		case CmpCondition::NE:
+			COMPARE_OP(!= );
+		}
+		return evaluatedNode;
+	}
+	else
+		return node;
+#undef COMPARE_OP_IN_CORE_TYPE
+#undef COMPARE_OP
+}
+
+void RTJ::Hex::SSAOptimizer::FoldConstant(TreeNode*& stmtRoot)
+{
+	TraverseTreeBottomUp(mTraversalSpace, SpaceCount, stmtRoot,
+		[&](TreeNode*& node) 
+		{
+			switch (node->Kind)
+			{
+			case NodeKinds::BinaryArithmetic:
+			{
+				node = FoldBinaryOpConstant(node->As<BinaryArithmeticNode>());
+				break;
+			}
+			case NodeKinds::UnaryArithmetic:
+			{
+				node = FoldUnaryOpConstant(node->As<UnaryArithmeticNode>());
+				break;
+			}
+			case NodeKinds::Compare:
+			{
+				node = FoldCompareConstant(node->As<CompareNode>());
+				break;
+			}
+			}
+		});
+}
+
+void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
+{
+	//Only for conditional now
+	if (basicBlock->BranchKind == PPKind::Conditional)
+	{
+		if (!basicBlock->BranchConditionValue->Is(NodeKinds::Compare))
+			RTE::Throw(Text("Condition expression type mismatch."));
+		//Fold constant first
+		FoldConstant(basicBlock->BranchConditionValue);
+		if (basicBlock->BranchConditionValue->Is(NodeKinds::Constant))
+		{
+			//If this is true, then it becomes an unconditional jump
+			auto constant = basicBlock->BranchConditionValue->As<ConstantNode>();
+			//Use sequential by default
+			BasicBlock* target = basicBlock->Next;
+			if (constant->I1)
+			{
+				target = basicBlock->BranchedBB;
+				basicBlock->BranchKind = PPKind::Unconditional;
+			}
+			//Remove BBIn from target BB
+			auto me = std::find(target->BBIn.begin(), target->BBIn.end(), basicBlock);
+			if (me != target->BBIn.end())
+				target->BBIn.erase(me);
+		}		
+	}
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::SSAOptimizer::Optimize()

@@ -5,33 +5,21 @@
 
 namespace RTJ::Hex
 {
-	/// <summary>
-	/// Responsible for common optimizations like: 1. constant folding 2. constant propagation
-	/// 3. range check 4. nullability check
-	/// </summary>
 	class SSAOptimizer
 	{
 		static constexpr Int32 SpaceCount = 1024;
 		JITMemory* mMemory;
 		HexJITContext* mJITContext;	
 		Int8* mTraversalSpace;
-		/// <summary>
-		/// Fold binary
-		/// </summary>
-		/// <param name="node"></param>
-		/// <returns></returns>
+		//Fold binary
 		TreeNode* FoldBinaryOpConstant(BinaryArithmeticNode* node);
-		/// <summary>
-		/// Fold unary
-		/// </summary>
+		//Fold unary
 		TreeNode* FoldUnaryOpConstant(UnaryArithmeticNode* node);
-		/// <summary>
-		/// Call for each root node of stmt
-		/// </summary>
+		//Fold comapre constant
+		TreeNode* FoldCompareConstant(CompareNode* node);
+		//Call for each root node of stmt
 		void FoldConstant(TreeNode*& stmtRoot);
-		/// <summary>
-		/// Prune the unnecessary BBIns to possibly eliminate dead code
-		/// </summary>
+		//Prune the unnecessary BBIns to possibly eliminate dead code
 		void PruneFlowGraph(BasicBlock* basicBlock);
 	public:
 		SSAOptimizer(HexJITContext* context);

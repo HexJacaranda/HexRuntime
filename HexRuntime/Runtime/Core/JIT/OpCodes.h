@@ -220,7 +220,7 @@ namespace RTJ
 		IL(Try, 0x47, 0x00);
 		
 		/// <summary>
-		/// Catch block, followed by int16 il offset
+		/// Catch block, followed by uint32 exception type token and int16 il offset
 		/// </summary>
 		IL(Catch, 0x48, 0x00);
 		
