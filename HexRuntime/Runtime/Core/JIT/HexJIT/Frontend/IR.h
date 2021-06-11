@@ -370,52 +370,62 @@ namespace RTJ::Hex
 			if (index < upperBound)
 				stack[index++] = value;
 		};
+
+		auto popStack = [&]() {
+			return stack[--index];
+		};
 		
 		pushStack(&source);
-		//Push them all to stack 
-		for (Int32 i = 0; i < index; ++i)
+
+		//Push them all to stack
+		do
 		{
-			auto&& current = *stack[i];
-			switch (current->Kind)
+			for (Int32 i = previousIndex; i < index; ++i)
 			{
-				//Binary access
-			case NodeKinds::Store:
-			case NodeKinds::Array:
-			case NodeKinds::Compare:
-			case NodeKinds::BinaryArithmetic:
+				auto&& current = *stack[previousIndex];
+				switch (current->Kind)
+				{
+					//Binary access
+				case NodeKinds::Store:
+				case NodeKinds::Array:
+				case NodeKinds::Compare:
+				case NodeKinds::BinaryArithmetic:
 
-			{
-				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
-				pushStack(&proxy->First);
-				pushStack(&proxy->Second);
-				break;
+				{
+					BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
+					pushStack(&proxy->First);
+					pushStack(&proxy->Second);
+					break;
+				}
+				//Unary access
+				case NodeKinds::Convert:
+				case NodeKinds::InstanceField:
+				case NodeKinds::Return:
+				case NodeKinds::UnaryArithmetic:
+				case NodeKinds::Duplicate:
+				{
+					UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
+					pushStack(&proxy->Value);
+					break;
+				}
+				//Multiple access 
+				case NodeKinds::Call:
+				case NodeKinds::New:
+				case NodeKinds::NewArray:
+				{
+					MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
+					for (Int32 i = 0; i < proxy->Count; ++i)
+						pushStack(&proxy->Values[i]);
+					break;
+				}
+				}
 			}
-			//Unary access
-			case NodeKinds::Convert:
-			case NodeKinds::InstanceField:
-			case NodeKinds::Return:
-			case NodeKinds::UnaryArithmetic:
-			case NodeKinds::Duplicate:
-			{
-				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
-				pushStack(&proxy->Value);
-				break;
-			}
-			//Multiple access 
-			case NodeKinds::Call:
-			case NodeKinds::New:
-			case NodeKinds::NewArray:
-			{
-				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
-				for (Int32 i = 0; i < proxy->Count; ++i)
-					pushStack(&proxy->Values[i]);
-				break;
-			}
-			}
-		}
 
-		while (index-- > 0)
-			std::forward<Fn>(action)(*stack[index]);
+			previousIndex = index;
+		} while (index != previousIndex);
+		
+		while (index > 0)
+			std::forward<Fn>(action)(*popStack());
 	}
 
 	struct Statement
