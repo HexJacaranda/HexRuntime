@@ -364,7 +364,6 @@ namespace RTJ::Hex
 		NodeReference* stack = (NodeReference*)stackSpace;
 
 		Int32 index = 0;
-		Int32 previousIndex = 0;
 
 		auto pushStack = [&](TreeNode** value) {
 			if (index < upperBound)
