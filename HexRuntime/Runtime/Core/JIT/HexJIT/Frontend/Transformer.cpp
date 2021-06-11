@@ -514,7 +514,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 	//If no partition points, return directly
 	if (partitions == nullptr || unpartitionedStmt == nullptr)
 	{
-		auto ret = new(mMemory) BasicBlock();
+		auto ret = mMemory->New<BasicBlock>();
 		ret->Now = unpartitionedStmt;
 		return ret;
 	}
@@ -526,7 +526,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		if (value != basicBlockMap.end())
 			return value->second;
 		else
-			return basicBlockMap[offset] = new(mMemory) BasicBlock();
+			return basicBlockMap[offset] = mMemory->New<BasicBlock>();
 	};
 	BasicBlock* basicBlockHead = nullptr;
 	BasicBlock* basicBlockPrevious = nullptr;

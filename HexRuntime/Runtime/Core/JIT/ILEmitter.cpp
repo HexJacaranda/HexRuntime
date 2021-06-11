@@ -24,6 +24,20 @@ void RTJ::ILEmitter::Requires(Int32 count)
 	}
 }
 
+RTJ::ILEmitter::ILEmitter()
+{
+	Requires(16);
+}
+
+RTJ::ILEmitter::~ILEmitter()
+{
+	if (mIL != nullptr)
+	{
+		std::free(mIL);
+		mIL = nullptr;
+	}
+}
+
 RT::UInt8* RTJ::ILEmitter::GetIL() const
 {
 	return mIL;

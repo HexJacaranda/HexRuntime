@@ -26,9 +26,8 @@ namespace RTJ
 			mCurrent += sizeof(T);
 		}
 	public:
-		ILEmitter() {
-			Requires(16);
-		}
+		ILEmitter();
+		~ILEmitter();
 		UInt8* GetIL()const;
 		Int32 GetLength()const;
 	public:

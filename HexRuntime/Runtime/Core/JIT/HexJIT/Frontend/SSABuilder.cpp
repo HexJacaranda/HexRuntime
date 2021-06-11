@@ -64,7 +64,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int
 		value = ReadVariable(kind, variableIndex, block->BBIn[0]->Index);
 	else
 	{
-		auto phi = new(mJITContext->Memory) SSA::PhiNode(block);		
+		auto phi = mJITContext->Memory->New<SSA::PhiNode>(block);		
 		WriteVariable(kind, variableIndex, blockIndex, phi);
 		value = AddPhiOperands(kind, variableIndex, blockIndex, phi);
 	}
