@@ -19,9 +19,6 @@
     <Filter Include="头文件\Runtime\Core">
       <UniqueIdentifier>{def398ab-9ef4-4c5b-800c-5ab9b7c7fee8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\Runtime\Core\Builders">
-      <UniqueIdentifier>{dc3b533d-11f4-4b93-9d02-6468cf55a5f4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="头文件\Runtime\Core\Type">
       <UniqueIdentifier>{0a1dc817-2383-4fb4-8608-b068fe3c79b9}</UniqueIdentifier>
     </Filter>
@@ -81,18 +78,6 @@
     <ClInclude Include="Runtime\Core\MethodTable.h">
       <Filter>头文件\Runtime\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Builders\InterfaceTableBuilder.h">
-      <Filter>头文件\Runtime\Core\Builders</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Builders\MethodTableBuilder.h">
-      <Filter>头文件\Runtime\Core\Builders</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Builders\TypeBuilder.h">
-      <Filter>头文件\Runtime\Core\Builders</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Builders\FieldTableBuilder.h">
-      <Filter>头文件\Runtime\Core\Builders</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\JIT.h">
       <Filter>头文件\Runtime\Core\JIT</Filter>
     </ClInclude>
@@ -144,9 +129,6 @@
     <ClInclude Include="Runtime\Core\Meta\MetaManager.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Meta\Table.h">
-      <Filter>头文件\Runtime\Core\Meta</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h">
       <Filter>头文件\Runtime\Core\JIT\Emitter\Page</Filter>
     </ClInclude>
@@ -186,6 +168,18 @@
     <ClInclude Include="Runtime\Core\InteriorPointer.h">
       <Filter>头文件\Runtime\Core</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\MDRecords.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\MDImporter.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Interfaces\OSFile.h">
+      <Filter>头文件\Runtime\Core\Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\MDHeap.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -221,25 +215,13 @@
     <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Builders\TypeBuilder.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\MethodTable.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Builders\MethodTableBuilder.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Builders\InterfaceTableBuilder.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\FieldTable.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Builders\FieldTableBuilder.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Type\AssemblyContext.cpp">
@@ -267,6 +249,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\MDHeap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Interfaces\OSFile.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

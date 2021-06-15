@@ -1,6 +1,8 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\Type\Type.h"
+#include "..\Object\StringObject.h"
+
 namespace RTM
 {
 	/// <summary>
@@ -9,7 +11,8 @@ namespace RTM
 	class MetaManager
 	{
 	public:
-		static Type* GetTypeFromToken(UInt32 typeReference);
+		static Type* GetTypeFromToken(MDToken typeReference);
+		static RTO::StringObject* GetStringFromToken(MDToken stringToken);
 		
 	};
 }

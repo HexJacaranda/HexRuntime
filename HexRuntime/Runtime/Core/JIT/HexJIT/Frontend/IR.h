@@ -25,6 +25,7 @@ namespace RTJ::Hex
 		Return,
 		BinaryArithmetic,
 		UnaryArithmetic,
+		Null,
 		Phi
 	};
 
@@ -265,6 +266,16 @@ namespace RTJ::Hex
 		TreeNode* Value;
 		UInt8 From;
 		UInt8 To;
+	};
+
+	struct NullNode : TreeNode
+	{
+		NullNode(): TreeNode(NodeKinds::Null) {}
+		static NullNode& Instance()
+		{
+			static NullNode node;
+			return node;
+		}
 	};
 
 	/// <summary>

@@ -85,6 +85,11 @@ namespace RTJ
 		/// </summary>
 		IL(LdFn, 0x0B, 0x01);
 
+		/// <summary>
+		/// Load null
+		/// </summary>
+		IL(LdNull, 0x0C, 0x01);
+
 		//------------------------------------------------------
 		//Store related instructions, 0x20 ~ 0x2F space reserved
 		//------------------------------------------------------

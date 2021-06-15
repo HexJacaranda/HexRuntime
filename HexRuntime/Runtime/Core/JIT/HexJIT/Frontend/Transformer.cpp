@@ -415,6 +415,9 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		case OpCodes::LdC:
 			mEvalStack.Push(GenerateLoadConstant());
 			break;
+		case OpCodes::LdNull:
+			mEvalStack.Push(&NullNode::Instance());
+			break;
 
 		//---------------------------------------------------
 		//Binary arithmetic instructions
