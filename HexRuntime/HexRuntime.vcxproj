@@ -29,6 +29,7 @@
     <ClInclude Include="Runtime\Core\FieldTable.h" />
     <ClInclude Include="Runtime\Core\InterfaceDispatchTable.h" />
     <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h" />
+    <ClInclude Include="Runtime\Core\InteriorPointer.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.h" />
@@ -41,6 +42,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITHelper.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITMemory.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
@@ -88,6 +90,9 @@
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
     <ClCompile Include="Runtime\Core\Type\AssemblyContext.cpp" />
     <ClCompile Include="Runtime\Core\Type\Type.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Runtime\Core\X86DWCAS.asm" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

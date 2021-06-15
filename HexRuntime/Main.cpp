@@ -7,6 +7,8 @@
 #include "Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
+#include "Runtime/Core/InteriorPointer.h"
+
 
 using namespace RTJ;
 using namespace RTC;
