@@ -43,6 +43,10 @@ namespace RTM
 		}
 	};
 
+#define TOKEN_SERIES(NAME) \
+	Int32 NAME##Count; \
+	MDToken* NAME##Tokens
+
 	struct TypeRefMD
 	{
 		MDToken AssemblyRefToken;
@@ -81,7 +85,8 @@ namespace RTM
 			bool IsInstance : 1;
 			bool IsConstant : 1;
 		} Flags;
-		MDToken AttributesTableToken;
+
+		TOKEN_SERIES(Attribute);
 	};
 
 	struct PropertyMD
@@ -97,6 +102,7 @@ namespace RTM
 			bool IsOverride : 1;
 			bool IsFinal : 1;
 		};
+		TOKEN_SERIES(Attribute);
 	};
 
 	struct EventMD
@@ -112,14 +118,14 @@ namespace RTM
 			MDToken StringRefToken;
 			Int64 Data;
 		} DefaultValue;
-		MDToken AttributesTableToken;
+		TOKEN_SERIES(Attribute);
 	};
 
 	struct MethodSignatureMD
 	{
 		MDToken ReturnTypeRefToken;
-		Int32 ArgumentsCount;
-		MDToken* ArgumentTokens;
+		TOKEN_SERIES(Argument);
+		TOKEN_SERIES(Attribute);
 	};
 
 	class SlotType

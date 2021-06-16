@@ -55,6 +55,9 @@
     <Filter Include="源文件\InteriorPointer">
       <UniqueIdentifier>{0a98a74f-c815-4b1f-bb6b-12929420b1bd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\OSFile">
+      <UniqueIdentifier>{361330e3-b8ef-48b7-b415-0aa55d0b19f2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -257,8 +260,8 @@
     <ClCompile Include="Runtime\Core\Meta\MDHeap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Interfaces\OSFile.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp">
+      <Filter>源文件\OSFile</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

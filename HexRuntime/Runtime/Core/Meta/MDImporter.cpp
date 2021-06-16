@@ -57,6 +57,7 @@ bool RTM::MDImporter::ImportMethod(MDToken token, MethodMD* methodMD)
 
 	ReadInto(methodMD->NameToken);
 	ReadInto(methodMD->Flags);
+
 	ImportMethodSignature(&methodMD->SignatureMD);
 
 	ReadInto(methodMD->Entry.Type);
@@ -71,8 +72,8 @@ bool RTM::MDImporter::ImportMethod(MDToken token, MethodMD* methodMD)
 bool RTM::MDImporter::ImportMethodSignature(MethodSignatureMD* signatureMD)
 {
 	ReadInto(signatureMD->ReturnTypeRefToken);
-	ReadIntoSeries(signatureMD->ArgumentsCount, signatureMD->ArgumentTokens);
-
+	ReadIntoSeries(signatureMD->ArgumentCount, signatureMD->ArgumentTokens);
+	ReadIntoSeries(signatureMD->AttributeCount, signatureMD->AttributeTokens);
 	return true;
 }
 

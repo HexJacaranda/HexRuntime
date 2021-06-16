@@ -67,7 +67,7 @@
     <ClCompile Include="Runtime\Core\Exception\RuntimeException.cpp" />
     <ClCompile Include="Runtime\Core\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\GC\GCInterface.cpp" />
-    <ClCompile Include="Runtime\Core\Interfaces\OSFile.cpp" />
+    <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
