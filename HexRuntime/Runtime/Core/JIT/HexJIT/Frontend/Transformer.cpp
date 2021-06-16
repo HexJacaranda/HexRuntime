@@ -26,10 +26,24 @@ ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
 	opcode = *mCodePtr;
 	mCodePtr++;
 	if (mCodePtr >= mCodePtrBound)
-		throw 0;
-	mBaeIn = (mCodePtr[0] & 0xF0) >> 4;
-	mBaeOut = mCodePtr[0] & 0x0F;
-	mCodePtr++;
+		RTE::Throw(Text("Malformed IL"));
+
+	//Opcode with bae
+	switch (opcode)
+	{
+		case OpCodes::Call:
+		case OpCodes::CallVirt:
+		case OpCodes::StFld:
+		case OpCodes::LdFld:
+		case OpCodes::LdFldA:
+		case OpCodes::Ret:
+		{
+			mBaeIn = (mCodePtr[0] & 0xF0) >> 4;
+			mBaeOut = mCodePtr[0] & 0x0F;
+			mCodePtr++;
+			break;
+		}
+	}
 }
 
 RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
@@ -214,7 +228,6 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateDuplicate()
 
 RTJ::Hex::ReturnNode* RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitions)
 {
-	
 	TreeNode* ret = nullptr;
 	if (mBaeIn == 1)
 		ret = mEvalStack.Pop();

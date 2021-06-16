@@ -15,7 +15,8 @@ namespace RTJ
 	/// </summary>
 	class ILEmitter
 	{
-		static constexpr Int32 OpcodeSize = 2 * sizeof(UInt8);
+		static constexpr Int32 OpcodeSize = sizeof(UInt8);
+		static constexpr Int32 OpcodeSizeWithBae = 2 * sizeof(UInt8);
 		UInt8* mIL = nullptr;
 		UInt8* mCurrent = nullptr;
 		Int32 mCapacity = 0;
@@ -38,12 +39,10 @@ namespace RTJ
 		/// <param name="bae"></param>
 		void Emit(UInt8 opcode, UInt8 bae);
 		/// <summary>
-		/// Emit opcode with single token
+		/// Emit opcode without bae
 		/// </summary>
 		/// <param name="opcode"></param>
-		/// <param name="bae"></param>
-		/// <param name="token"></param>
-		void Emit(UInt8 opcode, UInt8 bae, UInt32 token);
+		void Emit(UInt8 opcode);
 		/// <summary>
 		/// Get the IL offset of current progress.
 		/// </summary>
@@ -72,7 +71,6 @@ namespace RTJ
 		{
 			Requires(OpcodeSize + sizeof(UInt8) + sizeof(T));
 			Write(OpCodes::LdC);
-			Write(OpCodes::LdCBae);
 			Write(coreType);
 			Write(constant);
 		}
@@ -110,5 +108,10 @@ namespace RTJ
 		/// <param name="opcode"></param>
 		/// <param name="index"></param>
 		void EmitStore(UInt8 opcode, Int16 index);
+		/// <summary>
+		/// Emit return
+		/// </summary>
+		/// <param name="bae"></param>
+		void EmitRet(UInt8 bae);
 	};
 }

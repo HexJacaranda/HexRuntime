@@ -56,8 +56,6 @@ namespace RTJ::Hex
 		/// Decode the instruction at current memory
 		/// </summary>
 		/// <param name="opcode">opcode value</param>
-		/// <param name="in">Bae group bringing in value</param>
-		/// <param name="out">Bae group bringing out value</param>
 		ForcedInline void DecodeInstruction(_RE_ UInt8& opcode);
 		CallNode* GenerateCall();
 		TreeNode* GenerateLoadLocalVariable(UInt8 SLMode);

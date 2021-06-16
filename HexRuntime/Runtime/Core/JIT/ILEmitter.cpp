@@ -50,17 +50,15 @@ RT::Int32 RTJ::ILEmitter::GetLength() const
 
 void RTJ::ILEmitter::Emit(UInt8 opcode, UInt8 bae)
 {
-	Requires(OpcodeSize);
+	Requires(OpcodeSizeWithBae);
 	Write(opcode);
 	Write(bae);
 }
 
-void RTJ::ILEmitter::Emit(UInt8 opcode, UInt8 bae, UInt32 token)
+void RTJ::ILEmitter::Emit(UInt8 opcode)
 {
-	Requires(OpcodeSize + sizeof(UInt32));
+	Requires(OpcodeSize);
 	Write(opcode);
-	Write(bae);
-	Write(token);
 }
 
 RT::Int32 RTJ::ILEmitter::GetOffset() const
@@ -71,9 +69,8 @@ RT::Int32 RTJ::ILEmitter::GetOffset() const
 RTJ::FlowEntry RTJ::ILEmitter::EmitJcc(Int32 offset)
 {
 	FlowEntry entry{};
-	Requires(OpcodeSize + sizeof(UInt8) + sizeof(UInt32));
+	Requires(OpcodeSize + sizeof(UInt32));
 	Write(OpCodes::Jcc);
-	Write(OpCodes::JccBae);
 	entry.Offset = GetOffset();
 	Write(offset);
 	return entry;
@@ -84,7 +81,6 @@ RTJ::FlowEntry RTJ::ILEmitter::EmitJmp(Int32 offset)
 	FlowEntry entry{};
 	Requires(OpcodeSize + sizeof(UInt32));
 	Write(OpCodes::Jmp);
-	Write(OpCodes::JmpBae);
 	entry.Offset = GetOffset();
 	Write(offset);
 	return entry;
@@ -94,7 +90,6 @@ void RTJ::ILEmitter::EmitConv(UInt8 from, UInt8 to)
 {
 	Requires(OpcodeSize + 2 * sizeof(UInt8));
 	Write(OpCodes::Conv);
-	Write(OpCodes::ConvBae);
 	Write(from);
 	Write(to);
 }
@@ -103,10 +98,6 @@ void RTJ::ILEmitter::EmitAriOperation(UInt8 opcode, UInt8 coreType)
 {
 	Requires(OpcodeSize + sizeof(UInt8));
 	Write(opcode);
-	if (opcode <= OpCodes::Xor)
-		Write(OpCodes::BinaryOpBae);
-	else
-		Write(OpCodes::UnaryOpBae);
 	Write(coreType);
 }
 
@@ -114,7 +105,6 @@ void RTJ::ILEmitter::EmitCompare(UInt8 condition)
 {
 	Requires(OpcodeSize + sizeof(UInt8));
 	Write(OpCodes::Cmp);
-	Write(OpCodes::CmpBae);
 	Write(condition);
 }
 
@@ -127,7 +117,6 @@ void RTJ::ILEmitter::EmitLoad(UInt8 opcode, Int16 index)
 {
 	Requires(OpcodeSize + sizeof(Int16));
 	Write(opcode);
-	Write(OpCodes::LdArgBae);
 	Write(index);
 }
 
@@ -135,6 +124,12 @@ void RTJ::ILEmitter::EmitStore(UInt8 opcode, Int16 index)
 {
 	Requires(OpcodeSize + sizeof(Int16));
 	Write(opcode);
-	Write(OpCodes::StArgBae);
 	Write(index);
+}
+
+void RTJ::ILEmitter::EmitRet(UInt8 bae)
+{
+	Requires(OpcodeSizeWithBae);
+	Write(OpCodes::Ret);
+	Write(bae);
 }

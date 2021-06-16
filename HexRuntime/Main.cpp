@@ -41,13 +41,13 @@ void PrepareIL(ILEmitter& il)
 
 	auto entry = il.EmitJcc(0);
 	il.EmitLoad(OpCodes::LdLoc, 0);
-	il.Emit(OpCodes::Ret, 0x10);
+	il.EmitRet(0x10);
 
 	auto update = il.GetOffset();
 	il.UpdateEntry(entry, update);
 
 	il.EmitLoad(OpCodes::LdLoc, 1);
-	il.Emit(OpCodes::Ret, 0x10);
+	il.EmitRet(0x10);
 }
 
 void SSABuildAndOptimize(ILEmitter const& il)
@@ -79,6 +79,7 @@ int main()
 {
 	ILEmitter il;
 	PrepareIL(il);
-	for (int i = 0; i < 100000; ++i)
-		SSABuildAndOptimize(il);
+	SSABuildAndOptimize(il);
+	//for (int i = 0; i < 100000; ++i)
+	//	SSABuildAndOptimize(il);
 }
