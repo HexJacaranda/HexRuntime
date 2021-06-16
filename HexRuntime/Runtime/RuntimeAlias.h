@@ -16,9 +16,11 @@ namespace Runtime
 	using Boolean = bool;
 
 	using MDToken = UInt32;
+
 #ifdef _M_AMD64
 	using IntPtr = Int64;
 	using Int = Int64;
+#define _AMD64_
 #define X64
 #else
 	using IntPtr = Int32;

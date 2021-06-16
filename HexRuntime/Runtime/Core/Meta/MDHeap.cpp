@@ -18,3 +18,8 @@ RTM::MDPrivateHeap* RTM::MDHeap::GetPrivateHeap(MDToken assemblyToken)
 {
 	return nullptr;
 }
+
+void* operator new(size_t size, RTM::MDPrivateHeap* heap)
+{
+	return heap->Allocate(size);
+}

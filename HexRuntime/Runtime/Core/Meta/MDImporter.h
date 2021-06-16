@@ -8,7 +8,8 @@ using namespace RTI;
 namespace RTM
 {
 	/// <summary>
-	/// Meta data importer, it's per assembly
+	/// Meta data importer, it's per assembly and its thread safety is
+	/// guaranteed by meta manager
 	/// </summary>
 	class MDImporter
 	{
@@ -18,19 +19,23 @@ namespace RTM
 		MDPrivateHeap* mHeap = nullptr;
 	private:
 		template<class T>
-		void ReadInto(T& target) {
-			OSFile::ReadInto(mAssemblyFile, (UInt8*)&target, sizeof(T));
+		bool ReadInto(T& target) {
+			Int32 readBytes = OSFile::ReadInto(mAssemblyFile, (UInt8*)&target, sizeof(T));
+			return readBytes == sizeof(T);
 		}
 
 		template<class T>
-		void ReadIntoSeries(Int32& countTarget, T*& target) {
-			OSFile::ReadInto(mAssemblyFile, (UInt8*)&countTarget, sizeof(Int32));
-			target = (T*)mHeap->Allocate(countTarget);
-			OSFile::ReadInto(mAssemblyFile, (UInt8*)target, countTarget * sizeof(T));
+		bool ReadIntoSeries(Int32& countTarget, T*& target) {
+			Int32 readBytes = OSFile::ReadInto(mAssemblyFile, (UInt8*)&countTarget, sizeof(Int32));
+			if (readBytes != sizeof(Int32))
+				return false;
+			target = new (mHeap) T[countTarget];
+			readBytes = OSFile::ReadInto(mAssemblyFile, (UInt8*)target, countTarget * sizeof(T));
+			return readBytes == countTarget * sizeof(T);
 		}
-		void ReadCode(Int32& countTarget, UInt8*& target);
+		bool ReadCode(Int32& countTarget, UInt8*& target);
 
-		void PrepareImporter();
+		bool PrepareImporter();
 	public:
 		MDImporter(RTString assemblyName, MDToken assembly);
 	public:

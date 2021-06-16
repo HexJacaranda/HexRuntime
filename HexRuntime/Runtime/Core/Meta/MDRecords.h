@@ -7,7 +7,7 @@ namespace RTM
 		it refers to generic parameter.
 	*/
 
-	enum class MDTableKinds
+	enum class MDRecordKinds
 	{
 		TypeRef,
 		FieldRef,
@@ -19,13 +19,26 @@ namespace RTM
 		TypeDef,
 		AttributeDef,
 		MethodDef,
+		FieldDef,
+		PropertyDef,
+		EventDef,
 		//Used for counting
-		TableLimit
+		KindLimit
 	};
 
 	struct AssemblyHeaderMD
 	{
-
+		MDToken NameToken;
+		Int32 MajorVersion;
+		Int32 MinorVersion;
+		MDToken GroupNameToken;
+		struct
+		{
+			Int32 X;
+			Int16 Y;
+			Int16 Z;
+			Int16 U[4];
+		} GUID;
 	};
 
 
@@ -34,7 +47,7 @@ namespace RTM
 	/// </summary>
 	struct MDIndexTable
 	{
-		MDTableKinds Kind;
+		MDRecordKinds Kind;
 		Int32 Count;
 		Int32* Offsets;
 	public:
@@ -49,25 +62,33 @@ namespace RTM
 
 	struct TypeRefMD
 	{
-		MDToken AssemblyRefToken;
+		MDToken AssemblyToken;
 		MDToken TypeDefToken;
 	};
 
 	/// <summary>
-	/// Member reference could be field, method
+	/// Member reference could be field, method, property, event
 	/// </summary>
 	struct MemberRefMD
 	{
 		MDToken TypeRefToken;
-		/// <summary>
-		/// The type of member can be determined by JIT via opcodes.
-		/// </summary>
+		MDRecordKinds MemberDefKind;
 		MDToken MemberDefToken;
 	};
 
+	/* Attribute is a kind of special metadata. Its layout is described by referenced type.
+	   All supported field types: 
+	   1. primitive types (int, long, double...)
+	   2. string literal (stored as string token)
+	   3. type literal (stored as type reference token)
+	*/
 	struct AtrributeMD
 	{
+		MDRecordKinds ParentKind;
+		MDToken ParentToken;
 		MDToken TypeRefToken;
+		Int32 AttributeSize;
+		UInt8* AttributeBody;
 	};
 
 	struct GenericParamterMD
@@ -77,7 +98,9 @@ namespace RTM
 
 	struct FieldMD
 	{
+		MDToken ParentTypeRefToken;
 		MDToken TypeRefToken;
+		MDToken NameToken;
 		struct
 		{
 			UInt8 Accessibility;
@@ -91,9 +114,12 @@ namespace RTM
 
 	struct PropertyMD
 	{
+		MDToken ParentTypeRefToken;
 		MDToken TypeRefToken;
 		MDToken SetterToken;
 		MDToken GetterToken;
+		MDToken BackingFieldToken;
+		MDToken NameToken;
 		struct
 		{
 			UInt8 Accessibility;
@@ -101,19 +127,35 @@ namespace RTM
 			bool IsVirtual : 1;
 			bool IsOverride : 1;
 			bool IsFinal : 1;
-		};
+			bool IsRTSpecial : 1;
+		} Flags;
 		TOKEN_SERIES(Attribute);
 	};
 
 	struct EventMD
 	{
-
+		MDToken ParentTypeRefToken;
+		MDToken TypeRefToken;
+		MDToken AdderToken;
+		MDToken RemoverToken;
+		MDToken BackingFieldToken;
+		MDToken NameToken;
+		struct
+		{
+			UInt8 Accessibility;
+			bool IsInstance : 1;
+			bool IsVirtual : 1;
+			bool IsOverride : 1;
+			bool IsFinal : 1;
+		} Flags;
+		TOKEN_SERIES(Attribute);
 	};
 
 	struct ArgumentMD
 	{
 		MDToken TypeRefToken;
-		UInt8 CoreType;
+		MDToken NameToken;
+		UInt8 CoreType;	
 		union {
 			MDToken StringRefToken;
 			Int64 Data;
@@ -125,7 +167,6 @@ namespace RTM
 	{
 		MDToken ReturnTypeRefToken;
 		TOKEN_SERIES(Argument);
-		TOKEN_SERIES(Attribute);
 	};
 
 	class SlotType
@@ -158,6 +199,7 @@ namespace RTM
 			bool IsOverride : 1;
 			bool IsFinal : 1;
 			bool IsGeneric : 1;
+			bool IsRTSpecial : 1;
 		} Flags;
 		MethodSignatureMD SignatureMD;
 		struct
@@ -173,8 +215,10 @@ namespace RTM
 
 	struct TypeMD
 	{
+		MDToken ParentAssemblyToken;
 		MDToken ParentTypeRefToken;
-
+		MDToken NameToken;
+		MDToken EnclosingTypeRefToken;
 		struct {
 			UInt8 Accessibility;
 			bool IsSealed : 1;
@@ -184,17 +228,14 @@ namespace RTM
 			bool IsAttribute : 1;
 			bool IsGeneric : 1;
 		} Flags;
-		Int32 FieldCount;
-		MDToken* FieldTokens;
-		Int32 MethodCount;
-		MDToken* MethodTokens;
-		Int32 PropertyCount;
-		MDToken* PropertyTokens;
-		Int32 EventCount;
-		MDToken* EventTokens;
-		Int32 InterfaceCount;
-		MDToken* InterfaceTokens;
-		Int32 GenericParameterCount;
-		MDToken* GenericParameterTokens;
+		TOKEN_SERIES(Field);
+		TOKEN_SERIES(Method);
+		TOKEN_SERIES(Property);
+		TOKEN_SERIES(Event);
+		TOKEN_SERIES(Interface);
+		TOKEN_SERIES(GenericParameter);
+		TOKEN_SERIES(Attribute);
 	};
+
+#undef TOKEN_SERIES
 }

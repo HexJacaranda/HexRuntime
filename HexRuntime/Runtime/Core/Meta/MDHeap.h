@@ -21,3 +21,5 @@ namespace RTM
 		static MDPrivateHeap* GetPrivateHeap(MDToken assemblyToken);
 	};
 }
+
+void* operator new(size_t size, RTM::MDPrivateHeap* heap);

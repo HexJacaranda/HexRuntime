@@ -23,8 +23,8 @@ namespace RTI
 	enum class LocateOption
 	{
 		Start,
-		End,
-		Current
+		Current,
+		End
 	};
 
 	using FileHandle = void*;
@@ -35,7 +35,7 @@ namespace RTI
 		static FileHandle Open(RTString filePath, Int8 usageOption, Int8 sharingOption);
 		static void Close(FileHandle& handle);
 		static FileHandle Duplicate(FileHandle& handle);
-		static void Locate(FileHandle& handle, Int64 offset, LocateOption option);
-		static void ReadInto(FileHandle& handle, UInt8* buffer, Int32 readBytes);
+		static void Locate(FileHandle& handle, Int32 offset, LocateOption option);
+		static Int32 ReadInto(FileHandle& handle, UInt8* buffer, Int32 readBytes);
 	};
 }

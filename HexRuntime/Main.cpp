@@ -79,7 +79,6 @@ int main()
 {
 	ILEmitter il;
 	PrepareIL(il);
-	SSABuildAndOptimize(il);
-	//for (int i = 0; i < 100000; ++i)
-	//	SSABuildAndOptimize(il);
+	for (int i = 0; i < 100000; ++i)
+		SSABuildAndOptimize(il);
 }

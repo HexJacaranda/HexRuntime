@@ -34,11 +34,14 @@ RTI::FileHandle RTI::OSFile::Duplicate(FileHandle& handle)
 	return ret;
 }
 
-void RTI::OSFile::Locate(FileHandle& handle, Int64 offset, LocateOption option)
+void RTI::OSFile::Locate(FileHandle& handle, Int32 offset, LocateOption option)
 {
-	
+	SetFilePointer(handle, offset, nullptr, (DWORD)option);
 }
 
-void RTI::OSFile::ReadInto(FileHandle& handle, UInt8* buffer, Int32 readBytes)
+RT::Int32 RTI::OSFile::ReadInto(FileHandle& handle, UInt8* buffer, Int32 readBytes)
 {
+	DWORD doneBytes = 0;
+	ReadFile(handle, buffer, readBytes, &doneBytes, nullptr);
+	return doneBytes;
 }
