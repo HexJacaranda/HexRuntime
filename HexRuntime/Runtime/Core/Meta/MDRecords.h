@@ -9,11 +9,7 @@ namespace RTM
 
 	enum class MDRecordKinds
 	{
-		TypeRef,
-		FieldRef,
-		MethodRef,
-		PropertyRef,
-		EventRef,
+		String,
 		Argument,
 		GenericParameter,
 		TypeDef,
@@ -23,7 +19,12 @@ namespace RTM
 		PropertyDef,
 		EventDef,
 		//Used for counting
-		KindLimit
+		KindLimit,
+		TypeRef,
+		FieldRef,
+		MethodRef,
+		PropertyRef,
+		EventRef
 	};
 
 	struct AssemblyHeaderMD
@@ -39,9 +40,26 @@ namespace RTM
 			Int16 Z;
 			Int16 U[4];
 		} GUID;
+
+		static constexpr Int32 CompactSize =
+			sizeof(AssemblyHeaderMD::NameToken) +
+			sizeof(AssemblyHeaderMD::MajorVersion) +
+			sizeof(AssemblyHeaderMD::MinorVersion) +
+			sizeof(AssemblyHeaderMD::GUID);
 	};
 
-
+	struct RefTableHeaderMD
+	{
+		Int32 TypeRefTableOffset;
+		Int32 TypeRefCount;
+		Int32 MemberRefTableOffset;
+		Int32 MemberRefCount;
+		static constexpr Int32 CompactSize =
+			sizeof(RefTableHeaderMD::TypeRefTableOffset) +
+			sizeof(RefTableHeaderMD::TypeRefCount) +
+			sizeof(RefTableHeaderMD::MemberRefTableOffset) +
+			sizeof(RefTableHeaderMD::MemberRefCount);
+	};
 	/// <summary>
 	/// MD index table stores offsets of record in assembly
 	/// </summary>
@@ -74,6 +92,12 @@ namespace RTM
 		MDToken TypeRefToken;
 		MDRecordKinds MemberDefKind;
 		MDToken MemberDefToken;
+	};
+
+	struct StringMD
+	{
+		Int32 Count;
+		RTString CharacterSequence;
 	};
 
 	/* Attribute is a kind of special metadata. Its layout is described by referenced type.
@@ -219,6 +243,7 @@ namespace RTM
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
 		MDToken EnclosingTypeRefToken;
+		UInt8 CoreType;
 		struct {
 			UInt8 Accessibility;
 			bool IsSealed : 1;

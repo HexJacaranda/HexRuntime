@@ -19,9 +19,15 @@ bool RTM::MDImporter::PrepareImporter()
 	//Open assembly file for read only
 	mAssemblyFile = OSFile::Open(mAssemblyFileName, UsageOption::Read, SharingOption::SharedRead);
 	//Locate to table stream
-	OSFile::Locate(mAssemblyFile, sizeof(AssemblyHeaderMD), LocateOption::Start);
+	OSFile::Locate(mAssemblyFile, AssemblyHeaderMD::CompactSize, LocateOption::Start);
 	
-	//Read table stream
+	//Read ref table header
+	IF_FAIL_RET(ReadInto(mRefTableHeader.TypeRefTableOffset));
+	IF_FAIL_RET(ReadInto(mRefTableHeader.TypeRefCount));
+	IF_FAIL_RET(ReadInto(mRefTableHeader.MemberRefTableOffset));
+	IF_FAIL_RET(ReadInto(mRefTableHeader.MemberRefCount));
+
+	//Read regular table stream
 	for (Int32 i = 0; i < (Int32)MDRecordKinds::KindLimit; ++i)
 	{
 		IF_FAIL_RET(ReadInto(mIndexTable[i].Kind));
@@ -148,6 +154,7 @@ bool RTM::MDImporter::ImportType(MDToken token, TypeMD* typeMD)
 	IF_FAIL_RET(ReadInto(typeMD->ParentTypeRefToken));
 	IF_FAIL_RET(ReadInto(typeMD->NameToken));
 	IF_FAIL_RET(ReadInto(typeMD->EnclosingTypeRefToken));
+	IF_FAIL_RET(ReadInto(typeMD->CoreType));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->FieldCount, typeMD->FieldTokens));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->MethodCount, typeMD->MethodTokens));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->PropertyCount, typeMD->PropertyTokens));
@@ -155,6 +162,59 @@ bool RTM::MDImporter::ImportType(MDToken token, TypeMD* typeMD)
 	IF_FAIL_RET(ReadIntoSeries(typeMD->InterfaceCount, typeMD->InterfaceTokens));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->GenericParameterCount, typeMD->GenericParameterTokens));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->AttributeCount, typeMD->AttributeTokens));
+	return true;
+}
+
+bool RTM::MDImporter::PreImportString(MDToken token, StringMD* stringMD)
+{
+	Int32 offset = mIndexTable[(Int32)MDRecordKinds::String][token];
+	OSFile::Locate(mAssemblyFile, offset, LocateOption::Start);
+	IF_FAIL_RET(ReadInto(stringMD->CharacterSequence));
+	return true;
+}
+
+bool RTM::MDImporter::ImportString(StringMD* stringMD)
+{
+	Int32 read = OSFile::ReadInto(mAssemblyFile, (UInt8*)stringMD->CharacterSequence, sizeof(UInt16) * stringMD->Count);
+	return sizeof(UInt16) * stringMD->Count == read;;
+}
+
+bool RTM::MDImporter::ImportTypeRef(TypeRefMD* typeRefMD)
+{
+	IF_FAIL_RET(ReadInto(typeRefMD->AssemblyToken));
+	IF_FAIL_RET(ReadInto(typeRefMD->TypeDefToken));
+	return true;
+}
+
+bool RTM::MDImporter::ImportMemberRef(MemberRefMD* memberRefMD)
+{
+	IF_FAIL_RET(ReadInto(memberRefMD->TypeRefToken));
+	IF_FAIL_RET(ReadInto(memberRefMD->MemberDefKind));
+	IF_FAIL_RET(ReadInto(memberRefMD->MemberDefToken));
+	return true;
+}
+
+bool RTM::MDImporter::ImportTypeRefTable(TypeRefMD*& typeRefTable)
+{
+	Int32 offset = mRefTableHeader.TypeRefTableOffset;
+	Int32 count = mRefTableHeader.TypeRefCount;
+	typeRefTable = new (mHeap) TypeRefMD[count];
+
+	for (Int32 i = 0; i < count; ++i)
+		IF_FAIL_RET(ImportTypeRef(&typeRefTable[i]));
+
+	return true;
+}
+
+bool RTM::MDImporter::ImportMemberRefTable(MemberRefMD*& memberRefTable)
+{
+	Int32 offset = mRefTableHeader.MemberRefTableOffset;
+	Int32 count = mRefTableHeader.MemberRefCount;
+	memberRefTable = new (mHeap) MemberRefMD[count];
+
+	for (Int32 i = 0; i < count; ++i)
+		IF_FAIL_RET(ImportMemberRef(&memberRefTable[i]));
+
 	return true;
 }
 
