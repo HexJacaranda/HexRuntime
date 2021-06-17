@@ -243,6 +243,7 @@ namespace RTM
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
 		MDToken EnclosingTypeRefToken;
+		MDToken NamespaceToken;
 		UInt8 CoreType;
 		struct {
 			UInt8 Accessibility;

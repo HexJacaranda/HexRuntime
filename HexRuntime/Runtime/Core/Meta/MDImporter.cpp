@@ -154,6 +154,7 @@ bool RTM::MDImporter::ImportType(MDToken token, TypeMD* typeMD)
 	IF_FAIL_RET(ReadInto(typeMD->ParentTypeRefToken));
 	IF_FAIL_RET(ReadInto(typeMD->NameToken));
 	IF_FAIL_RET(ReadInto(typeMD->EnclosingTypeRefToken));
+	IF_FAIL_RET(ReadInto(typeMD->NamespaceToken));
 	IF_FAIL_RET(ReadInto(typeMD->CoreType));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->FieldCount, typeMD->FieldTokens));
 	IF_FAIL_RET(ReadIntoSeries(typeMD->MethodCount, typeMD->MethodTokens));
