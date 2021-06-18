@@ -72,16 +72,67 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int
 	return value;
 }
 
-RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
 {
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	for (auto&& predecessor : block->BBIn)
-		phiNode->Choices.push_back(ReadVariable(kind, variableIndex, predecessor->Index));
+	{
+		auto choice = ReadVariable(kind, variableIndex, predecessor->Index);
+		if (choice != phiNode)
+			phiNode->Choices.push_back(choice);
+	}
+		
 	return TryRemoveRedundantPhiNode(phiNode);
 }
 
-RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode)
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode)
 {
+	//May be directly collapsed
+	if (phiNode->Choices.size() == 1)
+		return (phiNode->CollapsedValue = phiNode->Choices[0]);
+
+	{
+		//Simplify choices
+		auto iterator = phiNode->Choices.begin();
+		while (iterator != phiNode->Choices.end())
+		{
+			auto&& choice = *iterator;
+			if (choice->Is(NodeKinds::Phi))
+			{
+				auto phiChoice = choice->As<SSA::PhiNode>();
+				if (phiChoice->IsEmpty() || phiChoice->IsRemoved())
+				{
+					phiNode->Choices.erase(iterator);
+					continue;
+				}
+				if (phiChoice->IsCollapsed())
+					//Replace with collapsed value
+					choice = phiChoice->CollapsedValue;
+			}
+			++iterator;
+		}
+	}
+
+	//Deal with duplicated case
+	TreeNode* sameNode = nullptr;
+	for (auto&& choice : phiNode->Choices)
+	{
+		if (choice == sameNode || choice == phiNode)
+			continue;
+		if (sameNode != nullptr)
+		{
+			//Non-trivial case, merged two or more values that may not collapse
+			sameNode = nullptr;
+			break;
+		}
+		sameNode = choice;
+	}
+
+	//If this collapsed
+	if (phiNode->Choices.size() == 1 || sameNode != nullptr)
+		return (phiNode->CollapsedValue = phiNode->Choices[0]);
+
+	//Still not trivial
 	return phiNode;
 }
 

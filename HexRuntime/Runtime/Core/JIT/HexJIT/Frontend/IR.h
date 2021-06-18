@@ -509,18 +509,23 @@ namespace RTJ::Hex
 		{
 			BasicBlock* Belonging = nullptr;
 			std::vector<TreeNode*> Choices;
-			TreeNode* OriginValue = nullptr;
+			/// <summary>
+			/// When this is not null, phi becomes trivial
+			/// </summary>
+			TreeNode* CollapsedValue = nullptr;
 		public:
-			PhiNode(TreeNode* value):
-				TreeNode(NodeKinds::Phi),
-				OriginValue(value) {
-			}
 			PhiNode(BasicBlock* belongs) :
 				TreeNode(NodeKinds::Phi),
 				Belonging(belongs) {
 			}
 			bool IsRemoved()const {
 				return Belonging == nullptr;
+			}
+			bool IsEmpty()const {
+				return Choices.size() == 0;
+			}
+			bool IsCollapsed()const {
+				return CollapsedValue != nullptr;
 			}
 		};
 	}
