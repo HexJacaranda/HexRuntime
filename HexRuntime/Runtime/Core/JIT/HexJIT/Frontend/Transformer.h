@@ -73,14 +73,14 @@ namespace RTJ::Hex
 		NewArrayNode* GenerateNewArray();
 		CompareNode* GenerateCompare();
 		TreeNode* GenerateDuplicate();
-		ReturnNode* GenerateReturn(BasicBlockPartitionPoint*& partitions);
+		
 		BinaryArithmeticNode* GenerateBinaryArithmetic(UInt8 opcode);
 		UnaryArithmeticNode* GenerateUnaryArtithmetic(UInt8 opcode);
 		ConvertNode* GenerateConvert();
 
-		TreeNode* GenerateJccPP(BasicBlockPartitionPoint*& partitions);
+		void GenerateJccPP(BasicBlockPartitionPoint*& partitions);
 		void GenerateJmpPP(BasicBlockPartitionPoint*& partitions);
-
+		void GenerateReturn(BasicBlockPartitionPoint*& partitions);
 		/// <summary>
 		/// The key standard for generating a statement is that eval stack is empty(balanced).
 		/// Also there is case that unbalanced eval stack is unacceptable. For example, a call 

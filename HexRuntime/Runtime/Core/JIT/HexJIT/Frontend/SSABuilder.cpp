@@ -101,6 +101,37 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 	mLocalDefinition = std::move(
 		std::vector<std::unordered_map<Int16, TreeNode*>>(mJITContext->Context->LocalVariables.size()));
 
+	auto readWrite = [&](TreeNode* node, Int32 bbIndex) {
+		//The store node is always a stmt
+		if (node->Kind == NodeKinds::Store)
+		{
+			auto store = node->As<StoreNode>();
+			auto kind = store->Destination->Kind;
+			auto index = -1;
+
+			if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
+				index = store->Destination->As<LocalVariableNode>()->LocalIndex;
+
+			if (index != -1 && IsVariableTrackable(kind, index))
+				WriteVariable(kind, index, bbIndex, store->Source);
+		}
+
+		TraverseTree<256>(node, [&](TreeNode*& value) {
+			if (!value->Is(NodeKinds::Load))
+				return;
+
+			auto load = value->As<LoadNode>();
+			auto kind = load->Source->Kind;
+			auto index = -1;
+
+			if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
+				index = load->Source->As<LocalVariableNode>()->LocalIndex;
+
+			if (index != -1 && IsVariableTrackable(kind, index))
+				value = ReadVariable(kind, index, bbIndex);
+			});
+	};
+
 	//Traverse to find every write or read for local variables marked trackable.
 	for (BasicBlock* bbIterator = mTarget; 
 		bbIterator != nullptr; 
@@ -110,36 +141,11 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 			stmtIterator != nullptr && stmtIterator->Now != nullptr;
 			stmtIterator = stmtIterator->Next)
 		{
-			auto node = stmtIterator->Now;
-			//The store node is always a stmt
-			if (node->Kind == NodeKinds::Store)
-			{
-				auto store = node->As<StoreNode>();
-				auto kind = store->Destination->Kind;
-				auto index = -1;
-
-				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
-					index = store->Destination->As<LocalVariableNode>()->LocalIndex;
-
-				if (index != -1 && IsVariableTrackable(kind, index))
-					WriteVariable(kind, index, bbIterator->Index, store->Source);
-			}
-
-			TraverseTree<256>(node, [&](TreeNode*& value) {
-				if (!value->Is(NodeKinds::Load))
-					return;
-
-				auto load = value->As<LoadNode>();
-				auto kind = load->Source->Kind;
-				auto index = -1;
-
-				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
-					index = load->Source->As<LocalVariableNode>()->LocalIndex;
-
-				if (index != -1 && IsVariableTrackable(kind, index))
-					value = ReadVariable(kind, index, bbIterator->Index);
-			});		
+			readWrite(stmtIterator->Now, bbIterator->Index);
 		}
+		//Flow control value may also involve r/w
+		if (bbIterator->BranchConditionValue != nullptr)
+			readWrite(bbIterator->BranchConditionValue, bbIterator->Index);
 	}
 	return mTarget;
 }

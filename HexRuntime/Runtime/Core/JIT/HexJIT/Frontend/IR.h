@@ -22,7 +22,6 @@ namespace RTJ::Hex
 		Duplicate,
 		New,
 		NewArray,
-		Return,
 		BinaryArithmetic,
 		UnaryArithmetic,
 		Null,
@@ -209,14 +208,6 @@ namespace RTJ::Hex
 		UInt8 Condition;
 	};
 
-	struct ReturnNode : UnaryNode
-	{
-		ReturnNode(TreeNode* ret)
-			:UnaryNode(NodeKinds::Return),
-			Ret(ret) {}
-		TreeNode* Ret;
-	};
-
 	struct BinaryArithmeticNode : BinaryNode
 	{
 		BinaryArithmeticNode(
@@ -346,7 +337,6 @@ namespace RTJ::Hex
 			//Unary access
 			case NodeKinds::Convert:
 			case NodeKinds::InstanceField:
-			case NodeKinds::Return:
 			case NodeKinds::UnaryArithmetic:
 			case NodeKinds::Duplicate:
 			{
@@ -403,7 +393,6 @@ namespace RTJ::Hex
 			//Unary access
 			case NodeKinds::Convert:
 			case NodeKinds::InstanceField:
-			case NodeKinds::Return:
 			case NodeKinds::UnaryArithmetic:
 			case NodeKinds::Duplicate:
 			{
@@ -424,7 +413,7 @@ namespace RTJ::Hex
 			}
 		}
 
-		while (index-- > 0)
+		while (--index >= 0)
 			std::forward<Fn>(action)(*stack[index]);
 	}
 
@@ -451,6 +440,10 @@ namespace RTJ::Hex
 	/// </summary>
 	enum class PPKind
 	{
+		/// <summary>
+		/// Initial and most natural kind
+		/// </summary>
+		Sequential,
 		Conditional,
 		Unconditional,
 		Ret,
@@ -463,7 +456,7 @@ namespace RTJ::Hex
 		Catch,
 		/// <summary>
 		/// Finally block always have previous try block
-		/// int its BBIn
+		/// in its BBIn
 		/// </summary>
 		Finally
 	};
@@ -483,7 +476,7 @@ namespace RTJ::Hex
 		/// </summary>
 		Int32 Index = 0;
 	public:
-		PPKind BranchKind;
+		PPKind BranchKind = PPKind::Sequential;
 		/// <summary>
 		/// Stores the condition expression.
 		/// </summary>
@@ -500,10 +493,10 @@ namespace RTJ::Hex
 		BasicBlockPartitionPoint* Next = nullptr;
 
 		PPKind Kind;
+		//For target kind PP, this should be its targeted offset
 		Int32 ILOffset;
-
-		//Record the target of jump.
 		Int32 TargetILOffset = 0;
+		//The value of conditional jump
 		TreeNode* Value = nullptr;
 	};
 

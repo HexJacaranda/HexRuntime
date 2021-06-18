@@ -226,7 +226,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateDuplicate()
 	return mEvalStack.Top();
 }
 
-RTJ::Hex::ReturnNode* RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitions)
+void RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitions)
 {
 	TreeNode* ret = nullptr;
 	if (mBaeIn == 1)
@@ -238,7 +238,6 @@ RTJ::Hex::ReturnNode* RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitio
 				option = InsertOption::Before;
 			return currentPoint->ILOffset <= x->ILOffset;
 	});
-	return new(mMemory) ReturnNode(ret);
 }
 
 RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmetic(UInt8 opcode)
@@ -264,14 +263,14 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 	return new(mMemory) ConvertNode(value, from, to);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
+void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto value = mEvalStack.Pop();
 	auto jccOffset = ReadAs<Int32>();
 	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
 	currentPoint->TargetILOffset = jccOffset;
 
-	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, GetOffset(), nullptr);
+	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
 	//Append current point into list
 	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
@@ -282,10 +281,13 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPo
 
 	//Append branched to list
 	LinkedList::AppendOneWayOrdered(partitions, branchedPoint,
-		[&](BasicBlockPartitionPoint* x, InsertOption&) {
+		[&](BasicBlockPartitionPoint* x, InsertOption& option) {	
+			if (branchedPoint->ILOffset == x->ILOffset && x->Kind != PPKind::Target)
+				option = InsertOption::After;
+			else
+				option = InsertOption::Before;
 			return branchedPoint->ILOffset <= x->ILOffset;
 		});
-	return value;
 }
 
 void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partitions)
@@ -294,7 +296,7 @@ void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partition
 	auto currentPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
 	currentPoint->TargetILOffset = jmpOffset;
 
-	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, GetOffset(), nullptr);
+	auto branchedPoint = new(mMemory) BasicBlockPartitionPoint(PPKind::Target, jmpOffset, nullptr);
 	//Append current point into list
 	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
@@ -305,7 +307,11 @@ void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partition
 
 	//Append branched to list
 	LinkedList::AppendOneWayOrdered(partitions, branchedPoint,
-		[&](BasicBlockPartitionPoint* x, InsertOption&) {
+		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
+			if (branchedPoint->ILOffset == x->ILOffset && x->Kind != PPKind::Target)
+				option = InsertOption::After;
+			else
+				option = InsertOption::Before;
 			return branchedPoint->ILOffset <= x->ILOffset;
 		});
 }
@@ -357,13 +363,15 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		}
 		case OpCodes::Ret:
 		{
-			IL_TRY_GEN_STMT_CRITICAL(GenerateReturn(partitions), true);
+			GenerateReturn(partitions);
+			IL_TRY_GEN_STMT_CRITICAL(nullptr, true);
 			break;
 		}
 
 		case OpCodes::Jcc:
 		{
-			IL_TRY_GEN_STMT_CRITICAL(GenerateJccPP(partitions), true);
+			GenerateJccPP(partitions);
+			IL_TRY_GEN_STMT_CRITICAL(nullptr, true);
 			break;
 		}
 		case OpCodes::Jmp:
@@ -663,8 +671,9 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		
 		//Append to linked list will change the previous BB to current
 		if (basicBlockPrevious == nullptr ||
-			basicBlockPrevious->BranchKind == PPKind::Conditional)
-			//Logically sequential to the previous basic block if there is no return. 	
+			basicBlockPrevious->BranchKind == PPKind::Conditional ||
+			basicBlockPrevious->BranchKind == PPKind::Sequential)
+			//Logically sequential to the previous basic	
 			basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
 		//Then we append this to our list.
