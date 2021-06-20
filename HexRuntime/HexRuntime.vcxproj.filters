@@ -58,6 +58,9 @@
     <Filter Include="源文件\OSFile">
       <UniqueIdentifier>{361330e3-b8ef-48b7-b415-0aa55d0b19f2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\Meta\Descriptors">
+      <UniqueIdentifier>{d7cbafa8-1be6-44fa-b90b-dcaa88577cb3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -183,6 +186,9 @@
     <ClInclude Include="Runtime\Core\Meta\MDHeap.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -262,6 +268,9 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp">
       <Filter>源文件\OSFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

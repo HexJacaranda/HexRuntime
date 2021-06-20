@@ -9,3 +9,8 @@ RTO::StringObject* RTM::MetaManager::GetStringFromToken(MDToken typeReference)
 {
 	return nullptr;
 }
+
+RTM::MethodDescriptor* RTM::MetaManager::GetMethodFromToken(MDToken methodReference)
+{
+	return nullptr;
+}

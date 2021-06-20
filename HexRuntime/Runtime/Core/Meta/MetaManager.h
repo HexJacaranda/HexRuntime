@@ -4,6 +4,7 @@
 #include "..\Object\StringObject.h"
 #include "MDRecords.h"
 #include "MDImporter.h"
+#include "MethodDescriptor.h"
 
 namespace RTM
 {
@@ -16,6 +17,6 @@ namespace RTM
 	public:
 		static Type* GetTypeFromToken(MDToken typeReference);
 		static RTO::StringObject* GetStringFromToken(MDToken stringToken);
-		
+		static MethodDescriptor* GetMethodFromToken(MDToken methodReference);
 	};
 }

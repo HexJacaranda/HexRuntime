@@ -49,6 +49,7 @@
     <ClInclude Include="Runtime\Core\Meta\MDImporter.h" />
     <ClInclude Include="Runtime\Core\Meta\MDRecords.h" />
     <ClInclude Include="Runtime\Core\Meta\MetaManager.h" />
+    <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h" />
     <ClInclude Include="Runtime\Core\MethodTable.h" />
     <ClInclude Include="Runtime\Core\Object\ArrayObject.h" />
     <ClInclude Include="Runtime\Core\Object\Object.h" />
@@ -81,6 +82,7 @@
     <ClCompile Include="Runtime\Core\Meta\MDHeap.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp" />
     <ClCompile Include="Runtime\Core\MethodTable.cpp" />
     <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp" />
     <ClCompile Include="Runtime\Core\Object\Object.cpp" />
