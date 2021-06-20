@@ -50,6 +50,23 @@ void PrepareIL(ILEmitter& il)
 	il.EmitRet(0x10);
 }
 
+void PrepareBackIL(ILEmitter& il)
+{
+	il.EmitLdC(CoreTypes::I4, 2);
+	il.EmitStore(OpCodes::StLoc, 0);
+
+	auto offset = il.GetLength();
+
+	il.EmitLdC(CoreTypes::I4, 3);
+	il.EmitStore(OpCodes::StLoc, 1);
+
+	il.EmitLoad(OpCodes::LdLoc, 0);
+	il.EmitLoad(OpCodes::LdLoc, 1);
+	il.EmitCompare(CmpCondition::EQ);
+	il.EmitJcc(offset);
+	il.EmitRet(0x00);
+}
+
 void SSABuildAndOptimize(ILEmitter const& il)
 {
 	JITContext context;
@@ -78,7 +95,8 @@ void SSABuildAndOptimize(ILEmitter const& il)
 int main()
 {
 	ILEmitter il;
-	PrepareIL(il);
-	for (int i = 0; i < 100000; ++i)
-		SSABuildAndOptimize(il);
+	PrepareBackIL(il);
+	SSABuildAndOptimize(il);
+	//for (int i = 0; i < 100000; ++i)
+	//	SSABuildAndOptimize(il);
 }

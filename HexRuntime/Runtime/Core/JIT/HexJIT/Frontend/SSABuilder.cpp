@@ -72,16 +72,67 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int
 	return value;
 }
 
-RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
 {
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	for (auto&& predecessor : block->BBIn)
-		phiNode->Choices.push_back(ReadVariable(kind, variableIndex, predecessor->Index));
+	{
+		auto choice = ReadVariable(kind, variableIndex, predecessor->Index);
+		if (choice != phiNode)
+			phiNode->Choices.push_back(choice);
+	}
+		
 	return TryRemoveRedundantPhiNode(phiNode);
 }
 
-RTJ::Hex::SSA::PhiNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode)
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode)
 {
+	//May be directly collapsed
+	if (phiNode->Choices.size() == 1)
+		return (phiNode->CollapsedValue = phiNode->Choices[0]);
+
+	{
+		//Simplify choices
+		auto iterator = phiNode->Choices.begin();
+		while (iterator != phiNode->Choices.end())
+		{
+			auto&& choice = *iterator;
+			if (choice->Is(NodeKinds::Phi))
+			{
+				auto phiChoice = choice->As<SSA::PhiNode>();
+				if (phiChoice->IsEmpty() || phiChoice->IsRemoved())
+				{
+					phiNode->Choices.erase(iterator);
+					continue;
+				}
+				if (phiChoice->IsCollapsed())
+					//Replace with collapsed value
+					choice = phiChoice->CollapsedValue;
+			}
+			++iterator;
+		}
+	}
+
+	//Deal with duplicated case
+	TreeNode* sameNode = nullptr;
+	for (auto&& choice : phiNode->Choices)
+	{
+		if (choice == sameNode || choice == phiNode)
+			continue;
+		if (sameNode != nullptr)
+		{
+			//Non-trivial case, merged two or more values that may not collapse
+			sameNode = nullptr;
+			break;
+		}
+		sameNode = choice;
+	}
+
+	//If this collapsed
+	if (phiNode->Choices.size() == 1 || sameNode != nullptr)
+		return (phiNode->CollapsedValue = phiNode->Choices[0]);
+
+	//Still not trivial
 	return phiNode;
 }
 
@@ -101,6 +152,37 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 	mLocalDefinition = std::move(
 		std::vector<std::unordered_map<Int16, TreeNode*>>(mJITContext->Context->LocalVariables.size()));
 
+	auto readWrite = [&](TreeNode* node, Int32 bbIndex) {
+		//The store node is always a stmt
+		if (node->Kind == NodeKinds::Store)
+		{
+			auto store = node->As<StoreNode>();
+			auto kind = store->Destination->Kind;
+			auto index = -1;
+
+			if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
+				index = store->Destination->As<LocalVariableNode>()->LocalIndex;
+
+			if (index != -1 && IsVariableTrackable(kind, index))
+				WriteVariable(kind, index, bbIndex, store->Source);
+		}
+
+		TraverseTree<256>(node, [&](TreeNode*& value) {
+			if (!value->Is(NodeKinds::Load))
+				return;
+
+			auto load = value->As<LoadNode>();
+			auto kind = load->Source->Kind;
+			auto index = -1;
+
+			if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
+				index = load->Source->As<LocalVariableNode>()->LocalIndex;
+
+			if (index != -1 && IsVariableTrackable(kind, index))
+				value = ReadVariable(kind, index, bbIndex);
+			});
+	};
+
 	//Traverse to find every write or read for local variables marked trackable.
 	for (BasicBlock* bbIterator = mTarget; 
 		bbIterator != nullptr; 
@@ -110,36 +192,11 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 			stmtIterator != nullptr && stmtIterator->Now != nullptr;
 			stmtIterator = stmtIterator->Next)
 		{
-			auto node = stmtIterator->Now;
-			//The store node is always a stmt
-			if (node->Kind == NodeKinds::Store)
-			{
-				auto store = node->As<StoreNode>();
-				auto kind = store->Destination->Kind;
-				auto index = -1;
-
-				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
-					index = store->Destination->As<LocalVariableNode>()->LocalIndex;
-
-				if (index != -1 && IsVariableTrackable(kind, index))
-					WriteVariable(kind, index, bbIterator->Index, store->Source);
-			}
-
-			TraverseTree<256>(node, [&](TreeNode*& value) {
-				if (!value->Is(NodeKinds::Load))
-					return;
-
-				auto load = value->As<LoadNode>();
-				auto kind = load->Source->Kind;
-				auto index = -1;
-
-				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
-					index = load->Source->As<LocalVariableNode>()->LocalIndex;
-
-				if (index != -1 && IsVariableTrackable(kind, index))
-					value = ReadVariable(kind, index, bbIterator->Index);
-			});		
+			readWrite(stmtIterator->Now, bbIterator->Index);
 		}
+		//Flow control value may also involve r/w
+		if (bbIterator->BranchConditionValue != nullptr)
+			readWrite(bbIterator->BranchConditionValue, bbIterator->Index);
 	}
 	return mTarget;
 }
