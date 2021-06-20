@@ -72,13 +72,30 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(NodeKinds kind, Int
 	return value;
 }
 
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TrySimplifyChoice(SSA::PhiNode* origin, TreeNode* node)
+{
+	if (origin == node)
+		return nullptr;
+	if (node->Is(NodeKinds::Phi))
+	{
+		auto phiChoice = node->As<SSA::PhiNode>();
+		if (phiChoice->IsEmpty() || phiChoice->IsRemoved())
+			return nullptr;
+		if (phiChoice->IsCollapsed())
+			//Replace with collapsed value
+			return phiChoice->CollapsedValue;
+	}
+	//Non-trival case
+	return node;
+}
+
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode)
 {
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	for (auto&& predecessor : block->BBIn)
 	{
-		auto choice = ReadVariable(kind, variableIndex, predecessor->Index);
-		if (choice != phiNode)
+		auto choice = TrySimplifyChoice(phiNode, ReadVariable(kind, variableIndex, predecessor->Index));
+		if (choice != nullptr)
 			phiNode->Choices.push_back(choice);
 	}
 		
@@ -91,33 +108,11 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode
 	if (phiNode->Choices.size() == 1)
 		return (phiNode->CollapsedValue = phiNode->Choices[0]);
 
-	{
-		//Simplify choices
-		auto iterator = phiNode->Choices.begin();
-		while (iterator != phiNode->Choices.end())
-		{
-			auto&& choice = *iterator;
-			if (choice->Is(NodeKinds::Phi))
-			{
-				auto phiChoice = choice->As<SSA::PhiNode>();
-				if (phiChoice->IsEmpty() || phiChoice->IsRemoved())
-				{
-					phiNode->Choices.erase(iterator);
-					continue;
-				}
-				if (phiChoice->IsCollapsed())
-					//Replace with collapsed value
-					choice = phiChoice->CollapsedValue;
-			}
-			++iterator;
-		}
-	}
-
 	//Deal with duplicated case
 	TreeNode* sameNode = nullptr;
 	for (auto&& choice : phiNode->Choices)
 	{
-		if (choice == sameNode || choice == phiNode)
+		if (choice == sameNode)
 			continue;
 		if (sameNode != nullptr)
 		{
@@ -130,7 +125,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode
 
 	//If this collapsed
 	if (phiNode->Choices.size() == 1 || sameNode != nullptr)
-		return (phiNode->CollapsedValue = phiNode->Choices[0]);
+		return (phiNode->CollapsedValue = sameNode);
 
 	//Still not trivial
 	return phiNode;

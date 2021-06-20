@@ -27,6 +27,7 @@ namespace RTJ::Hex
 		TreeNode* ReadVariable(NodeKinds kind, Int16 variableIndex, Int32 blockIndex);
 		TreeNode* ReadVariableLookUp(NodeKinds kind, Int16 variableIndex, Int32 blockIndex);
 		TreeNode* AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode);
+		TreeNode* TrySimplifyChoice(SSA::PhiNode* origin, TreeNode* node);
 		TreeNode* TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode);
 	public:
 		SSABuilder(HexJITContext* jitContext);
