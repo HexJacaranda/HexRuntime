@@ -25,7 +25,4 @@ namespace RTC
 	};
 
 	using InteriorPointer = InteriorPointerBase<sizeof(void*)>;
-
-	//Double word compare and swap
-	extern "C" bool __stdcall DWCAS(InteriorPointer * address, InteriorPointer value, InteriorPointer compareValue);
 }

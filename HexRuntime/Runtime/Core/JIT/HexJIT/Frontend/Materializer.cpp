@@ -73,13 +73,20 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::Materialize()
 					switch (node->Kind)
 					{
 					case NodeKinds::Call:
-
+						node = MorphCall(node, bbIterator->Now, stmtIterator);
+						break;
 					case NodeKinds::New:
+						node = MorphNew(node, bbIterator->Now, stmtIterator);
+						break;
 					case NodeKinds::NewArray:
-					case NodeKinds::Convert:
-
+						node = MorphNewArray(node, bbIterator->Now, stmtIterator);
+						break;
 					case NodeKinds::Load:
+						node = MorphLoad(node, bbIterator->Now, stmtIterator);
+						break;
 					case NodeKinds::Store:
+						node = MorphStore(node, bbIterator->Now, stmtIterator);
+						break;
 					}
 				});
 		}

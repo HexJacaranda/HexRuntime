@@ -3,6 +3,8 @@
 #include "..\Interfaces\OSFile.h"
 #include "MDRecords.h"
 #include "MDHeap.h"
+#include "IImportSession.h"
+#include <type_traits>
 
 using namespace RTI;
 namespace RTM
@@ -16,53 +18,72 @@ namespace RTM
 		Fast
 	};
 
+	template<class Fn>
+	concept SessionActionT = requires(Fn action, IImportSession * session, bool result)
+	{
+		result = action(session);
+	};
+
 	/// <summary>
 	/// Meta data importer, it's per assembly and its thread safety is
 	/// guaranteed by meta manager
 	/// </summary>
 	class MDImporter
 	{
-		RTString mAssemblyFileName;
-		RTI::FileHandle mAssemblyFile;
+		//IO file part
+		ImportOption mImportOption = ImportOption::Default;
+		RTString mAssemblyFileName = nullptr;
+		Int32 mAssemblyLength = 0;
+		FileHandle mAssemblyFile = nullptr;
+		FileMappingHandle mAssemblyMapping = nullptr;
+
+		//Meta data table part
 		MDIndexTable* mIndexTable = nullptr;
 		RefTableHeaderMD mRefTableHeader;
 		MDPrivateHeap* mHeap = nullptr;
 	private:
-		template<class T>
-		bool ReadInto(T& target) {
-			Int32 readBytes = OSFile::ReadInto(mAssemblyFile, (UInt8*)&target, sizeof(T));
-			return readBytes == sizeof(T);
-		}
-
-		template<class T>
-		bool ReadIntoSeries(Int32& countTarget, T*& target) {
-			Int32 readBytes = OSFile::ReadInto(mAssemblyFile, (UInt8*)&countTarget, sizeof(Int32));
-			if (readBytes != sizeof(Int32))
-				return false;
-			target = new (mHeap) T[countTarget];
-			readBytes = OSFile::ReadInto(mAssemblyFile, (UInt8*)target, countTarget * sizeof(T));
-			return readBytes == countTarget * sizeof(T);
-		}
-		bool ReadCode(Int32& countTarget, UInt8*& target);
-
+		bool ReadCode(IImportSession* session, Int32& countTarget, UInt8*& target);
+		void PrepareFile(ImportOption option);
 		bool PrepareImporter();
 	public:
-		MDImporter(RTString assemblyName, MDToken assembly);
+		MDImporter(RTString assemblyName, MDToken assembly, ImportOption option);
 	private:
-		bool ImportMethodSignature(MethodSignatureMD* signatureMD);
-		bool ImportTypeRef(TypeRefMD* typeRefMD);
-		bool ImportMemberRef(MemberRefMD* memberRefMD);
+		bool ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD);
+		bool ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD);
+		bool ImportMemberRef(IImportSession* session, MemberRefMD* memberRefMD);
+	public:
+		/// <summary>
+		/// Remember to return to importer
+		/// </summary>
+		/// <returns></returns>
+		IImportSession* NewSession(Int32 offset = 0);
+		void ReturnSession(IImportSession* session);
+
+		/// <summary>
+		/// Use session
+		/// </summary>
+		/// <param name="action"></param>
+		/// <param name="offset"></param>
+		/// <returns></returns>
+		template<SessionActionT Fn>
+		bool UseSession(Fn&& action, Int32 offset = 0)
+		{
+			IImportSession* session = NewSession(offset);
+			bool result = std::forward<Fn>(action)(session);
+			ReturnSession(session);
+			return result;
+		}
 	public:
 		static inline bool IsCanonicalToken(MDToken typeRefToken);
-		bool ImportAssemblyHeader(AssemblyHeaderMD* assemblyMD);
-		bool ImportAttribute(MDToken token, AtrributeMD* attributeMD);
-		bool ImportArgument(MDToken token, ArgumentMD* argumentMD);
-		bool ImportMethod(MDToken token, MethodMD* methodMD);
+		bool ImportAssemblyHeader(IImportSession* session, AssemblyHeaderMD* assemblyMD);
+		bool ImportAttribute(IImportSession* session, MDToken token, AtrributeMD* attributeMD);
+		bool ImportArgument(IImportSession* session, MDToken token, ArgumentMD* argumentMD);
+		bool ImportMethod(IImportSession* session, MDToken token, MethodMD* methodMD);
 		
-		bool ImportField(MDToken token, FieldMD* fieldMD);
-		bool ImportProperty(MDToken token, PropertyMD* propertyMD);
-		bool ImportEvent(MDToken token, EventMD* eventMD);
-		bool ImportType(MDToken token, TypeMD* typeMD);
+		bool ImportField(IImportSession* session, MDToken token, FieldMD* fieldMD);
+		bool ImportProperty(IImportSession* session, MDToken token, PropertyMD* propertyMD);
+		bool ImportEvent(IImportSession* session, MDToken token, EventMD* eventMD);
+		bool ImportType(IImportSession* session, MDToken token, TypeMD* typeMD);
 		
 		/// <summary>
 		/// Special for string importation, it's controlled by two phases.
@@ -74,10 +95,10 @@ namespace RTM
 		/// <param name="token"></param>
 		/// <param name="stringMD"></param>
 		/// <returns></returns>
-		bool PreImportString(MDToken token, StringMD* stringMD);
-		bool ImportString(StringMD* stringMD);
+		bool PreImportString(IImportSession* session, MDToken token, StringMD* stringMD);
+		bool ImportString(IImportSession* session, StringMD* stringMD);
 
-		bool ImportTypeRefTable(TypeRefMD*& typeRefTable);
-		bool ImportMemberRefTable(MemberRefMD*& memberRefTable);
+		bool ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable);
+		bool ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable);
 	};
 }

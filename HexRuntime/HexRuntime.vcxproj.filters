@@ -61,6 +61,12 @@
     <Filter Include="头文件\Runtime\Core\Meta\Descriptors">
       <UniqueIdentifier>{d7cbafa8-1be6-44fa-b90b-dcaa88577cb3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\Meta\ImportSession">
+      <UniqueIdentifier>{a8dd7655-b242-4d33-be29-c711f1944178}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\ImportSession">
+      <UniqueIdentifier>{9789e6ef-1c69-40ed-9e13-43f9d70268f0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -189,6 +195,18 @@
     <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h">
       <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\IImportSession.h">
+      <Filter>头文件\Runtime\Core\Meta\ImportSession</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h">
+      <Filter>头文件\Runtime\Core\Meta\ImportSession</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Interlocked.h">
+      <Filter>头文件\Runtime\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\ImportSession.h">
+      <Filter>头文件\Runtime\Core\Meta\ImportSession</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -271,6 +289,15 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp">
+      <Filter>源文件\ImportSession</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp">
+      <Filter>源文件\ImportSession</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp">
+      <Filter>源文件\ImportSession</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
