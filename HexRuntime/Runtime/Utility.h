@@ -24,6 +24,26 @@ namespace RT
 			}
 		}
 
+		template<class NodeT>
+		static void InsertBefore(NodeT*& head, NodeT*& previous, NodeT* toInsert)
+		{
+			if (previous == nullptr)
+			{
+				toInsert->Next = head;
+				head->Prev = toInsert;
+				head = toInsert;
+			}
+			else
+			{
+				toInsert->Next = previous->Next;
+				toInsert->Prev = previous;
+				NodeT* current = previous->Next;
+				previous->Next = toInsert;
+				if (current != nullptr)
+					current->Prev = toInsert;
+			}
+		}
+
 		/// <summary>
 		/// Append node to one-way linked list, the default insert option
 		/// passed to predicator is InsertOption::After

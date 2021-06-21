@@ -106,7 +106,10 @@ namespace RTJ::Hex
 			ArgumentCount(argumentCount) {}
 		Int32 ArgumentCount;
 		TreeNode** Arguments;
-		UInt32 MethodReference;
+		union
+		{
+			UInt32 MethodReference;
+		};
 	};
 
 	/// <summary>

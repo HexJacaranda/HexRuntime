@@ -15,6 +15,8 @@ namespace RTJ::Hex::JITCall
 
 	RTO::ArrayObject* __stdcall NewSZArray(Type* elementType, Int32 count);
 
+	RTO::ArrayObject* __stdcall NewArray(Type* elementType, Int32 dimensionCount, Int32* dimensions);
+
 	void __stdcall WriteBarrierForRef(RTO::ObjectRef* field, RTO::Object* fieldValue);
 	void __stdcall WriteBarrierForInteriorRef(InteriorPointer* source, InteriorPointer interiorPtr);
 }

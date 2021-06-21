@@ -17,7 +17,6 @@ namespace RTJ::Hex
 		const UInt8* mCodePtrBound = nullptr;
 		const UInt8* mPreviousCodePtr = nullptr;
 		EvaluationStack mEvalStack;
-		JITMemory* mMemory = nullptr;
 		// Current instruction BAE state
 
 		UInt8 mBaeIn = 0;

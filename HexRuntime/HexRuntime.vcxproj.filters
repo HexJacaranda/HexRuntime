@@ -162,7 +162,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Reificator.h">
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.h">
@@ -254,7 +254,7 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Reificator.cpp">
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp">
