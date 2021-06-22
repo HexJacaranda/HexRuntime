@@ -12,10 +12,12 @@ namespace RTJ::Hex
 	{
 		Statement* mStmtHead = nullptr;
 		Statement* mCurrentStmt = nullptr;
+		Statement* mPreviousStmt = nullptr;
 		HexJITContext* mJITContext;
 	public:
 		Materializer(HexJITContext* context);
 	private:
+		void InsertCall(MorphedCallNode* node);
 		TreeNode* MorphCall(TreeNode* node);
 		TreeNode* MorphNew(TreeNode* node);
 		TreeNode* MorphNewArray(TreeNode* node);

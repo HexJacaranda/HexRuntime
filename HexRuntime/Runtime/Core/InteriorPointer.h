@@ -3,7 +3,7 @@
 #include "Object/Object.h"
 namespace RTC
 {
-	template<std::size_t pointerSize>
+	template<int pointerSize>
 	struct InteriorPointerBase;
 
 	template<>

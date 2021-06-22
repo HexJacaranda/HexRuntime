@@ -104,6 +104,7 @@ bool RTM::MDImporter::ImportMethod(IImportSession* session, MDToken token, Metho
 	Int32 offset = mIndexTable[(Int32)MDRecordKinds::MethodDef][token];
 	session->Relocate(offset, LocateOption::Start);
 
+	IF_SESSION_FAIL_RET(ReadInto(methodMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Flags));
 

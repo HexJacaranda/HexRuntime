@@ -1,4 +1,6 @@
 #include "Materializer.h"
+#include "..\JITHelper.h"
+#include "..\..\..\Meta\MetaManager.h"
 
 #define POOL (mJITContext->Memory)
 
@@ -7,29 +9,43 @@ RTJ::Hex::Materializer::Materializer(HexJITContext* context) :
 {
 }
 
+void RTJ::Hex::Materializer::InsertCall(MorphedCallNode* node)
+{
+	auto stmt = new(POOL) Statement(node, mCurrentStmt->ILOffset, mCurrentStmt->ILOffset);
+	//Insert call
+	LinkedList::InsertBefore(mStmtHead, mPreviousStmt, stmt);
+}
+
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphCall(TreeNode* node)
 {
-	return nullptr;
+	auto ret = new(POOL) MorphedCallNode(node);
+	ret->NativeEntry = (UInt8*)&JITCall::ManagedCall;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNew(TreeNode* node)
 {
 	auto newNode = node->As<NewNode>();
-	return nullptr;
+	auto ret = new(POOL) MorphedCallNode(newNode);
+	ret->NativeEntry = (UInt8*)&JITCall::NewObject;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNewArray(TreeNode* node)
 {
 	auto newNode = node->As<NewArrayNode>();
+	auto ret = new(POOL) MorphedCallNode(newNode);
 	if (newNode->DimensionCount == 1)
 	{
 		//SZArray case
+		ret->NativeEntry = (UInt8*)&JITCall::NewSZArray;
 	}
 	else
 	{
+		ret->NativeEntry = (UInt8*)&JITCall::NewArray;
 		//Multi-dimensional
 	}
-	return nullptr;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node)
@@ -37,13 +53,11 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node)
 	auto storeNode = node->As<StoreNode>();
 	if (storeNode->Destination->Is(NodeKinds::InstanceField))
 	{
-
+		auto writeBarrierNode = new(POOL) MorphedCallNode(node);
+		writeBarrierNode->NativeEntry = (UInt8*)&JITCall::WriteBarrierForRef;
+		InsertCall(writeBarrierNode);
 	}
-	else if (storeNode->Source->Is(NodeKinds::InstanceField))
-	{
-
-	}
-	return nullptr;
+	return node;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node)
@@ -51,9 +65,11 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node)
 	auto storeNode = node->As<LoadNode>();
 	if (storeNode->Source->Is(NodeKinds::InstanceField))
 	{
-
+		auto readBarrierNode = new(POOL) MorphedCallNode(node);
+		readBarrierNode->NativeEntry = (UInt8*)&JITCall::ReadBarrierForRef;
+		InsertCall(readBarrierNode);
 	}
-	return nullptr;
+	return node;
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::Materialize()

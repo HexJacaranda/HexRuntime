@@ -299,6 +299,9 @@
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp">
       <Filter>源文件\ImportSession</Filter>
     </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Runtime\Core\X86DWCAS.asm">

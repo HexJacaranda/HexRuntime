@@ -81,6 +81,7 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp" />
     <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp" />

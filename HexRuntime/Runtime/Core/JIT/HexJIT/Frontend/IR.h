@@ -25,7 +25,12 @@ namespace RTJ::Hex
 		BinaryArithmetic,
 		UnaryArithmetic,
 		Null,
-		Phi
+		//SSA introduced
+
+		Phi,
+		//Morph
+
+		MorphedCall
 	};
 
 	struct TreeNode
@@ -107,6 +112,16 @@ namespace RTJ::Hex
 		Int32 ArgumentCount;
 		TreeNode** Arguments;
 		UInt32 MethodReference;
+	};
+
+	struct MorphedCallNode : TreeNode
+	{
+		MorphedCallNode(TreeNode* value) :
+			TreeNode(NodeKinds::MorphedCall),
+			OriginNode(value)
+		{}
+		TreeNode* OriginNode = nullptr;
+		UInt8* NativeEntry = nullptr;
 	};
 
 	/// <summary>
@@ -530,14 +545,6 @@ namespace RTJ::Hex
 			bool IsCollapsed()const {
 				return CollapsedValue != nullptr;
 			}
-		};
-	}
-
-	namespace Morph
-	{
-		struct NativeCall : TreeNode
-		{
-
 		};
 	}
 }

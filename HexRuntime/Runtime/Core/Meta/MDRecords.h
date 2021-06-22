@@ -214,6 +214,7 @@ namespace RTM
 
 	struct MethodMD
 	{
+		MDToken ParentTypeRefToken;
 		MDToken NameToken;
 		struct 
 		{

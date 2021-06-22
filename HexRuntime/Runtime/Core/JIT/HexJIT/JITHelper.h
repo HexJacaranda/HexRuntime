@@ -4,6 +4,7 @@
 #include "..\..\Object\Object.h"
 #include "..\..\Object\ArrayObject.h"
 #include "..\..\InteriorPointer.h"
+#include "..\..\Meta\MethodDescriptor.h"
 
 namespace RTJ::Hex::JITCall
 {
@@ -17,6 +18,11 @@ namespace RTJ::Hex::JITCall
 
 	RTO::ArrayObject* __stdcall NewArray(Type* elementType, Int32 dimensionCount, Int32* dimensions);
 
+	void __stdcall ManagedCall(RTM::MethodDescriptor* methodDescriptor);
+
 	void __stdcall WriteBarrierForRef(RTO::ObjectRef* field, RTO::Object* fieldValue);
 	void __stdcall WriteBarrierForInteriorRef(InteriorPointer* source, InteriorPointer interiorPtr);
+
+	RTO::ObjectRef __stdcall ReadBarrierForRef(RTO::ObjectRef* field);
+	InteriorPointer __stdcall ReadBarrierForInteriorRef(InteriorPointer* source);
 }
