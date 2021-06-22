@@ -106,10 +106,7 @@ namespace RTJ::Hex
 			ArgumentCount(argumentCount) {}
 		Int32 ArgumentCount;
 		TreeNode** Arguments;
-		union
-		{
-			UInt32 MethodReference;
-		};
+		UInt32 MethodReference;
 	};
 
 	/// <summary>
@@ -301,20 +298,23 @@ namespace RTJ::Hex
 		TreeNode** Values = nullptr;
 	};
 
-	template<size_t StackDepth, class Fn>
-	static void TraverseTree(TreeNode* source, Fn&& action)
+	template<class Fn>
+	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
-		//Store reference for modifying pointer
-		std::array<TreeNode**, StackDepth> stack{};
+		using NodeReference = TreeNode**;
+		NodeReference* stack = (NodeReference*)stackSpace;
+
 		Int32 index = 0;
 
-		auto pushStack = [&](TreeNode** value) {
-			if (index < stack.size())
+		auto pushStack = [&](NodeReference value) {
+			if (index < upperBound)
 				stack[index++] = value;
 		};
-		auto popStack = [&]() {
+
+		auto popStack = [&]() -> NodeReference {
 			return stack[--index];
 		};
+
 		//Push stack first
 		pushStack(&source);
 
@@ -322,7 +322,7 @@ namespace RTJ::Hex
 		{
 			auto&& current = *popStack();
 			//Do custom action
-			action(current);
+			std::forward<Fn>(action)(current);
 			switch (current->Kind)
 			{
 			//Binary access
@@ -369,7 +369,7 @@ namespace RTJ::Hex
 
 		Int32 index = 0;
 
-		auto pushStack = [&](TreeNode** value) {
+		auto pushStack = [&](NodeReference value) {
 			if (index < upperBound)
 				stack[index++] = value;
 		};
@@ -530,6 +530,14 @@ namespace RTJ::Hex
 			bool IsCollapsed()const {
 				return CollapsedValue != nullptr;
 			}
+		};
+	}
+
+	namespace Morph
+	{
+		struct NativeCall : TreeNode
+		{
+
 		};
 	}
 }

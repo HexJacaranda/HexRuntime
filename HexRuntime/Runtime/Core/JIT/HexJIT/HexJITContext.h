@@ -34,6 +34,10 @@ namespace RTJ::Hex
 		/// Index to basic block
 		/// </summary>
 		std::vector<BasicBlock*> BBs;
-
+		struct 
+		{
+			Int8* Space;
+			Int32 Count;
+		} Traversal;
 	};
 }

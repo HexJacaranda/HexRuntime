@@ -7,7 +7,7 @@ RTJ::Hex::SSAOptimizer::SSAOptimizer(HexJITContext* context) :
 	mJITContext(context),
 	mMemory(context->Memory)
 {
-	mTraversalSpace = new(mMemory) Int8[sizeof(Int8*) * SpaceCount];
+
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticNode* node)
@@ -182,7 +182,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldCompareConstant(CompareNode* nod
 
 void RTJ::Hex::SSAOptimizer::FoldConstant(TreeNode*& stmtRoot)
 {
-	TraverseTreeBottomUp(mTraversalSpace, SpaceCount, stmtRoot,
+	TraverseTreeBottomUp(mJITContext->Traversal.Space, mJITContext->Traversal.Count, stmtRoot,
 		[&](TreeNode*& node) 
 		{
 			switch (node->Kind)
@@ -211,14 +211,18 @@ void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
 	//Only for conditional now
 	if (basicBlock->BranchKind == PPKind::Conditional)
 	{
-		if (!basicBlock->BranchConditionValue->Is(NodeKinds::Compare))
+		//Ref
+		auto&& conditionValue = basicBlock->BranchConditionValue;
+		if (!(conditionValue->Is(NodeKinds::Compare) || conditionValue->Is(NodeKinds::Constant)))
 			RTE::Throw(Text("Condition expression type mismatch."));
 		//Fold constant first
-		FoldConstant(basicBlock->BranchConditionValue);
-		if (basicBlock->BranchConditionValue->Is(NodeKinds::Constant))
+		if (!conditionValue->Is(NodeKinds::Constant))
+			FoldConstant(conditionValue);
+
+		if (conditionValue->Is(NodeKinds::Constant))
 		{
 			//If this is true, then it becomes an unconditional jump
-			auto constant = basicBlock->BranchConditionValue->As<ConstantNode>();
+			auto constant = conditionValue->As<ConstantNode>();
 			//Use sequential by default
 			BasicBlock* target = basicBlock->Next;
 			if (!constant->I1)

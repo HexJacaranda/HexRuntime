@@ -22,11 +22,11 @@ namespace RTJ::Hex
 		/// of LoadNode
 		/// </summary>
 		void DecideSSATrackability();
-		bool IsVariableTrackable(NodeKinds kind, Int16 variableIndex);
-		void WriteVariable(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, TreeNode* value);
-		TreeNode* ReadVariable(NodeKinds kind, Int16 variableIndex, Int32 blockIndex);
-		TreeNode* ReadVariableLookUp(NodeKinds kind, Int16 variableIndex, Int32 blockIndex);
-		TreeNode* AddPhiOperands(NodeKinds kind, Int16 variableIndex, Int32 blockIndex, SSA::PhiNode* phiNode);
+		bool IsVariableTrackable(LocalVariableNode* local);
+		void WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value);
+		TreeNode* ReadVariable(LocalVariableNode* local, Int32 blockIndex);
+		TreeNode* ReadVariableLookUp(LocalVariableNode* local, Int32 blockIndex);
+		TreeNode* AddPhiOperands(LocalVariableNode* local, Int32 blockIndex, SSA::PhiNode* phiNode);
 		TreeNode* TrySimplifyChoice(SSA::PhiNode* origin, TreeNode* node);
 		TreeNode* TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode);
 	public:

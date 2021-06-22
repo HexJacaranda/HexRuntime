@@ -7,10 +7,8 @@ namespace RTJ::Hex
 {
 	class SSAOptimizer
 	{
-		static constexpr Int32 SpaceCount = 1024;
 		JITMemory* mMemory;
 		HexJITContext* mJITContext;	
-		Int8* mTraversalSpace;
 		//Fold binary
 		TreeNode* FoldBinaryOpConstant(BinaryArithmeticNode* node);
 		//Fold unary

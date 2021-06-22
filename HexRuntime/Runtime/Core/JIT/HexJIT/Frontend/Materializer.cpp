@@ -7,18 +7,18 @@ RTJ::Hex::Materializer::Materializer(HexJITContext* context) :
 {
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphCall(TreeNode* node, Statement*& first, Statement* currentStmt)
+RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphCall(TreeNode* node)
 {
 	return nullptr;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNew(TreeNode* node, Statement*& first, Statement* currentStmt)
+RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNew(TreeNode* node)
 {
 	auto newNode = node->As<NewNode>();
 	return nullptr;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNewArray(TreeNode* node, Statement*& first, Statement* currentStmt)
+RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNewArray(TreeNode* node)
 {
 	auto newNode = node->As<NewArrayNode>();
 	if (newNode->DimensionCount == 1)
@@ -32,7 +32,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNewArray(TreeNode* node, Statem
 	return nullptr;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node, Statement*& first, Statement* currentStmt)
+RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node)
 {
 	auto storeNode = node->As<StoreNode>();
 	if (storeNode->Destination->Is(NodeKinds::InstanceField))
@@ -46,7 +46,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node, Statement
 	return nullptr;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node, Statement*& first, Statement* currentStmt)
+RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node)
 {
 	auto storeNode = node->As<LoadNode>();
 	if (storeNode->Source->Is(NodeKinds::InstanceField))
@@ -64,28 +64,33 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::Materialize()
 		bbIterator != nullptr;
 		bbIterator = bbIterator->Next)
 	{
-		for (Statement* stmtIterator = bbIterator->Now;
-			stmtIterator != nullptr && stmtIterator->Now != nullptr;
-			stmtIterator = stmtIterator->Next)
+		mStmtHead = bbIterator->Now;
+
+		for (mCurrentStmt = bbIterator->Now;
+			mCurrentStmt != nullptr && mCurrentStmt->Now != nullptr;
+			mCurrentStmt = mCurrentStmt->Next)
 		{
-			TraverseTreeBottomUp(nullptr, 0, stmtIterator->Now,
+			TraverseTreeBottomUp(
+				mJITContext->Traversal.Space, 
+				mJITContext->Traversal.Count, 
+				mCurrentStmt->Now,
 				[&](TreeNode*& node) {
 					switch (node->Kind)
 					{
 					case NodeKinds::Call:
-						node = MorphCall(node, bbIterator->Now, stmtIterator);
+						node = MorphCall(node);
 						break;
 					case NodeKinds::New:
-						node = MorphNew(node, bbIterator->Now, stmtIterator);
+						node = MorphNew(node);
 						break;
 					case NodeKinds::NewArray:
-						node = MorphNewArray(node, bbIterator->Now, stmtIterator);
+						node = MorphNewArray(node);
 						break;
 					case NodeKinds::Load:
-						node = MorphLoad(node, bbIterator->Now, stmtIterator);
+						node = MorphLoad(node);
 						break;
 					case NodeKinds::Store:
-						node = MorphStore(node, bbIterator->Now, stmtIterator);
+						node = MorphStore(node);
 						break;
 					}
 				});

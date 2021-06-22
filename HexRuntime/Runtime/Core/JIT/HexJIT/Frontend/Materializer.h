@@ -10,15 +10,17 @@ namespace RTJ::Hex
 	/// </summary>
 	class Materializer
 	{
+		Statement* mStmtHead = nullptr;
+		Statement* mCurrentStmt = nullptr;
 		HexJITContext* mJITContext;
 	public:
 		Materializer(HexJITContext* context);
 	private:
-		TreeNode* MorphCall(TreeNode* node, Statement*& first, Statement* currentStmt);
-		TreeNode* MorphNew(TreeNode* node, Statement*& first, Statement* currentStmt);
-		TreeNode* MorphNewArray(TreeNode* node, Statement*& first, Statement* currentStmt);
-		TreeNode* MorphStore(TreeNode* node, Statement*& first, Statement* currentStmt);
-		TreeNode* MorphLoad(TreeNode* node, Statement*& first, Statement* currentStmt);
+		TreeNode* MorphCall(TreeNode* node);
+		TreeNode* MorphNew(TreeNode* node);
+		TreeNode* MorphNewArray(TreeNode* node);
+		TreeNode* MorphStore(TreeNode* node);
+		TreeNode* MorphLoad(TreeNode* node);
 	public:
 		BasicBlock* Materialize();
 	};

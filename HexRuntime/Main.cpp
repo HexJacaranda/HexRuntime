@@ -12,6 +12,7 @@
 
 using namespace RTJ;
 using namespace RTC;
+using namespace RT;
 
 void PrepareIL(ILEmitter& il)
 {
@@ -81,6 +82,8 @@ void SSABuildAndOptimize(ILEmitter const& il)
 	hexContext.Context = &context;
 	hexContext.Memory = &hexMemory;
 	
+	hexContext.Traversal.Count = 4096;
+	hexContext.Traversal.Space = (Int8*)hexMemory.Allocate(sizeof(void*) * hexContext.Traversal.Count);
 	
 	Hex::ILTransformer transformer{ &hexContext };
 	auto bb = transformer.TransformILFrom();
