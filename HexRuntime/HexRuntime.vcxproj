@@ -43,6 +43,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITHelper.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITMemory.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />

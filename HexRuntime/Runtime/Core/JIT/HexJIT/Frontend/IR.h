@@ -1,8 +1,8 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\..\Utility.h"
+#include "..\JITNativeSignature.h"
 #include <vector>
-#include <array>
 
 namespace RTJ::Hex
 {
@@ -118,15 +118,7 @@ namespace RTJ::Hex
 		UInt32 MethodReference;
 	};
 
-	struct MorphedCallNode : TreeNode
-	{
-		MorphedCallNode(TreeNode* value) :
-			TreeNode(NodeKinds::MorphedCall),
-			OriginNode(value)
-		{}
-		TreeNode* OriginNode = nullptr;
-		UInt8* NativeEntry = nullptr;
-	};
+
 
 	/// <summary>
 	/// Store or Load constant
@@ -317,6 +309,74 @@ namespace RTJ::Hex
 		TreeNode** Values = nullptr;
 	};
 
+	/*--------------------------------Morphed Section--------------------------------*/
+
+	struct MorphedNativeArgument
+	{
+		union
+		{
+			void* NativePtr;
+			TreeNode* ManagedValue;
+		};
+	};
+
+	struct MorphedCallNode : TreeNode
+	{
+		MorphedCallNode(TreeNode* value, JITNativeSignature* signature) :
+			TreeNode(NodeKinds::MorphedCall),
+			OriginNode(value),
+			Signature(signature)
+		{}
+		Int32 ArgumentCount;
+		MorphedNativeArgument* Arguments;
+		TreeNode* OriginNode;
+		JITNativeSignature* Signature;	
+	};
+
+	/*--------------------------------SSA Section--------------------------------*/
+	namespace SSA
+	{
+		/// <summary>
+		/// Phi node to choose branch
+		/// </summary>
+		struct PhiNode : TreeNode
+		{
+			/// <summary>
+			/// As a unary node when traversing
+			/// </summary>
+			TreeNode* OriginValue;
+			/// <summary>
+			/// Belonging basic block
+			/// </summary>
+			BasicBlock* Belonging;
+			/// <summary>
+			/// Choices
+			/// </summary>
+			std::vector<TreeNode*> Choices;
+			/// <summary>
+			/// When this is not null, phi becomes trivial
+			/// </summary>
+			TreeNode* CollapsedValue = nullptr;		
+		public:
+			PhiNode(BasicBlock* belongs, TreeNode* originValue) :
+				TreeNode(NodeKinds::Phi),
+				Belonging(belongs),
+				OriginValue(originValue) 
+			{
+			}
+			bool IsRemoved()const {
+				return Belonging == nullptr;
+			}
+			bool IsEmpty()const {
+				return Choices.size() == 0;
+			}
+			bool IsCollapsed()const {
+				return CollapsedValue != nullptr;
+			}
+		};
+	}
+
+
 	template<class Fn>
 	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
@@ -361,6 +421,7 @@ namespace RTJ::Hex
 			case NodeKinds::InstanceField:
 			case NodeKinds::UnaryArithmetic:
 			case NodeKinds::Duplicate:
+			case NodeKinds::Phi:
 			{
 				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
 				pushStack(&proxy->Value);
@@ -417,6 +478,7 @@ namespace RTJ::Hex
 			case NodeKinds::InstanceField:
 			case NodeKinds::UnaryArithmetic:
 			case NodeKinds::Duplicate:
+			case NodeKinds::Phi:
 			{
 				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
 				pushStack(&proxy->Value);
@@ -521,34 +583,4 @@ namespace RTJ::Hex
 		//The value of conditional jump
 		TreeNode* Value = nullptr;
 	};
-
-	namespace SSA
-	{
-		/// <summary>
-		/// Phi node to choose branch
-		/// </summary>
-		struct PhiNode : TreeNode
-		{
-			BasicBlock* Belonging = nullptr;
-			std::vector<TreeNode*> Choices;
-			/// <summary>
-			/// When this is not null, phi becomes trivial
-			/// </summary>
-			TreeNode* CollapsedValue = nullptr;
-		public:
-			PhiNode(BasicBlock* belongs) :
-				TreeNode(NodeKinds::Phi),
-				Belonging(belongs) {
-			}
-			bool IsRemoved()const {
-				return Belonging == nullptr;
-			}
-			bool IsEmpty()const {
-				return Choices.size() == 0;
-			}
-			bool IsCollapsed()const {
-				return CollapsedValue != nullptr;
-			}
-		};
-	}
 }

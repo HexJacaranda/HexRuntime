@@ -18,31 +18,26 @@ void RTJ::Hex::Materializer::InsertCall(MorphedCallNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphCall(TreeNode* node)
 {
-	auto ret = new(POOL) MorphedCallNode(node);
-	ret->NativeEntry = (UInt8*)&JITCall::ManagedCall;
-	return ret;
+	return new(POOL) MorphedCallNode(node, &JITCall::ManagedCallSignature);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNew(TreeNode* node)
 {
-	auto newNode = node->As<NewNode>();
-	auto ret = new(POOL) MorphedCallNode(newNode);
-	ret->NativeEntry = (UInt8*)&JITCall::NewObject;
-	return ret;
+	return new(POOL) MorphedCallNode(node, &JITCall::NewObjectSignature);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNewArray(TreeNode* node)
 {
 	auto newNode = node->As<NewArrayNode>();
-	auto ret = new(POOL) MorphedCallNode(newNode);
+	auto ret = new(POOL) MorphedCallNode(newNode, nullptr);
 	if (newNode->DimensionCount == 1)
 	{
 		//SZArray case
-		ret->NativeEntry = (UInt8*)&JITCall::NewSZArray;
+		ret->Signature = &JITCall::NewSZArraySignature;
 	}
 	else
 	{
-		ret->NativeEntry = (UInt8*)&JITCall::NewArray;
+		ret->Signature = &JITCall::NewArraySignature;
 		//Multi-dimensional
 	}
 	return ret;
@@ -53,8 +48,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node)
 	auto storeNode = node->As<StoreNode>();
 	if (storeNode->Destination->Is(NodeKinds::InstanceField))
 	{
-		auto writeBarrierNode = new(POOL) MorphedCallNode(node);
-		writeBarrierNode->NativeEntry = (UInt8*)&JITCall::WriteBarrierForRef;
+		auto writeBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::WriteBarrierForRefSignature);
 		InsertCall(writeBarrierNode);
 	}
 	return node;
@@ -65,8 +59,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node)
 	auto storeNode = node->As<LoadNode>();
 	if (storeNode->Source->Is(NodeKinds::InstanceField))
 	{
-		auto readBarrierNode = new(POOL) MorphedCallNode(node);
-		readBarrierNode->NativeEntry = (UInt8*)&JITCall::ReadBarrierForRef;
+		auto readBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::ReadBarrierForRefSignature);
 		InsertCall(readBarrierNode);
 	}
 	return node;

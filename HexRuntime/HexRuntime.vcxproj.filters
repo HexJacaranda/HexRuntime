@@ -210,6 +210,9 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
