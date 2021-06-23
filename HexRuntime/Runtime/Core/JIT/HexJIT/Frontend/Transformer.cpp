@@ -687,10 +687,11 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 	return basicBlockHead;
 }
 
-RTJ::Hex::ILTransformer::ILTransformer(
-	HexJITContext* context
-)
-	:mJITContext(context){
+RTJ::Hex::ILTransformer::ILTransformer(HexJITContext* context) :
+	mJITContext(context),
+	mEvalStack(context->Traversal.Space, context->Traversal.Count) 
+{
+
 	mCodePtr = mJITContext->Context->CodeSegment;
 	mPreviousCodePtr = mJITContext->Context->CodeSegment;
 	mCodePtrBound = mJITContext->Context->CodeSegment + mJITContext->Context->SegmentLength;

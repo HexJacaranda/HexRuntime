@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "IR.h"
+
 namespace RTJ::Hex
 {
 	class EvaluationStack
@@ -16,19 +17,11 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Indicate max depth of evaluation stack
 		/// </summary>
-		static constexpr Int32 EvaluationStackDepth = 256;
+		Int32 mEvaluationStackDepth;
 	public:
-		EvaluationStack() {
-			mEvaluationStack = new TreeNode * [EvaluationStackDepth];
-		}
-		~EvaluationStack() {
-			if (mEvaluationStack != nullptr)
-			{
-				delete[] mEvaluationStack;
-				mEvaluationStack = nullptr;
-			}
-		}
-
+		EvaluationStack(Int8* space, Int32 upper);
+		~EvaluationStack();
+	public:
 		TreeNode* Push(TreeNode*);
 		TreeNode* Pop();
 		TreeNode* Top()const;
