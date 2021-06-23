@@ -11,13 +11,14 @@ namespace RTM
 	class MethodDescriptor
 	{
 		friend class MetaManager;
-
 		MethodMD* mColdMD;
 		RTO::StringObject* mManagedName;
+		RTM::ArgumentMD* mArguments;
 	public:
 		MethodMD* GetMetadata()const;
 		UInt8 GetAccessbility()const;
 		MethodSignatureMD* GetSignature()const;
+		ILMD* GetIL()const;
 		bool IsInstance()const;
 		bool IsVirtual()const;
 		bool IsOverride()const;

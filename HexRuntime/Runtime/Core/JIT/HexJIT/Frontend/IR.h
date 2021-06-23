@@ -6,6 +6,12 @@
 
 namespace RTJ::Hex
 {
+	struct TreeTypeInfo
+	{
+		UInt8 CoreType;
+		MDToken TypeRefToken;
+	};
+
 	enum class NodeKinds : UInt8
 	{
 		Constant,
@@ -36,11 +42,15 @@ namespace RTJ::Hex
 	struct TreeNode
 	{
 		/// <summary>
+		/// Indicate the type info of this node
+		/// </summary>
+		TreeTypeInfo TypeInfo;
+		/// <summary>
 		/// For linearization
 		/// </summary>
 		TreeNode* LinearNext = nullptr;
 		NodeKinds Kind;
-
+	public:
 		TreeNode(NodeKinds kind) :Kind(kind) {}
 
 		//For convenience
@@ -83,23 +93,20 @@ namespace RTJ::Hex
 
 	struct LocalVariableNode : TreeNode
 	{
-		LocalVariableNode(UInt8 valueType, Int16 localIndex)
+		LocalVariableNode(Int16 localIndex)
 			:TreeNode(NodeKinds::LocalVariable),
-			ValueType(valueType),
 			LocalIndex(localIndex) {}
-		LocalVariableNode(NodeKinds kind, UInt8 valueType, Int16 localIndex)
+		LocalVariableNode(NodeKinds kind, Int16 localIndex)
 			:TreeNode(kind),
-			ValueType(valueType),
 			LocalIndex(localIndex) {}
 
-		UInt8 ValueType = 0;
 		Int16 LocalIndex = 0;
 	};
 
 	struct ArgumentNode : LocalVariableNode
 	{
-		ArgumentNode(UInt8 valueType, Int16 argumentIndex)
-			: LocalVariableNode(NodeKinds::Argument, valueType, argumentIndex) {
+		ArgumentNode(Int16 argumentIndex): 
+			LocalVariableNode(NodeKinds::Argument,argumentIndex) {
 		}
 	};
 
@@ -333,50 +340,6 @@ namespace RTJ::Hex
 		JITNativeSignature* Signature;	
 	};
 
-	/*--------------------------------SSA Section--------------------------------*/
-	namespace SSA
-	{
-		/// <summary>
-		/// Phi node to choose branch
-		/// </summary>
-		struct PhiNode : TreeNode
-		{
-			/// <summary>
-			/// As a unary node when traversing
-			/// </summary>
-			TreeNode* OriginValue;
-			/// <summary>
-			/// Belonging basic block
-			/// </summary>
-			BasicBlock* Belonging;
-			/// <summary>
-			/// Choices
-			/// </summary>
-			std::vector<TreeNode*> Choices;
-			/// <summary>
-			/// When this is not null, phi becomes trivial
-			/// </summary>
-			TreeNode* CollapsedValue = nullptr;		
-		public:
-			PhiNode(BasicBlock* belongs, TreeNode* originValue) :
-				TreeNode(NodeKinds::Phi),
-				Belonging(belongs),
-				OriginValue(originValue) 
-			{
-			}
-			bool IsRemoved()const {
-				return Belonging == nullptr;
-			}
-			bool IsEmpty()const {
-				return Choices.size() == 0;
-			}
-			bool IsCollapsed()const {
-				return CollapsedValue != nullptr;
-			}
-		};
-	}
-
-
 	template<class Fn>
 	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
@@ -583,4 +546,48 @@ namespace RTJ::Hex
 		//The value of conditional jump
 		TreeNode* Value = nullptr;
 	};
+
+
+	/*--------------------------------SSA Section--------------------------------*/
+	namespace SSA
+	{
+		/// <summary>
+		/// Phi node to choose branch
+		/// </summary>
+		struct PhiNode : TreeNode
+		{
+			/// <summary>
+			/// As a unary node when traversing
+			/// </summary>
+			TreeNode* OriginValue;
+			/// <summary>
+			/// Belonging basic block
+			/// </summary>
+			BasicBlock* Belonging;
+			/// <summary>
+			/// Choices
+			/// </summary>
+			std::vector<TreeNode*> Choices;
+			/// <summary>
+			/// When this is not null, phi becomes trivial
+			/// </summary>
+			TreeNode* CollapsedValue = nullptr;
+		public:
+			PhiNode(BasicBlock* belongs, TreeNode* originValue) :
+				TreeNode(NodeKinds::Phi),
+				Belonging(belongs),
+				OriginValue(originValue)
+			{
+			}
+			bool IsRemoved()const {
+				return Belonging == nullptr;
+			}
+			bool IsEmpty()const {
+				return Choices.size() == 0;
+			}
+			bool IsCollapsed()const {
+				return CollapsedValue != nullptr;
+			}
+		};
+	}
 }

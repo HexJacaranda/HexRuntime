@@ -71,10 +71,6 @@ void PrepareBackIL(ILEmitter& il)
 void SSABuildAndOptimize(ILEmitter const& il)
 {
 	JITContext context;
-	context.CodeSegment = il.GetIL();
-	context.SegmentLength = il.GetLength();
-	context.LocalVariables.push_back({ { 0, CoreTypes::I4 } });
-	context.LocalVariables.push_back({ { 0, CoreTypes::I4 } });
 
 	Hex::JITMemory hexMemory;
 

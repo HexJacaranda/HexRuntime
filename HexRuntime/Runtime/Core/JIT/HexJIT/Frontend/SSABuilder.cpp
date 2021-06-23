@@ -20,6 +20,7 @@ void RTJ::Hex::SSABuilder::DecideSSATrackability()
 		return SSATrackability::Forbidden;
 	};
 	auto rawContext = mJITContext->Context;
+
 	if (rawContext->LocalVariables.size())
 		mJITContext->LocalSSATrackability = std::move(
 			std::vector<SSATrackability>(rawContext->LocalVariables.size()));

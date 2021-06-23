@@ -44,6 +44,7 @@ namespace RTM
 		MDPrivateHeap* mHeap = nullptr;
 	private:
 		bool ReadCode(IImportSession* session, Int32& countTarget, UInt8*& target);
+		void LocateSession(IImportSession* session, MDRecordKinds kind, MDToken token);
 		void PrepareFile(ImportOption option);
 		bool PrepareImporter();
 	public:
@@ -53,6 +54,9 @@ namespace RTM
 		bool ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD);
 		bool ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD);
 		bool ImportMemberRef(IImportSession* session, MemberRefMD* memberRefMD);
+		bool ImportIL(IImportSession* session, ILMD* ilMD);
+		bool ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD);
+		bool ImportLocalVariable(IImportSession* session, LocalVariableMD* localMD);
 	public:
 		/// <summary>
 		/// Remember to return to importer

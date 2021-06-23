@@ -6,6 +6,15 @@
 
 #define IF_SESSION_FAIL_RET(EXPR) if (!(session->EXPR)) return false;
 
+//Locate session
+#define LOCATE(KIND) LocateSession(session, MDRecordKinds::KIND, token)
+
+#define IMPORT_NESTED_SERIES(COUNT_MEMBER, SERIES_MEMBER, IMPORT_METHOD) \
+		IF_SESSION_FAIL_RET(ReadInto(COUNT_MEMBER)); \
+		for (Int32 i = 0; i < COUNT_MEMBER; ++i) \
+			IF_FAIL_RET(IMPORT_METHOD(session, &SERIES_MEMBER[i]))
+
+
 bool RTM::MDImporter::ReadCode(IImportSession* session, Int32& countTarget, UInt8*& target)
 {
 	Int32 readBytes = session->ReadInto((UInt8*)&countTarget, sizeof(Int32));
@@ -27,6 +36,12 @@ void RTM::MDImporter::PrepareFile(ImportOption option)
 		mAssemblyMapping = OSFile::OpenMapping(mAssemblyFile, UsageOption::Read);
 		mAssemblyMappedAddress = OSFile::MapAddress(mAssemblyMapping, UsageOption::Read);
 	}
+}
+
+void RTM::MDImporter::LocateSession(IImportSession* session, MDRecordKinds kind, MDToken token)
+{
+	Int32 offset = mIndexTable[(Int32)kind][token];
+	session->Relocate(offset, LocateOption::Start);
 }
 
 bool RTM::MDImporter::PrepareImporter()
@@ -72,6 +87,25 @@ RTM::MDImporter::~MDImporter()
 	OSFile::Close(mAssemblyFile);
 }
 
+bool RTM::MDImporter::ImportIL(IImportSession* session, ILMD* ilMD)
+{
+	IMPORT_NESTED_SERIES(ilMD->LocalVariableCount, ilMD->LocalVariables, ImportLocalVariable);
+	IF_FAIL_RET(ReadCode(session, ilMD->CodeLength, ilMD->IL));
+	return true;
+}
+
+bool RTM::MDImporter::ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD)
+{
+	
+}
+
+bool RTM::MDImporter::ImportLocalVariable(IImportSession* session, LocalVariableMD* localMD)
+{
+	IF_SESSION_FAIL_RET(ReadInto(localMD->CoreType));
+	IF_SESSION_FAIL_RET(ReadInto(localMD->TypeRefToken));
+	return true;
+}
+
 inline bool RTM::MDImporter::IsCanonicalToken(MDToken typeRefToken)
 {
 	return typeRefToken & 0x80000000;
@@ -91,19 +125,19 @@ bool RTM::MDImporter::ImportAssemblyHeader(IImportSession* session, AssemblyHead
 bool RTM::MDImporter::ImportAttribute(IImportSession* session, MDToken token, AtrributeMD* attributeMD)
 {
 	//Rather complicated to resolve for meta manager
-	Int32 offset = mIndexTable[(Int32)MDRecordKinds::AttributeDef][token];
-	session->Relocate(offset, LocateOption::Start);
+	LOCATE(AttributeDef);
+
 	IF_SESSION_FAIL_RET(ReadInto(attributeMD->ParentKind));
 	IF_SESSION_FAIL_RET(ReadInto(attributeMD->ParentToken));
 	IF_SESSION_FAIL_RET(ReadInto(attributeMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(attributeMD->AttributeSize, attributeMD->AttributeBody));
+
 	return true;
 }
 
 bool RTM::MDImporter::ImportArgument(IImportSession* session, MDToken token, ArgumentMD* argumentMD)
 {
-	Int32 offset = mIndexTable[(Int32)MDRecordKinds::Argument][token];
-	session->Relocate(offset, LocateOption::Start);
+	LOCATE(Argument);
 
 	IF_SESSION_FAIL_RET(ReadInto(argumentMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(argumentMD->CoreType));
@@ -115,21 +149,16 @@ bool RTM::MDImporter::ImportArgument(IImportSession* session, MDToken token, Arg
 
 bool RTM::MDImporter::ImportMethod(IImportSession* session, MDToken token, MethodMD* methodMD)
 {
-	Int32 offset = mIndexTable[(Int32)MDRecordKinds::MethodDef][token];
-	session->Relocate(offset, LocateOption::Start);
+	LOCATE(MethodDef);
 
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Flags));
 
-	ImportMethodSignature(session, &methodMD->SignatureMD);
-
-	IF_SESSION_FAIL_RET(ReadInto(methodMD->Entry.Type));
-	IF_SESSION_FAIL_RET(ReadInto(methodMD->Entry.CallingConvetion));
+	ImportMethodSignature(session, &methodMD->Signature);
+	ImportIL(session, &methodMD->ILCodeMD);
 	
-	IF_FAIL_RET(ReadCode(session, methodMD->Entry.ILLength, methodMD->Entry.IL));
-	IF_FAIL_RET(ReadCode(session, methodMD->Entry.NativeLength, methodMD->Entry.Native));
-
+	IMPORT_NESTED_SERIES(methodMD->NativeLinkCount, methodMD->NativeLinks, ImportNativeLink);
 	return true;
 }
 
@@ -142,8 +171,8 @@ bool RTM::MDImporter::ImportMethodSignature(IImportSession* session, MethodSigna
 
 bool RTM::MDImporter::ImportField(IImportSession* session, MDToken token, FieldMD* fieldMD)
 {
-	Int32 offset = mIndexTable[(Int32)MDRecordKinds::FieldDef][token];
-	session->Relocate(offset, LocateOption::Start);
+	LOCATE(FieldDef);
+
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(fieldMD->AttributeCount, fieldMD->AttributeTokens));
@@ -152,6 +181,8 @@ bool RTM::MDImporter::ImportField(IImportSession* session, MDToken token, FieldM
 
 bool RTM::MDImporter::ImportProperty(IImportSession* session, MDToken token, PropertyMD* propertyMD)
 {
+	LOCATE(PropertyDef);
+
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->SetterToken));
@@ -165,6 +196,8 @@ bool RTM::MDImporter::ImportProperty(IImportSession* session, MDToken token, Pro
 
 bool RTM::MDImporter::ImportEvent(IImportSession* session, MDToken token, EventMD* eventMD)
 {
+	LOCATE(EventDef);
+
 	IF_SESSION_FAIL_RET(ReadInto(eventMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(eventMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(eventMD->AdderToken));
@@ -178,8 +211,8 @@ bool RTM::MDImporter::ImportEvent(IImportSession* session, MDToken token, EventM
 
 bool RTM::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD* typeMD)
 {
-	Int32 offset = mIndexTable[(Int32)MDRecordKinds::TypeDef][token];
-	session->Relocate(offset, LocateOption::Start);
+	LOCATE(TypeDef);
+
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentAssemblyToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->NameToken));
@@ -198,8 +231,8 @@ bool RTM::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD*
 
 bool RTM::MDImporter::PreImportString(IImportSession* session, MDToken token, StringMD* stringMD)
 {
-	Int32 offset = mIndexTable[(Int32)MDRecordKinds::String][token];
-	session->Relocate(offset, LocateOption::Start);
+	LOCATE(String);
+
 	IF_SESSION_FAIL_RET(ReadInto(stringMD->Count));
 	return true;
 }
@@ -267,3 +300,5 @@ bool RTM::MDImporter::ImportMemberRefTable(IImportSession* session, MemberRefMD*
 
 #undef IF_FAIL_RET
 #undef IF_SESSION_FAIL_RET
+#undef LOCATE
+#undef IMPORT_NESTED_SERIES

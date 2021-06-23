@@ -1,5 +1,6 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
+#include "..\..\..\Meta\MDRecords.h"
 #include "..\HexJITContext.h"
 #include "..\JITMemory.h"
 #include "IR.h"
@@ -13,9 +14,10 @@ namespace RTJ::Hex
 	class ILTransformer
 	{
 		HexJITContext* mJITContext;
-		const UInt8* mCodePtr = nullptr;
-		const UInt8* mCodePtrBound = nullptr;
-		const UInt8* mPreviousCodePtr = nullptr;
+		RTM::ILMD* mILMD;
+		const UInt8* mCodePtr;
+		const UInt8* mCodePtrBound;
+		const UInt8* mPreviousCodePtr;
 		EvaluationStack mEvalStack;
 		// Current instruction BAE state
 

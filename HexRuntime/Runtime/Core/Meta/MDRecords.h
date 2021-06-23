@@ -192,24 +192,26 @@ namespace RTM
 		MDToken ReturnTypeRefToken;
 		TOKEN_SERIES(Argument);
 	};
-
-	class SlotType
+	
+	struct LocalVariableMD
 	{
-	public:
-		constexpr static UInt8 IL = 0x01;
-		constexpr static UInt8 PreJIT = 0x03;
-		constexpr static UInt8 JIT = 0x04;
-		constexpr static UInt8 Native = 0x02;
+		UInt8 CoreType;
+		MDToken TypeRefToken;
 	};
 
-	class CallingConvention
+	struct ILMD
 	{
-	public:
-		constexpr static UInt8 JIT = 0x01;
-		constexpr static UInt8 Cdecl = 0x02;
-		constexpr static UInt8 StdCall = 0x03;
-		constexpr static UInt8 FastCall = 0x04;
-		constexpr static UInt8 VectorCall = 0x05;
+		Int32 LocalVariableCount;
+		LocalVariableMD* LocalVariables;
+		Int32 CodeLength;
+		UInt8* IL;
+	};
+
+	struct NativeLinkMD
+	{
+		struct {
+
+		};
 	};
 
 	struct MethodMD
@@ -226,16 +228,10 @@ namespace RTM
 			bool IsGeneric : 1;
 			bool IsRTSpecial : 1;
 		} Flags;
-		MethodSignatureMD SignatureMD;
-		struct
-		{
-			UInt8 Type;
-			UInt8 CallingConvetion;
-			Int32 ILLength;
-			UInt8* IL;
-			Int32 NativeLength;
-			UInt8* Native;
-		} Entry;
+		MethodSignatureMD Signature;
+		ILMD ILCodeMD;
+		Int32 NativeLinkCount;
+		NativeLinkMD* NativeLinks;
 	};
 
 	struct TypeMD

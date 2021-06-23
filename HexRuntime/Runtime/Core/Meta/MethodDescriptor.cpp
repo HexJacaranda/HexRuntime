@@ -12,7 +12,12 @@ RT::UInt8 RTM::MethodDescriptor::GetAccessbility() const
 
 RTM::MethodSignatureMD* RTM::MethodDescriptor::GetSignature() const
 {
-	return &mColdMD->SignatureMD;
+	return &mColdMD->Signature;
+}
+
+RTM::ILMD* RTM::MethodDescriptor::GetIL() const
+{
+	return &mColdMD->ILCodeMD;
 }
 
 bool RTM::MethodDescriptor::IsInstance() const

@@ -9,12 +9,12 @@
 
 ForcedInline RT::Int32 RTJ::Hex::ILTransformer::GetOffset() const
 {
-	return mCodePtr - mJITContext->Context->CodeSegment;
+	return mCodePtr - mILMD->IL;
 }
 
 ForcedInline RT::Int32 RTJ::Hex::ILTransformer::GetPreviousOffset() const
 {
-	return mPreviousCodePtr - mJITContext->Context->CodeSegment;
+	return mPreviousCodePtr - mILMD->IL;
 }
 
 ForcedInline RTJ::JITContext* RTJ::Hex::ILTransformer::GetRawContext() const
@@ -69,7 +69,8 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
-	auto local = new(POOL) LocalVariableNode(GetRawContext()->LocalVariables[localIndex].Type.CoreType, localIndex);
+	auto local = new(POOL) LocalVariableNode(localIndex);
+
 	//Keep uniformity for convenience of traversal in SSA building
 	return new(POOL) LoadNode(SLMode, local);
 }
@@ -77,7 +78,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto argumentIndex = ReadAs<Int16>();
-	auto argument = new(POOL) ArgumentNode(GetRawContext()->Arguments[argumentIndex].Type.CoreType, argumentIndex);
+	auto argument = new(POOL) ArgumentNode(argumentIndex);
 	//Keep uniformity for convenience of traversal in SSA building
 	return new(POOL) LoadNode(SLMode, argument);
 }
@@ -160,7 +161,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 {
 	auto argumentIndex = ReadAs<Int16>();
-	auto coreType = GetRawContext()->Arguments[argumentIndex].Type.CoreType;
+
 	return new(POOL) StoreNode(
 		new(POOL) ArgumentNode(coreType, argumentIndex),
 		mEvalStack.Pop());
@@ -169,9 +170,9 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
 	auto localIndex = ReadAs<Int16>();
-	auto coreType = GetRawContext()->LocalVariables[localIndex].Type.CoreType;
+	auto coreType = mILMD->LocalVariables[localIndex].CoreType;
 	return new(POOL) StoreNode(
-		new(POOL) LocalVariableNode(coreType, localIndex),
+		new(POOL) LocalVariableNode(localIndex),
 		mEvalStack.Pop());
 }
 
@@ -691,10 +692,9 @@ RTJ::Hex::ILTransformer::ILTransformer(HexJITContext* context) :
 	mJITContext(context),
 	mEvalStack(context->Traversal.Space, context->Traversal.Count) 
 {
-
-	mCodePtr = mJITContext->Context->CodeSegment;
-	mPreviousCodePtr = mJITContext->Context->CodeSegment;
-	mCodePtrBound = mJITContext->Context->CodeSegment + mJITContext->Context->SegmentLength;
+	mILMD = mJITContext->Context->MethDescriptor->GetIL();
+	mCodePtr = mPreviousCodePtr = mILMD->IL;
+	mCodePtrBound = mCodePtr + mILMD->CodeLength;
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::TransformILFrom()
