@@ -1,24 +1,26 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\Object\StringObject.h"
+#include "..\..\ObservableArray.h"
 #include "MDRecords.h"
+#include "Descriptor.h"
 
 namespace RTM
 {
 	/// <summary>
 	/// Runtime structure for a real method
 	/// </summary>
-	class MethodDescriptor
+	class MethodDescriptor : public Descriptor<RTME::MethodMD>
 	{
 		friend class MetaManager;
-		MethodMD* mColdMD;
 		RTO::StringObject* mManagedName;
-		RTM::ArgumentMD* mArguments;
+		RTME::ArgumentMD* mArguments;
 	public:
-		MethodMD* GetMetadata()const;
 		UInt8 GetAccessbility()const;
-		MethodSignatureMD* GetSignature()const;
-		ILMD* GetIL()const;
+		RTME::MethodSignatureMD* GetSignature()const;
+		ObservableArray<RTME::ArgumentMD> GetArguments()const;
+		ObservableArray<RTME::LocalVariableMD> GetLocalVariables()const;
+		RTME::ILMD* GetIL()const;
 		bool IsInstance()const;
 		bool IsVirtual()const;
 		bool IsOverride()const;

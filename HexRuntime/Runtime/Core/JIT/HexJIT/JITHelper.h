@@ -14,25 +14,26 @@ namespace RTJ::Hex::JITCall
 #define JIT_ASSEMBLY_CALL extern "C"
 
 	RTO::Object* __stdcall NewObject(Type* type);
-	JIT_NATIVE_SIGNATURE(NewObject, ARG_NATIVE(type));
-
+	JIT_NATIVE_SIGNATURE_DECLARE(NewObject);
+	
 	RTO::ArrayObject* __stdcall NewSZArray(Type* elementType, Int32 count);
-	JIT_NATIVE_SIGNATURE(NewSZArray, ARG_NATIVE(elementType), ARG_MANAGED(count));
-
+	JIT_NATIVE_SIGNATURE_DECLARE(NewSZArray);
+	
 	RTO::ArrayObject* __stdcall NewArray(Type* elementType, Int32 dimensionCount, RTO::ArrayObject* dimensions);
-	JIT_NATIVE_SIGNATURE(NewArray, ARG_NATIVE(elementType), ARG_MANAGED(dimensionCount), ARG_MANAGED(dimensions));
+	JIT_NATIVE_SIGNATURE_DECLARE(NewArray);
 
 	void __stdcall ManagedCall(RTM::MethodDescriptor* methodDescriptor);
-	JIT_NATIVE_SIGNATURE(ManagedCall, ARG_NATIVE(methodDescriptor));
+	JIT_NATIVE_SIGNATURE_DECLARE(ManagedCall);
 
 	void __stdcall WriteBarrierForRef(RTO::ObjectRef* field, RTO::Object* fieldValue);
-	JIT_NATIVE_SIGNATURE(WriteBarrierForRef, ARG_MANAGED(field), ARG_MANAGED(fieldValue));
+	JIT_NATIVE_SIGNATURE_DECLARE(WriteBarrierForRef);
 
 	void __stdcall WriteBarrierForInteriorRef(InteriorPointer* source, InteriorPointer interiorPtr);
-	JIT_NATIVE_SIGNATURE(WriteBarrierForInteriorRef, ARG_MANAGED(source), ARG_MANAGED(interiorPtr));
+	JIT_NATIVE_SIGNATURE_DECLARE(WriteBarrierForInteriorRef);
 
 	RTO::ObjectRef __stdcall ReadBarrierForRef(RTO::ObjectRef* field);
-	JIT_NATIVE_SIGNATURE(ReadBarrierForRef, ARG_MANAGED(field));
+	JIT_NATIVE_SIGNATURE_DECLARE(ReadBarrierForRef);
+
 	InteriorPointer __stdcall ReadBarrierForInteriorRef(InteriorPointer* source);
-	JIT_NATIVE_SIGNATURE(ReadBarrierForInteriorRef, ARG_MANAGED(source));
+	JIT_NATIVE_SIGNATURE_DECLARE(NewObject);
 }

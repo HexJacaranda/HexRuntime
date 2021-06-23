@@ -14,3 +14,8 @@ RTM::MethodDescriptor* RTM::MetaManager::GetMethodFromToken(MDToken methodRefere
 {
 	return nullptr;
 }
+
+RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(MDToken fieldReference)
+{
+	return nullptr;
+}

@@ -1,7 +1,7 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 
-namespace RTM
+namespace RTME
 {
 	/*  Specially, when the highest bit of type ref token is set to 1. Then
 		it refers to generic parameter.

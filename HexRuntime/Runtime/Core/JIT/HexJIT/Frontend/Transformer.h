@@ -14,7 +14,7 @@ namespace RTJ::Hex
 	class ILTransformer
 	{
 		HexJITContext* mJITContext;
-		RTM::ILMD* mILMD;
+		RTME::ILMD* mILMD;
 		const UInt8* mCodePtr;
 		const UInt8* mCodePtrBound;
 		const UInt8* mPreviousCodePtr;

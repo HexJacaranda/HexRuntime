@@ -48,6 +48,8 @@
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\OpCodes.h" />
+    <ClInclude Include="Runtime\Core\Meta\Descriptor.h" />
+    <ClInclude Include="Runtime\Core\Meta\FieldDescriptor.h" />
     <ClInclude Include="Runtime\Core\Meta\IImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h" />
@@ -65,6 +67,7 @@
     <ClInclude Include="Runtime\Core\Type\CoreTypes.h" />
     <ClInclude Include="Runtime\Core\Type\Type.h" />
     <ClInclude Include="Runtime\Core\Type\TypeRepresentation.h" />
+    <ClInclude Include="Runtime\ObservableArray.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
     <ClInclude Include="Runtime\Utility.h" />
   </ItemGroup>

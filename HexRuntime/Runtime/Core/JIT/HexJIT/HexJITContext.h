@@ -1,19 +1,40 @@
 #pragma once
 #include "..\..\..\RuntimeAlias.h"
 #include "..\..\..\Utility.h"
-#include "Frontend\IR.h"
 #include "..\JITContext.h"
+#include "Frontend\IR.h"
 #include "JITMemory.h"
 #include <vector>
+#include <type_traits>
 
 namespace RTJ::Hex
 {
-	enum class SSATrackability
+	class LocalAttachedFlags
 	{
-		Pending,
-		Ok,
-		Forbidden,
+	public:
+		UNDERLYING_TYPE(UInt32);
+		VALUE(Trackable) = 0x00000001;
 	};
+
+	template<class T>
+	concept LocalOrArgument = requires 
+	{ 
+		std::is_same_v<T, RTME::ArgumentMD> || std::is_same_v<T, RTME::LocalVariableMD>;
+	};
+
+	template<LocalOrArgument T>
+	struct LocalVariableAttached
+	{
+		T* Origin;
+		UInt32 Flags;
+	public:
+		bool IsTrackable()const { 
+			return Flags & LocalAttachedFlags::Trackable; 
+		};
+	};
+
+	using LocalAttached = LocalVariableAttached<RTME::LocalVariableMD>;
+	using ArgumentAttached = LocalVariableAttached<RTME::ArgumentMD>;
 
 	struct HexJITContext
 	{
@@ -23,18 +44,20 @@ namespace RTJ::Hex
 		JITMemory* Memory;
 		JITContext* Context;
 		/// <summary>
-		/// Indicate the trackability of local variable
+		/// The attached local info
 		/// </summary>
-		std::vector<SSATrackability> LocalSSATrackability;
+		std::vector<LocalAttached> LocalAttaches;
 		/// <summary>
-		/// Indicate the trackability of arugments
+		/// The attached argument info
 		/// </summary>
-		std::vector<SSATrackability> ArgumentSSATrackability;
+		std::vector<ArgumentAttached> ArgumentAttaches;
 		/// <summary>
 		/// Index to basic block
 		/// </summary>
 		std::vector<BasicBlock*> BBs;
-
+		/// <summary>
+		/// Shared space for evaluation stack and tree traversal
+		/// </summary>
 		struct 
 		{
 			Int8* Space;

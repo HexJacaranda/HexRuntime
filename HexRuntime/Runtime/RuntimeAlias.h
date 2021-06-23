@@ -32,8 +32,9 @@ namespace Runtime
 #define RT  Runtime
 #define RTC Runtime::Core
 #define RTO Runtime::Core::ManagedObject
-#define RTB Runtime::Core::Builder
 #define RTM Runtime::Core::Meta
+#define RTME Runtime::Core::Meta::EE
+
 #define RTE Runtime::Exception
 #define RTGC Runtime::Core::GC
 #define RTJ Runtime::Core::JIT

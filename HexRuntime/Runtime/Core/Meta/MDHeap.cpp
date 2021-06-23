@@ -1,25 +1,25 @@
 #include "MDHeap.h"
 
-RT::UInt8* RTM::MDPrivateHeap::Allocate(Int32 count)
+RT::UInt8* RTME::MDPrivateHeap::Allocate(Int32 count)
 {
 	return nullptr;
 }
 
-RT::UInt8* RTM::MDPrivateHeap::AllocateForCode(Int32 count)
+RT::UInt8* RTME::MDPrivateHeap::AllocateForCode(Int32 count)
 {
 	return nullptr;
 }
 
-void RTM::MDPrivateHeap::Unload()
+void RTME::MDPrivateHeap::Unload()
 {
 }
 
-RTM::MDPrivateHeap* RTM::MDHeap::GetPrivateHeap(MDToken assemblyToken)
+RTME::MDPrivateHeap* RTME::MDHeap::GetPrivateHeap(MDToken assemblyToken)
 {
 	return nullptr;
 }
 
-void* operator new(size_t size, RTM::MDPrivateHeap* heap)
+void* operator new(size_t size, RTME::MDPrivateHeap* heap)
 {
 	return heap->Allocate(size);
 }

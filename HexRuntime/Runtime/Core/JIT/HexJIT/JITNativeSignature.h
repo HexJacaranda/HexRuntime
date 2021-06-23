@@ -23,10 +23,14 @@ namespace RTJ::Hex
 		JITNativeSignatureArgument* Arguments;
 	};
 
+#define JIT_NATIVE_SIGNATURE_DECLARE(NAME) \
+	extern JITNativeSignatureArgument NAME##Args[]; \
+	extern JITNativeSignature NAME##Signature
+	
 
-#define JIT_NATIVE_SIGNATURE(NAME, ...) \
-	extern JITNativeSignatureArgument NAME##Args[] = { ##__VA_ARGS__ }; \
-	extern JITNativeSignature NAME##Signature = \
+#define JIT_NATIVE_SIGNATURE_IMPL(NAME, ...) \
+	JITNativeSignatureArgument NAME##Args[] = { ##__VA_ARGS__ }; \
+	JITNativeSignature NAME##Signature = \
 	{ \
 		Text(#NAME), \
 		(UInt8*)&NAME , \

@@ -4,7 +4,7 @@
 #include "IImportSession.h"
 #include "MDHeap.h"
 
-namespace RTM
+namespace RTME
 {
 	/// <summary>
 	/// Normal import session using disk I/O

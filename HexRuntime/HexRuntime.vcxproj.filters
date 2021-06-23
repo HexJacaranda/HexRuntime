@@ -67,15 +67,15 @@
     <Filter Include="源文件\ImportSession">
       <UniqueIdentifier>{9789e6ef-1c69-40ed-9e13-43f9d70268f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Utility">
+      <UniqueIdentifier>{7885a4ba-8cf1-4994-ae2f-11a4cb5a5eca}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
       <Filter>头文件\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\RuntimeAlias.h">
-      <Filter>头文件\Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Utility.h">
       <Filter>头文件\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Accessibility.h">
@@ -165,9 +165,6 @@
     <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h">
       <Filter>头文件\Runtime\Core\Interfaces</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
     </ClInclude>
@@ -212,6 +209,21 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Utility.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\ObservableArray.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\FieldDescriptor.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\Descriptor.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

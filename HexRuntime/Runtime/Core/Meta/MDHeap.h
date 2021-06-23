@@ -2,7 +2,7 @@
 #include "..\..\RuntimeAlias.h"
 #include "MDRecords.h"
 
-namespace RTM
+namespace RTME
 {
 	class MDPrivateHeap
 	{
@@ -22,4 +22,4 @@ namespace RTM
 	};
 }
 
-void* operator new(size_t size, RTM::MDPrivateHeap* heap);
+void* operator new(size_t size, RTME::MDPrivateHeap* heap);

@@ -14,8 +14,10 @@ namespace RTJ::Hex
 	{
 		BasicBlock* mTarget = nullptr;
 		HexJITContext* mJITContext;
-		std::vector<std::unordered_map<Int16, TreeNode*>> mLocalDefinition;
-		std::vector<std::unordered_map<Int16, TreeNode*>> mArgumentDefinition;
+
+		using DefinitionMap = std::vector<std::unordered_map<Int16, TreeNode*>>;
+		DefinitionMap mLocalDefinition;
+		DefinitionMap mArgumentDefinition;
 	private:
 		/// <summary>
 		/// Decide which variables should be tracked by SSA. And this affects our node generation

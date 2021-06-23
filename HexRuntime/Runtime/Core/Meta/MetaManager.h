@@ -5,6 +5,7 @@
 #include "MDRecords.h"
 #include "MDImporter.h"
 #include "MethodDescriptor.h"
+#include "FieldDescriptor.h"
 
 namespace RTM
 {
@@ -13,10 +14,11 @@ namespace RTM
 	/// </summary>
 	class MetaManager
 	{
-		MDImporter* mImporters;
+		RTME::MDImporter* mImporters;
 	public:
 		static Type* GetTypeFromToken(MDToken typeReference);
 		static RTO::StringObject* GetStringFromToken(MDToken stringToken);
 		static MethodDescriptor* GetMethodFromToken(MDToken methodReference);
+		static FieldDescriptor* GetFieldFromToken(MDToken fieldReference);
 	};
 }

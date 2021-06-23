@@ -334,8 +334,8 @@ namespace RTJ::Hex
 			OriginNode(value),
 			Signature(signature)
 		{}
-		Int32 ArgumentCount;
-		MorphedNativeArgument* Arguments;
+		Int32 ArgumentCount = 0;
+		MorphedNativeArgument* Arguments = nullptr;
 		TreeNode* OriginNode;
 		JITNativeSignature* Signature;	
 	};

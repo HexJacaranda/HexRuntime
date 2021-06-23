@@ -14,34 +14,31 @@ void RTJ::Hex::SSABuilder::DecideSSATrackability()
 	 * is involved in tracking for eliminating redundant checks
 	 */
 
-	auto isTrackable = [](TypeRepresentation const& type) {
-		if (type.CoreType < CoreTypes::Struct || type.CoreType == CoreTypes::Ref)
-			return SSATrackability::Ok;
-		return SSATrackability::Forbidden;
+	auto trackableSign = [](UInt8 type) {
+		if (type < CoreTypes::Struct || type == CoreTypes::Ref)
+			return LocalAttachedFlags::Trackable;
+		return 0u;
 	};
+
 	auto rawContext = mJITContext->Context;
 
-	if (rawContext->LocalVariables.size())
-		mJITContext->LocalSSATrackability = std::move(
-			std::vector<SSATrackability>(rawContext->LocalVariables.size()));
-	if (rawContext->Arguments.size())
-		mJITContext->ArgumentSSATrackability = std::move(
-			std::vector<SSATrackability>(rawContext->Arguments.size()));
+	auto localVariables = rawContext->MethDescriptor->GetLocalVariables();
+	auto arguments = rawContext->MethDescriptor->GetArguments();
 
-	for (Int32 i = 0; i < rawContext->LocalVariables.size(); ++i)
-		mJITContext->LocalSSATrackability[i] = isTrackable(rawContext->LocalVariables[i].Type);
+	for (Int32 i = 0; i < localVariables.Count; ++i)
+		mJITContext->LocalAttaches[i].Flags |= trackableSign(localVariables[i].CoreType);
 
-	for (Int32 i = 0; i < rawContext->Arguments.size(); ++i)
-		mJITContext->ArgumentSSATrackability[i] = isTrackable(rawContext->Arguments[i].Type);
+	for (Int32 i = 0; i < arguments.Count; ++i)
+		mJITContext->ArgumentAttaches[i].Flags |= trackableSign(arguments[i].CoreType);
 }
 
 bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)
 {
 	IMPORT_LOCAL(local, index, kind);
 	if (kind == NodeKinds::LocalVariable)
-		return mJITContext->LocalSSATrackability[index] == SSATrackability::Ok;
+		return mJITContext->LocalAttaches[index].IsTrackable();
 	else
-		return mJITContext->ArgumentSSATrackability[index] == SSATrackability::Ok;
+		return mJITContext->ArgumentAttaches[index].IsTrackable();
 }
 
 void RTJ::Hex::SSABuilder::WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value)
@@ -156,10 +153,8 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
 {
 	//Initialize
 	DecideSSATrackability();
-	mArgumentDefinition = std::move(
-		std::vector<std::unordered_map<Int16, TreeNode*>>(mJITContext->Context->Arguments.size()));
-	mLocalDefinition = std::move(
-		std::vector<std::unordered_map<Int16, TreeNode*>>(mJITContext->Context->LocalVariables.size()));
+	mArgumentDefinition = std::move(DefinitionMap(mJITContext->ArgumentAttaches.size()));
+	mLocalDefinition = std::move(DefinitionMap(mJITContext->LocalAttaches.size()));
 
 	auto readWrite = [&](TreeNode*& node, Int32 bbIndex) {
 		//The store node is always a stmt

@@ -15,7 +15,7 @@
 			IF_FAIL_RET(IMPORT_METHOD(session, &SERIES_MEMBER[i]))
 
 
-bool RTM::MDImporter::ReadCode(IImportSession* session, Int32& countTarget, UInt8*& target)
+bool RTME::MDImporter::ReadCode(IImportSession* session, Int32& countTarget, UInt8*& target)
 {
 	Int32 readBytes = session->ReadInto((UInt8*)&countTarget, sizeof(Int32));
 	if (readBytes != sizeof(Int32))
@@ -25,7 +25,7 @@ bool RTM::MDImporter::ReadCode(IImportSession* session, Int32& countTarget, UInt
 	return readBytes == countTarget * sizeof(UInt8);
 }
 
-void RTM::MDImporter::PrepareFile(ImportOption option)
+void RTME::MDImporter::PrepareFile(ImportOption option)
 {
 	//Open assembly file for read only
 	mAssemblyFile = OSFile::Open(mAssemblyFileName, UsageOption::Read, SharingOption::SharedRead);
@@ -38,13 +38,13 @@ void RTM::MDImporter::PrepareFile(ImportOption option)
 	}
 }
 
-void RTM::MDImporter::LocateSession(IImportSession* session, MDRecordKinds kind, MDToken token)
+void RTME::MDImporter::LocateSession(IImportSession* session, MDRecordKinds kind, MDToken token)
 {
 	Int32 offset = mIndexTable[(Int32)kind][token];
 	session->Relocate(offset, LocateOption::Start);
 }
 
-bool RTM::MDImporter::PrepareImporter()
+bool RTME::MDImporter::PrepareImporter()
 {
 	//Prepare index table
 	mIndexTable = new (mHeap) MDIndexTable[(Int32)MDRecordKinds::KindLimit];
@@ -68,7 +68,7 @@ bool RTM::MDImporter::PrepareImporter()
 		AssemblyHeaderMD::CompactSize);
 }
 
-RTM::MDImporter::MDImporter(RTString assemblyName, MDToken assembly, ImportOption option):
+RTME::MDImporter::MDImporter(RTString assemblyName, MDToken assembly, ImportOption option):
 	mAssemblyFileName(assemblyName),
 	mImportOption(option)
 {
@@ -77,7 +77,7 @@ RTM::MDImporter::MDImporter(RTString assemblyName, MDToken assembly, ImportOptio
 	PrepareImporter();
 }
 
-RTM::MDImporter::~MDImporter()
+RTME::MDImporter::~MDImporter()
 {
 	if (mImportOption == ImportOption::Fast)
 	{
@@ -87,31 +87,31 @@ RTM::MDImporter::~MDImporter()
 	OSFile::Close(mAssemblyFile);
 }
 
-bool RTM::MDImporter::ImportIL(IImportSession* session, ILMD* ilMD)
+bool RTME::MDImporter::ImportIL(IImportSession* session, ILMD* ilMD)
 {
 	IMPORT_NESTED_SERIES(ilMD->LocalVariableCount, ilMD->LocalVariables, ImportLocalVariable);
 	IF_FAIL_RET(ReadCode(session, ilMD->CodeLength, ilMD->IL));
 	return true;
 }
 
-bool RTM::MDImporter::ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD)
+bool RTME::MDImporter::ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD)
 {
-	
+	return true;
 }
 
-bool RTM::MDImporter::ImportLocalVariable(IImportSession* session, LocalVariableMD* localMD)
+bool RTME::MDImporter::ImportLocalVariable(IImportSession* session, LocalVariableMD* localMD)
 {
 	IF_SESSION_FAIL_RET(ReadInto(localMD->CoreType));
 	IF_SESSION_FAIL_RET(ReadInto(localMD->TypeRefToken));
 	return true;
 }
 
-inline bool RTM::MDImporter::IsCanonicalToken(MDToken typeRefToken)
+inline bool RTME::MDImporter::IsCanonicalToken(MDToken typeRefToken)
 {
 	return typeRefToken & 0x80000000;
 }
 
-bool RTM::MDImporter::ImportAssemblyHeader(IImportSession* session, AssemblyHeaderMD* assemblyMD)
+bool RTME::MDImporter::ImportAssemblyHeader(IImportSession* session, AssemblyHeaderMD* assemblyMD)
 {
 	session->Relocate(0, LocateOption::Start);
 	IF_SESSION_FAIL_RET(ReadInto(assemblyMD->NameToken));
@@ -122,7 +122,7 @@ bool RTM::MDImporter::ImportAssemblyHeader(IImportSession* session, AssemblyHead
 	return true;
 }
 
-bool RTM::MDImporter::ImportAttribute(IImportSession* session, MDToken token, AtrributeMD* attributeMD)
+bool RTME::MDImporter::ImportAttribute(IImportSession* session, MDToken token, AtrributeMD* attributeMD)
 {
 	//Rather complicated to resolve for meta manager
 	LOCATE(AttributeDef);
@@ -135,7 +135,7 @@ bool RTM::MDImporter::ImportAttribute(IImportSession* session, MDToken token, At
 	return true;
 }
 
-bool RTM::MDImporter::ImportArgument(IImportSession* session, MDToken token, ArgumentMD* argumentMD)
+bool RTME::MDImporter::ImportArgument(IImportSession* session, MDToken token, ArgumentMD* argumentMD)
 {
 	LOCATE(Argument);
 
@@ -147,7 +147,7 @@ bool RTM::MDImporter::ImportArgument(IImportSession* session, MDToken token, Arg
 	return true;
 }
 
-bool RTM::MDImporter::ImportMethod(IImportSession* session, MDToken token, MethodMD* methodMD)
+bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, MethodMD* methodMD)
 {
 	LOCATE(MethodDef);
 
@@ -162,14 +162,14 @@ bool RTM::MDImporter::ImportMethod(IImportSession* session, MDToken token, Metho
 	return true;
 }
 
-bool RTM::MDImporter::ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD)
+bool RTME::MDImporter::ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD)
 {
 	IF_SESSION_FAIL_RET(ReadInto(signatureMD->ReturnTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(signatureMD->ArgumentCount, signatureMD->ArgumentTokens));
 	return true;
 }
 
-bool RTM::MDImporter::ImportField(IImportSession* session, MDToken token, FieldMD* fieldMD)
+bool RTME::MDImporter::ImportField(IImportSession* session, MDToken token, FieldMD* fieldMD)
 {
 	LOCATE(FieldDef);
 
@@ -179,7 +179,7 @@ bool RTM::MDImporter::ImportField(IImportSession* session, MDToken token, FieldM
 	return true;
 }
 
-bool RTM::MDImporter::ImportProperty(IImportSession* session, MDToken token, PropertyMD* propertyMD)
+bool RTME::MDImporter::ImportProperty(IImportSession* session, MDToken token, PropertyMD* propertyMD)
 {
 	LOCATE(PropertyDef);
 
@@ -194,7 +194,7 @@ bool RTM::MDImporter::ImportProperty(IImportSession* session, MDToken token, Pro
 	return true;
 }
 
-bool RTM::MDImporter::ImportEvent(IImportSession* session, MDToken token, EventMD* eventMD)
+bool RTME::MDImporter::ImportEvent(IImportSession* session, MDToken token, EventMD* eventMD)
 {
 	LOCATE(EventDef);
 
@@ -209,7 +209,7 @@ bool RTM::MDImporter::ImportEvent(IImportSession* session, MDToken token, EventM
 	return true;
 }
 
-bool RTM::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD* typeMD)
+bool RTME::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD* typeMD)
 {
 	LOCATE(TypeDef);
 
@@ -229,7 +229,7 @@ bool RTM::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD*
 	return true;
 }
 
-bool RTM::MDImporter::PreImportString(IImportSession* session, MDToken token, StringMD* stringMD)
+bool RTME::MDImporter::PreImportString(IImportSession* session, MDToken token, StringMD* stringMD)
 {
 	LOCATE(String);
 
@@ -237,20 +237,20 @@ bool RTM::MDImporter::PreImportString(IImportSession* session, MDToken token, St
 	return true;
 }
 
-bool RTM::MDImporter::ImportString(IImportSession* session, StringMD* stringMD)
+bool RTME::MDImporter::ImportString(IImportSession* session, StringMD* stringMD)
 {
 	Int32 read = session->ReadInto((UInt8*)stringMD->CharacterSequence, sizeof(UInt16) * stringMD->Count);
 	return sizeof(UInt16) * stringMD->Count == read;
 }
 
-bool RTM::MDImporter::ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD)
+bool RTME::MDImporter::ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD)
 {
 	IF_SESSION_FAIL_RET(ReadInto(typeRefMD->AssemblyToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeRefMD->TypeDefToken));
 	return true;
 }
 
-bool RTM::MDImporter::ImportMemberRef(IImportSession* session, MemberRefMD* memberRefMD)
+bool RTME::MDImporter::ImportMemberRef(IImportSession* session, MemberRefMD* memberRefMD)
 {
 	IF_SESSION_FAIL_RET(ReadInto(memberRefMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(memberRefMD->MemberDefKind));
@@ -258,7 +258,7 @@ bool RTM::MDImporter::ImportMemberRef(IImportSession* session, MemberRefMD* memb
 	return true;
 }
 
-RTM::IImportSession* RTM::MDImporter::NewSession(Int32 offset)
+RTME::IImportSession* RTME::MDImporter::NewSession(Int32 offset)
 {
 	IImportSession* ret = nullptr;
 	if (mImportOption == ImportOption::Fast)
@@ -269,12 +269,12 @@ RTM::IImportSession* RTM::MDImporter::NewSession(Int32 offset)
 	return ret;
 }
 
-void RTM::MDImporter::ReturnSession(IImportSession* session)
+void RTME::MDImporter::ReturnSession(IImportSession* session)
 {
 	delete session;
 }
 
-bool RTM::MDImporter::ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable)
+bool RTME::MDImporter::ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable)
 {
 	Int32 offset = mRefTableHeader.TypeRefTableOffset;
 	Int32 count = mRefTableHeader.TypeRefCount;
@@ -286,7 +286,7 @@ bool RTM::MDImporter::ImportTypeRefTable(IImportSession* session, TypeRefMD*& ty
 	return true;
 }
 
-bool RTM::MDImporter::ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable)
+bool RTME::MDImporter::ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable)
 {
 	Int32 offset = mRefTableHeader.MemberRefTableOffset;
 	Int32 count = mRefTableHeader.MemberRefCount;

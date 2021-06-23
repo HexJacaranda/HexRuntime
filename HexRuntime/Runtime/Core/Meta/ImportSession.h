@@ -3,7 +3,7 @@
 #include "IImportSession.h"
 #include "..\Interfaces\OSFile.h"
 
-namespace RTM
+namespace RTME
 {
 	class ImportSession :public IImportSession
 	{

@@ -1,7 +1,7 @@
 #include "MappedImportSession.h"
 #include <memory>
 
-RTM::MappedImportSession::MappedImportSession(MDPrivateHeap* heap, UInt8* address, Int32 fileSize) :
+RTME::MappedImportSession::MappedImportSession(MDPrivateHeap* heap, UInt8* address, Int32 fileSize) :
 	IImportSession(heap),
 	mFileSize(fileSize),
 	mMappedBase(address),
@@ -10,7 +10,7 @@ RTM::MappedImportSession::MappedImportSession(MDPrivateHeap* heap, UInt8* addres
 
 }
 
-RT::Int32 RTM::MappedImportSession::ReadInto(UInt8* memory, Int32 size)
+RT::Int32 RTME::MappedImportSession::ReadInto(UInt8* memory, Int32 size)
 {
 	Int32 toRead = size;
 	if (mFileSize - (mCurrent - mMappedBase) < size)
@@ -20,7 +20,7 @@ RT::Int32 RTM::MappedImportSession::ReadInto(UInt8* memory, Int32 size)
 	return toRead;
 }
 
-void RTM::MappedImportSession::Relocate(Int32 offset, RTI::LocateOption option)
+void RTME::MappedImportSession::Relocate(Int32 offset, RTI::LocateOption option)
 {
 	switch (option)
 	{
@@ -39,7 +39,7 @@ void RTM::MappedImportSession::Relocate(Int32 offset, RTI::LocateOption option)
 	}
 }
 
-RTM::MappedImportSession::~MappedImportSession()
+RTME::MappedImportSession::~MappedImportSession()
 {
 	
 }

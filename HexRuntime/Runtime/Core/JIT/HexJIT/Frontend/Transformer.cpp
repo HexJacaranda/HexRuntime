@@ -2,6 +2,7 @@
 #include "..\..\OpCodes.h"
 #include "..\..\..\..\Utility.h"
 #include "..\..\..\Exception\RuntimeException.h"
+#include "..\..\..\Meta\MetaManager.h"
 #include <unordered_map>
 #include <assert.h>
 
@@ -70,6 +71,14 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 {
 	auto localIndex = ReadAs<Int16>();
 	auto local = new(POOL) LocalVariableNode(localIndex);
+	auto&& locals = GetRawContext()->MethDescriptor->GetLocalVariables();
+
+	if (localIndex >= locals.Count)
+		RTE::Throw(Text("Local variable index out of range."));
+
+	//Set node type info
+	auto&& localMD = locals[localIndex];
+	local->TypeInfo = { localMD.CoreType,localMD.TypeRefToken };
 
 	//Keep uniformity for convenience of traversal in SSA building
 	return new(POOL) LoadNode(SLMode, local);
@@ -77,24 +86,36 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
-	auto argumentIndex = ReadAs<Int16>();
-	auto argument = new(POOL) ArgumentNode(argumentIndex);
+	auto localIndex = ReadAs<Int16>();
+	auto local = new(POOL) LocalVariableNode(localIndex);
+	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
+
+	if (localIndex >= locals.Count)
+		RTE::Throw(Text("Argument index out of range."));
+
+	//Set node type info
+	auto&& localMD = locals[localIndex];
+	local->TypeInfo = { localMD.CoreType,localMD.TypeRefToken };
+
 	//Keep uniformity for convenience of traversal in SSA building
-	return new(POOL) LoadNode(SLMode, argument);
+	return new(POOL) LoadNode(SLMode, local);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 {
 	TreeNode* field = nullptr;
+	MDToken fieldToken = ReadAs<MDToken>();
 	if (mBaeIn == 0)
-		field = new(POOL) StaticFieldNode(ReadAs<UInt32>());
+		field = new(POOL) StaticFieldNode(fieldToken);
 	else if (mBaeIn == 1)
-		field = new(POOL) InstanceFieldNode(ReadAs<UInt32>(), mEvalStack.Pop());
+		field = new(POOL) InstanceFieldNode(ReadAs<MDToken>(), mEvalStack.Pop());
 	else
 	{
 		RTE::Throw(Text("Invalid balance group."));
 		//Should never reach here
 	}
+
+	auto&& fieldDescriptor = RTM::MetaManager::GetFieldFromToken(fieldToken);
 
 	if (SLMode == SLMode::Indirect)
 		return new(POOL) LoadNode(SLMode::Indirect, field);
@@ -161,10 +182,9 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 {
 	auto argumentIndex = ReadAs<Int16>();
-
-	return new(POOL) StoreNode(
-		new(POOL) ArgumentNode(coreType, argumentIndex),
-		mEvalStack.Pop());
+	auto arguments = GetRawContext()->MethDescriptor->GetArguments();
+	auto coreType = arguments[argumentIndex].CoreType;
+	return new(POOL) StoreNode(new(POOL) ArgumentNode(argumentIndex), mEvalStack.Pop());
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()

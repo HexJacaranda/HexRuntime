@@ -9,7 +9,7 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Evaluation stack for tree construction
 		/// </summary>
-		TreeNode** mEvaluationStack = nullptr;
+		TreeNode** mEvaluationStack;
 		/// <summary>
 		/// Indicator
 		/// </summary>

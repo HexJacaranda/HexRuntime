@@ -3,7 +3,7 @@
 #include "..\Interfaces\OSFile.h"
 #include "MDHeap.h"
 
-namespace RTM
+namespace RTME
 {
 	/// <summary>
 	/// For sake of performance and thread-safety

@@ -7,7 +7,7 @@
 #include <type_traits>
 
 using namespace RTI;
-namespace RTM
+namespace RTME
 {
 	enum class ImportOption
 	{

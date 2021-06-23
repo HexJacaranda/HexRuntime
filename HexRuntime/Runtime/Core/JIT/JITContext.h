@@ -23,7 +23,9 @@ namespace RTJ
 		/// Multiple tier compilation
 		/// </summary>
 		UInt16 TierSettings;
-
+		/// <summary>
+		/// Method
+		/// </summary>
 		RTM::MethodDescriptor* MethDescriptor;
 	};
 }
