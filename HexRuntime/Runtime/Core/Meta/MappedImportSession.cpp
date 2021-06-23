@@ -1,11 +1,13 @@
 #include "MappedImportSession.h"
 #include <memory>
 
-RTM::MappedImportSession::MappedImportSession(MDPrivateHeap* heap, RTI::FileMappingHandle handle, Int32 fileSize) :
+RTM::MappedImportSession::MappedImportSession(MDPrivateHeap* heap, UInt8* address, Int32 fileSize) :
 	IImportSession(heap),
-	mFileSize(fileSize)
+	mFileSize(fileSize),
+	mMappedBase(address),
+	mCurrent(address)
 {
-	mCurrent = mMappedBase = RTI::OSFile::MapAddress(handle, RTI::UsageOption::Read);
+
 }
 
 RT::Int32 RTM::MappedImportSession::ReadInto(UInt8* memory, Int32 size)
@@ -39,5 +41,5 @@ void RTM::MappedImportSession::Relocate(Int32 offset, RTI::LocateOption option)
 
 RTM::MappedImportSession::~MappedImportSession()
 {
-	RTI::OSFile::UnmapAddress(mMappedBase);
+	
 }

@@ -36,6 +36,7 @@ namespace RTM
 		Int32 mAssemblyLength = 0;
 		FileHandle mAssemblyFile = nullptr;
 		FileMappingHandle mAssemblyMapping = nullptr;
+		UInt8* mAssemblyMappedAddress = nullptr;
 
 		//Meta data table part
 		MDIndexTable* mIndexTable = nullptr;
@@ -47,6 +48,7 @@ namespace RTM
 		bool PrepareImporter();
 	public:
 		MDImporter(RTString assemblyName, MDToken assembly, ImportOption option);
+		~MDImporter();
 	private:
 		bool ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD);
 		bool ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD);

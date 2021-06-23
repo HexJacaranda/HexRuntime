@@ -15,7 +15,7 @@ namespace RTM
 		UInt8* mCurrent;
 		Int32 mFileSize;
 	public:
-		MappedImportSession(MDPrivateHeap* heap, RTI::FileMappingHandle handle, Int32 fileSize);
+		MappedImportSession(MDPrivateHeap* heap, UInt8* address, Int32 fileSize);
 		virtual Int32 ReadInto(UInt8* memory, Int32 size);
 		virtual void Relocate(Int32 offset, RTI::LocateOption option);
 		virtual ~MappedImportSession();

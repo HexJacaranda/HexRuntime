@@ -20,9 +20,13 @@ void RTM::MDImporter::PrepareFile(ImportOption option)
 {
 	//Open assembly file for read only
 	mAssemblyFile = OSFile::Open(mAssemblyFileName, UsageOption::Read, SharingOption::SharedRead);
+	mAssemblyLength = OSFile::SizeOf(mAssemblyFile);
 	//Open file mapping for fast mode
 	if (option == ImportOption::Fast)
+	{
 		mAssemblyMapping = OSFile::OpenMapping(mAssemblyFile, UsageOption::Read);
+		mAssemblyMappedAddress = OSFile::MapAddress(mAssemblyMapping, UsageOption::Read);
+	}
 }
 
 bool RTM::MDImporter::PrepareImporter()
@@ -56,6 +60,16 @@ RTM::MDImporter::MDImporter(RTString assemblyName, MDToken assembly, ImportOptio
 	mHeap = MDHeap::GetPrivateHeap(assembly);
 	PrepareFile(option);
 	PrepareImporter();
+}
+
+RTM::MDImporter::~MDImporter()
+{
+	if (mImportOption == ImportOption::Fast)
+	{
+		OSFile::UnmapAddress(mAssemblyMappedAddress);
+		OSFile::CloseMapping(mAssemblyMapping);
+	}
+	OSFile::Close(mAssemblyFile);
 }
 
 inline bool RTM::MDImporter::IsCanonicalToken(MDToken typeRefToken)
@@ -215,7 +229,7 @@ RTM::IImportSession* RTM::MDImporter::NewSession(Int32 offset)
 {
 	IImportSession* ret = nullptr;
 	if (mImportOption == ImportOption::Fast)
-		ret = new MappedImportSession(mHeap, mAssemblyMapping, mAssemblyLength);
+		ret = new MappedImportSession(mHeap, mAssemblyMappedAddress, mAssemblyLength);
 	else
 		ret = new ImportSession(mHeap, mAssemblyFile);
 	ret->Relocate(offset, RTI::LocateOption::Start);

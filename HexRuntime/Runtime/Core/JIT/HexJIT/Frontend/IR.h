@@ -35,6 +35,10 @@ namespace RTJ::Hex
 
 	struct TreeNode
 	{
+		/// <summary>
+		/// For linearization
+		/// </summary>
+		TreeNode* LinearNext = nullptr;
 		NodeKinds Kind;
 
 		TreeNode(NodeKinds kind) :Kind(kind) {}
