@@ -1,10 +1,7 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "Object.h"
-namespace RTC
-{
-	class Type;
-}
+
 namespace RTO
 {
 	class StringObject :public Object

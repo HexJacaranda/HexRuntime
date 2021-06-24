@@ -130,7 +130,9 @@ namespace RTME
 			UInt8 Accessibility;
 			bool IsVolatile : 1;
 			bool IsInstance : 1;
+			bool IsStatic : 1;
 			bool IsConstant : 1;
+			bool IsThreadLocal : 1;
 		} Flags;
 
 		TOKEN_SERIES(Attribute);

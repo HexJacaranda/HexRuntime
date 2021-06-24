@@ -1,10 +1,8 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "Object.h"
-namespace RTC
-{
-	class Type;
-}
+#include "..\Meta\TypeDescriptor.h"
+
 namespace RTO
 {
 	class ArrayObject :public Object
@@ -22,7 +20,7 @@ namespace RTO
 	public:
 		ForcedInline UInt32 GetCount()const;
 		ForcedInline Int8* GetElementAddress()const;
-		inline Type* GetElementType()const;
+		inline RTM::Type* GetElementType()const;
 		inline bool IsMultiDimensionalArray()const;
 		inline bool IsSZArray()const;
 	};

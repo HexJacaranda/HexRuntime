@@ -6,7 +6,7 @@ void RTJ::Hex::JITMemory::AllocateSegment()
 {
 	Segment* newOne = (Segment*)std::malloc(SegmentSpace + sizeof(Segment));
 	if (newOne == nullptr)
-		RTE::Throw(Text("Failed to allocate more space for JIT"));
+		THROW("Failed to allocate more space for JIT");
 	else
 	{
 		newOne->Previous = mPODCurrent;;
@@ -19,7 +19,7 @@ void RTJ::Hex::JITMemory::AllocateNonPODSegment()
 {
 	Segment* newOne = (Segment*)std::malloc(SegmentSpace + sizeof(Segment));
 	if (newOne == nullptr)
-		RTE::Throw(Text("Failed to allocate more space for JIT"));
+		THROW("Failed to allocate more space for JIT");
 	else
 	{
 		newOne->Previous = mNonPODCurrent;;
@@ -32,7 +32,7 @@ void RTJ::Hex::JITMemory::AllocateOversizeSegment(Int32 size)
 {
 	Segment* newOne = (Segment*)std::malloc(size + sizeof(Segment));
 	if (newOne == nullptr)
-		RTE::Throw(Text("Failed to allocate more space for JIT"));
+		THROW("Failed to allocate more space for JIT");
 	else
 	{
 		newOne->Previous = mOversizeCurrent;

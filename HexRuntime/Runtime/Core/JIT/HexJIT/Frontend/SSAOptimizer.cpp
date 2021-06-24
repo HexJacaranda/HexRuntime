@@ -1,5 +1,5 @@
 #include "SSAOptimizer.h"
-#include "..\..\..\Type\CoreTypes.h"
+#include "..\..\..\Meta\CoreTypes.h"
 #include "..\..\OpCodes.h"
 #include "..\..\..\Exception\RuntimeException.h"
 
@@ -78,6 +78,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeti
 		case OpCodes::Xor:
 			return left ^ right;
 		}
+
+		//Should never reach here
+		return left ^ right;
 	};
 
 #define EVAL_INTEGER_CASE(CORE_TYPE) case CoreTypes::CORE_TYPE: \
@@ -97,6 +100,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeti
 		case OpCodes::Div:
 			return left / right;
 		}
+		//Should never reach here
+		return left;
 	};
 
 #define EVAL_FLOAT_CASE(CORE_TYPE) case CoreTypes::CORE_TYPE: \
@@ -214,7 +219,7 @@ void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
 		//Ref
 		auto&& conditionValue = basicBlock->BranchConditionValue;
 		if (!(conditionValue->Is(NodeKinds::Compare) || conditionValue->Is(NodeKinds::Constant)))
-			RTE::Throw(Text("Condition expression type mismatch."));
+			THROW("Condition expression type mismatch.");
 		//Fold constant first
 		if (!conditionValue->Is(NodeKinds::Constant))
 			FoldConstant(conditionValue);

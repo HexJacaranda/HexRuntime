@@ -29,7 +29,7 @@ ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
 	opcode = *mCodePtr;
 	mCodePtr++;
 	if (mCodePtr >= mCodePtrBound)
-		RTE::Throw(Text("Malformed IL"));
+		THROW("Malformed IL");
 
 	//Opcode with bae
 	switch (opcode)
@@ -74,14 +74,13 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 	auto&& locals = GetRawContext()->MethDescriptor->GetLocalVariables();
 
 	if (localIndex >= locals.Count)
-		RTE::Throw(Text("Local variable index out of range."));
-
-	//Set node type info
-	auto&& localMD = locals[localIndex];
-	local->TypeInfo = { localMD.CoreType,localMD.TypeRefToken };
+		THROW("Local variable index out of range.");
 
 	//Keep uniformity for convenience of traversal in SSA building
-	return new(POOL) LoadNode(SLMode, local);
+	auto ret = new(POOL) LoadNode(SLMode, local);
+	//Set node type info
+	ret->TypeInfo = locals[localIndex].CoreType;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
@@ -91,14 +90,12 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
 
 	if (localIndex >= locals.Count)
-		RTE::Throw(Text("Argument index out of range."));
-
-	//Set node type info
-	auto&& localMD = locals[localIndex];
-	local->TypeInfo = { localMD.CoreType,localMD.TypeRefToken };
-
+		THROW("Argument index out of range.");
 	//Keep uniformity for convenience of traversal in SSA building
-	return new(POOL) LoadNode(SLMode, local);
+	auto ret = new(POOL) LoadNode(SLMode, local);
+	//Set node type info
+	ret->TypeInfo = locals[localIndex].CoreType;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
@@ -108,19 +105,18 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 	if (mBaeIn == 0)
 		field = new(POOL) StaticFieldNode(fieldToken);
 	else if (mBaeIn == 1)
-		field = new(POOL) InstanceFieldNode(ReadAs<MDToken>(), mEvalStack.Pop());
+		field = new(POOL) InstanceFieldNode(fieldToken, mEvalStack.Pop());
 	else
 	{
-		RTE::Throw(Text("Invalid balance group."));
+		THROW("Invalid balance group.");
 		//Should never reach here
 	}
-
+	auto ret = new(POOL) LoadNode(SLMode, field);
+	//Set type info
 	auto&& fieldDescriptor = RTM::MetaManager::GetFieldFromToken(fieldToken);
+	ret->TypeInfo = fieldDescriptor->GetType()->GetCoreType();
 
-	if (SLMode == SLMode::Indirect)
-		return new(POOL) LoadNode(SLMode::Indirect, field);
-	else
-		return field;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMode)
@@ -139,6 +135,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
 	auto stringToken = ReadAs<UInt32>();
 	auto ret = new(POOL) ConstantNode(CoreTypes::String);
 	ret->StringToken = stringToken;
+	//Set type info, but for more generic CoreTypes::Ref
+	ret->TypeInfo = CoreTypes::Ref;
 	return ret;
 }
 
@@ -154,46 +152,67 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
 	case 4: ret->I4 = ReadAs<Int32>(); break;
 	case 8: ret->I8 = ReadAs<Int64>(); break;
 	case -1:
+		THROW("Unknown constant size.");
 		//Should never reach here.
 		break;
 	}
+	//Set type info
+	ret->TypeInfo = coreType;
 	return ret;
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 {
+	TreeNode* value = mEvalStack.Pop();
+	MDToken fieldToken = ReadAs<MDToken>();
+	auto field = RTM::MetaManager::GetFieldFromToken(fieldToken);
+	auto fieldCoreType = field->GetType()->GetCoreType();
+
+	if (!value->CheckWith(fieldCoreType))
+		THROW("Type check failed.");
+
 	if (mBaeIn == 1)
+	{
 		//Static field store
-		return new(POOL) StoreNode(new(POOL) StaticFieldNode(ReadAs<UInt32>()), mEvalStack.Pop());
+		return new(POOL) StoreNode(new(POOL) StaticFieldNode(fieldToken), value);
+	}
 	else if (mBaeIn == 2)
 	{
 		//Instance field store
-		auto value = mEvalStack.Pop();
 		auto object = mEvalStack.Pop();
-		return new(POOL) StoreNode(new(POOL) InstanceFieldNode(ReadAs<UInt32>(), object), value);
+		return new(POOL) StoreNode(new(POOL) InstanceFieldNode(fieldToken, object), value);
 	}
 	else
 	{
-		RTE::Throw(Text("Invalid balance group"));
+		THROW("Invalid balance group");
 		//Should never reach here
 	}
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 {
+	TreeNode* value = mEvalStack.Pop();
+
 	auto argumentIndex = ReadAs<Int16>();
 	auto arguments = GetRawContext()->MethDescriptor->GetArguments();
 	auto coreType = arguments[argumentIndex].CoreType;
-	return new(POOL) StoreNode(new(POOL) ArgumentNode(argumentIndex), mEvalStack.Pop());
+
+	if (!value->CheckWith(coreType))
+		THROW("Type check failed.");
+
+	return new(POOL) StoreNode(new(POOL) ArgumentNode(argumentIndex), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
+	TreeNode* value = mEvalStack.Pop();
 	auto localIndex = ReadAs<Int16>();
 	auto coreType = mILMD->LocalVariables[localIndex].CoreType;
-	return new(POOL) StoreNode(
-		new(POOL) LocalVariableNode(localIndex),
-		mEvalStack.Pop());
+
+	if (!value->CheckWith(coreType))
+		THROW("Type check failed.");
+
+	return new(POOL) StoreNode(new(POOL) LocalVariableNode(localIndex), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
@@ -241,6 +260,10 @@ RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()
 {
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
+
+	if (!left->CheckWith(right))
+		THROW("Type check failed.");
+
 	return new(POOL) CompareNode(ReadAs<UInt8>(), left, right);
 }
 
@@ -349,7 +372,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TryGenerateStatement(TreeNode* val
 		if (!isBalancedCritical)
 			return nullptr;
 		//Should never reach here, malformed IL
-		RTE::Throw(Text("Malformed IL."));
+		THROW("Malformed IL.");
 	}
 }
 
@@ -541,14 +564,14 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 
 		default:
 			//You should never reach here
-			RTE::Throw(Text("Unrecognized IL Opcode."));
+			THROW("Unrecognized IL Opcode.");
 			break;
 		}
 	}
 	if (!mEvalStack.IsBalanced())
 	{
 		//Malformed IL
-		RTE::Throw(Text("Malformed IL."));
+		THROW("Malformed IL.");
 	}
 	return stmtHead;
 
@@ -654,7 +677,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 				basicBlockCurrent->BranchKind = ppOfSameOffset->Kind;
 				break;
 			default:
-				RTE::Throw(Text("Unknown PP kind"));
+				THROW("Unknown PP kind");
 			}
 
 			ppOfSameOffset = ppOfSameOffset->Next;

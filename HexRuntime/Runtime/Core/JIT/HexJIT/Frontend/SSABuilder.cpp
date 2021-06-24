@@ -1,6 +1,6 @@
 #include "SSABuilder.h"
 #include "IR.h"
-#include "..\..\..\Type\CoreTypes.h"
+#include "..\..\..\Meta\CoreTypes.h"
 
 #define IMPORT_LOCAL(LOCAL, INDEX, KIND) \
 	auto INDEX = LOCAL->LocalIndex; \

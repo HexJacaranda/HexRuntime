@@ -1,7 +1,6 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\..\Utility.h"
-#include "..\Type\TypeRepresentation.h"
 #include "..\Meta\MethodDescriptor.h"
 #include <vector>
 

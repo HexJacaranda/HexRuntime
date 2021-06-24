@@ -22,8 +22,6 @@
     <ClInclude Include="Runtime\Binary.h" />
     <ClInclude Include="Runtime\Core\Accessibility.h" />
     <ClInclude Include="Runtime\Core\Exception\RuntimeException.h" />
-    <ClInclude Include="Runtime\Core\FieldTable.h" />
-    <ClInclude Include="Runtime\Core\InterfaceDispatchTable.h" />
     <ClInclude Include="Runtime\Core\Interfaces\OSFile.h" />
     <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h" />
     <ClInclude Include="Runtime\Core\InteriorPointer.h" />
@@ -48,25 +46,26 @@
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\OpCodes.h" />
+    <ClInclude Include="Runtime\Core\Meta\CoreTypes.h" />
     <ClInclude Include="Runtime\Core\Meta\Descriptor.h" />
     <ClInclude Include="Runtime\Core\Meta\FieldDescriptor.h" />
+    <ClInclude Include="Runtime\Core\Meta\FieldTable.h" />
     <ClInclude Include="Runtime\Core\Meta\IImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h" />
+    <ClInclude Include="Runtime\Core\Meta\InterfaceDispatchTable.h" />
     <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\MDHeap.h" />
     <ClInclude Include="Runtime\Core\Meta\MDImporter.h" />
     <ClInclude Include="Runtime\Core\Meta\MDRecords.h" />
     <ClInclude Include="Runtime\Core\Meta\MetaManager.h" />
     <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h" />
-    <ClInclude Include="Runtime\Core\MethodTable.h" />
+    <ClInclude Include="Runtime\Core\Meta\MethodTable.h" />
+    <ClInclude Include="Runtime\Core\Meta\TypeDescriptor.h" />
+    <ClInclude Include="Runtime\Core\Meta\TypeRepresentation.h" />
     <ClInclude Include="Runtime\Core\Object\ArrayObject.h" />
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
-    <ClInclude Include="Runtime\Core\Type\AssemblyContext.h" />
-    <ClInclude Include="Runtime\Core\Type\CoreTypes.h" />
-    <ClInclude Include="Runtime\Core\Type\Type.h" />
-    <ClInclude Include="Runtime\Core\Type\TypeRepresentation.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
     <ClInclude Include="Runtime\Utility.h" />
@@ -75,7 +74,6 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Runtime\Binary.cpp" />
     <ClCompile Include="Runtime\Core\Exception\RuntimeException.cpp" />
-    <ClCompile Include="Runtime\Core\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\GC\GCInterface.cpp" />
     <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
@@ -89,6 +87,8 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp" />
     <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\FieldDescriptor.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp" />
@@ -96,13 +96,12 @@
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp" />
-    <ClCompile Include="Runtime\Core\MethodTable.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\MethodTable.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\TypeDescriptor.cpp" />
     <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp" />
     <ClCompile Include="Runtime\Core\Object\Object.cpp" />
     <ClCompile Include="Runtime\Core\Object\ObjectStorage.cpp" />
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
-    <ClCompile Include="Runtime\Core\Type\AssemblyContext.cpp" />
-    <ClCompile Include="Runtime\Core\Type\Type.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Runtime\Core\X86DWCAS.asm" />

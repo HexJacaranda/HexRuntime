@@ -1,5 +1,5 @@
 #include "ArrayObject.h"
-#include "..\Type\Type.h"
+#include "..\Meta\TypeDescriptor.h"
 
 ForcedInline RT::UInt32 RTO::ArrayObject::GetCount() const
 {
@@ -11,9 +11,9 @@ ForcedInline RT::Int8* RTO::ArrayObject::GetElementAddress() const
     return (Int8*)(this + 1);
 }
 
-inline RTC::Type* RTO::ArrayObject::GetElementType() const
+inline RTM::Type* RTO::ArrayObject::GetElementType() const
 {
-    return GetType()->GetSingleTypeArgument();
+    return GetType()->GetTypeArguments()[0];
 }
 
 inline bool RTO::ArrayObject::IsMultiDimensionalArray() const

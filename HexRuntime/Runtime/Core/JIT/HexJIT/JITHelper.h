@@ -1,14 +1,15 @@
 #pragma once
 #include "..\..\..\RuntimeAlias.h"
-#include "..\..\Type\Type.h"
 #include "..\..\Object\Object.h"
 #include "..\..\Object\ArrayObject.h"
 #include "..\..\InteriorPointer.h"
 #include "..\..\Meta\MethodDescriptor.h"
+#include "..\..\Meta\TypeDescriptor.h"
 #include "JITNativeSignature.h"
 
 namespace RTJ::Hex::JITCall
 {
+	using namespace RTM;
 	//Use to declare JIT helper call, some may be linked to assembly
 
 #define JIT_ASSEMBLY_CALL extern "C"

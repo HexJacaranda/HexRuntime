@@ -7,6 +7,16 @@
 
 namespace RTM
 {
+	struct MethodArgument : public Descriptor<RTME::ArgumentMD>
+	{
+
+	};
+
+	struct MethodSignature : public Descriptor<RTME::MethodSignatureMD>
+	{
+
+	};
+
 	/// <summary>
 	/// Runtime structure for a real method
 	/// </summary>
@@ -14,10 +24,11 @@ namespace RTM
 	{
 		friend class MetaManager;
 		RTO::StringObject* mManagedName;
+		MethodSignature* mSignature;
 		RTME::ArgumentMD* mArguments;
 	public:
 		UInt8 GetAccessbility()const;
-		RTME::MethodSignatureMD* GetSignature()const;
+		MethodSignature* GetSignature()const;
 		ObservableArray<RTME::ArgumentMD> GetArguments()const;
 		ObservableArray<RTME::LocalVariableMD> GetLocalVariables()const;
 		RTME::ILMD* GetIL()const;

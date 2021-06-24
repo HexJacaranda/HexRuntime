@@ -1,5 +1,7 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "Object.h"
+
 namespace RTO
 {
 	class Object;

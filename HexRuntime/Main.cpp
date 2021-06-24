@@ -1,6 +1,6 @@
 #include "Runtime/Core/JIT/ILEmitter.h"
 #include "Runtime/Core/JIT/OpCodes.h"
-#include "Runtime/Core/Type/CoreTypes.h"
+#include "Runtime/Core/Meta/CoreTypes.h"
 #include "Runtime/RuntimeAlias.h"
 #include "Runtime/Core/JIT/JITContext.h"
 #include "Runtime/Core/JIT/HexJIT/JITMemory.h"

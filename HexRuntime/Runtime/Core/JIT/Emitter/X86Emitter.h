@@ -48,7 +48,7 @@ namespace RTJE::X86
 	public:
 		static constexpr Int32 PlatformMask = 0b10;
 		static void OperandSlice(EmitContext* context, SlotType To) {
-			RTE::Throw(Text("Oops! Operand slice hanppened!"));
+			THROW("Oops! Operand slice hanppened!");
 			context->EmitState |= (Int8)To;
 		}
 		static void OperandPromote(EmitContext* context, SlotType To) {

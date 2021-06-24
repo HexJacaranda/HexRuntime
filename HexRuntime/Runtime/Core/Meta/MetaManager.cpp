@@ -1,6 +1,6 @@
 #include "MetaManager.h"
 
-RTC::Type* RTM::MetaManager::GetTypeFromToken(MDToken typeReference)
+RTM::Type* RTM::MetaManager::GetTypeFromToken(MDToken typeReference)
 {
 	return nullptr;
 }

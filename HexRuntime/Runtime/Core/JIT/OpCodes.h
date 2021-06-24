@@ -1,6 +1,6 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
-#include "..\Type\CoreTypes.h"
+#include "..\Meta\CoreTypes.h"
 
 namespace RTJ
 {

@@ -2,16 +2,11 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\..\Utility.h"
 #include "..\JITNativeSignature.h"
+#include "..\..\..\Meta\CoreTypes.h"
 #include <vector>
 
 namespace RTJ::Hex
 {
-	struct TreeTypeInfo
-	{
-		UInt8 CoreType;
-		MDToken TypeRefToken;
-	};
-
 	enum class NodeKinds : UInt8
 	{
 		Constant,
@@ -44,23 +39,37 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Indicate the type info of this node
 		/// </summary>
-		TreeTypeInfo TypeInfo;
+		UInt8 TypeInfo;
 		/// <summary>
 		/// For linearization
 		/// </summary>
 		TreeNode* LinearNext = nullptr;
 		NodeKinds Kind;
+
 	public:
 		TreeNode(NodeKinds kind) :Kind(kind) {}
 
 		//For convenience
 
-		ForcedInline bool Is(NodeKinds value) {
+		ForcedInline bool Is(NodeKinds value)const {
 			return Kind == value;
 		}
+
 		template<class T>
-		ForcedInline T* As() {
+		ForcedInline T* As()const {
 			return (T*)this;
+		}
+
+		ForcedInline bool CheckWith(TreeNode* target)const {
+			return TypeInfo == target->TypeInfo;
+		}
+
+		ForcedInline bool CheckWith(UInt8 coreType)const {
+			return TypeInfo == coreType;
+		}
+
+		ForcedInline void TypeFrom(TreeNode* target) {
+			TypeInfo = target->TypeInfo;
 		}
 	};
 
@@ -77,6 +86,7 @@ namespace RTJ::Hex
 		ConstantNode(UInt8 coreType)
 			:TreeNode(NodeKinds::Constant),
 			CoreType(coreType) {}
+
 		UInt8 CoreType = 0;
 		union
 		{

@@ -29,7 +29,7 @@ RT::Int8* RTIOS2EE::Windows::ExecutablePage::PrepareWrite(Int32 Value)
 	if (mIndex + Value >= mLength) {
 		Int8* newSpace = (Int8*)VirtualAlloc(nullptr, ((UInt64)mLength) << 1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 		if (newSpace == nullptr)
-			RTE::Throw(Text("Unable to allocate virtual pages for native code generation"));
+			THROW("Unable to allocate virtual pages for native code generation");
 		memcpy_s(newSpace, ((UInt64)mLength) << 1, pPage, mIndex);
 		VirtualFree(pPage, 0, MEM_RELEASE);
 		pPage = newSpace;

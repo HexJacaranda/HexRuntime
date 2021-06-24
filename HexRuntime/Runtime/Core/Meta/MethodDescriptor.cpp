@@ -5,9 +5,9 @@ RT::UInt8 RTM::MethodDescriptor::GetAccessbility() const
 	return mColdMD->Flags.Accessibility;
 }
 
-RTME::MethodSignatureMD* RTM::MethodDescriptor::GetSignature() const
+RTM::MethodSignature* RTM::MethodDescriptor::GetSignature() const
 {
-	return &mColdMD->Signature;
+	return nullptr;
 }
 
 RT::ObservableArray<RTME::ArgumentMD> RTM::MethodDescriptor::GetArguments() const

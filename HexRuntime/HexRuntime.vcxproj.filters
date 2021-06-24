@@ -70,6 +70,15 @@
     <Filter Include="头文件\Runtime\Utility">
       <UniqueIdentifier>{7885a4ba-8cf1-4994-ae2f-11a4cb5a5eca}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\Meta\Descriptors\Tables">
+      <UniqueIdentifier>{c17ac400-fb64-463d-a800-afb574bcc8e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Tables">
+      <UniqueIdentifier>{110b65fb-9e1b-4720-87c6-4a162fa21e7a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Descriptors">
+      <UniqueIdentifier>{b1850e02-d61b-494f-a5aa-90b40ecc9c30}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -79,15 +88,6 @@
       <Filter>头文件\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Accessibility.h">
-      <Filter>头文件\Runtime\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\FieldTable.h">
-      <Filter>头文件\Runtime\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\InterfaceDispatchTable.h">
-      <Filter>头文件\Runtime\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\MethodTable.h">
       <Filter>头文件\Runtime\Core</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\JIT.h">
@@ -125,18 +125,6 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\Object\Object.h">
       <Filter>头文件\Runtime\Core\Object</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Type\Type.h">
-      <Filter>头文件\Runtime\Core\Type</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Type\TypeRepresentation.h">
-      <Filter>头文件\Runtime\Core\Type</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Type\AssemblyContext.h">
-      <Filter>头文件\Runtime\Core\Type</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Type\CoreTypes.h">
-      <Filter>头文件\Runtime\Core\Type</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Meta\MetaManager.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
@@ -225,12 +213,27 @@
     <ClInclude Include="Runtime\Core\Meta\Descriptor.h">
       <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\TypeDescriptor.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\InterfaceDispatchTable.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors\Tables</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\FieldTable.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors\Tables</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\MethodTable.h">
+      <Filter>头文件\Runtime\Core\Meta\Descriptors\Tables</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\CoreTypes.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\TypeRepresentation.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Type\Type.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp">
@@ -261,15 +264,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\MethodTable.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\FieldTable.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Type\AssemblyContext.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Exception\RuntimeException.cpp">
@@ -305,9 +299,6 @@
     <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp">
       <Filter>源文件\OSFile</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp">
       <Filter>源文件\ImportSession</Filter>
     </ClCompile>
@@ -319,6 +310,21 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\MethodTable.cpp">
+      <Filter>源文件\Tables</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\FieldTable.cpp">
+      <Filter>源文件\Tables</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\FieldDescriptor.cpp">
+      <Filter>源文件\Descriptors</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp">
+      <Filter>源文件\Descriptors</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\TypeDescriptor.cpp">
+      <Filter>源文件\Descriptors</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
