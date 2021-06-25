@@ -6,6 +6,8 @@
 #include "IImportSession.h"
 #include <type_traits>
 
+#define IF_FAIL_RET(EXPR) if (!(EXPR)) return false;
+
 using namespace RTI;
 namespace RTME
 {
@@ -48,11 +50,12 @@ namespace RTME
 		void PrepareFile(ImportOption option);
 		bool PrepareImporter();
 	public:
-		MDImporter(RTString assemblyName, MDToken assembly, ImportOption option);
+		MDImporter(RTString assemblyName, MDPrivateHeap* heap, ImportOption option);
 		~MDImporter();
 	private:
 		bool ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD);
 		bool ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD);
+		bool ImportAssemblyRef(IImportSession* session, AssemblyRefMD* assemlbyRefMD);
 		bool ImportMemberRef(IImportSession* session, MemberRefMD* memberRefMD);
 		bool ImportIL(IImportSession* session, ILMD* ilMD);
 		bool ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD);
@@ -106,5 +109,6 @@ namespace RTME
 
 		bool ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable);
 		bool ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable);
+		bool ImportAssemblyRefTable(IImportSession* session, AssemblyRefMD*& assemblyRefTable);
 	};
 }

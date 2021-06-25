@@ -12,15 +12,15 @@ RTO::StringObject* RTM::FieldDescriptor::GetName() const
 
 bool RTM::FieldDescriptor::IsInstance() const
 {
-	return mColdMD->Flags.IsInstance;
+	return mColdMD->IsInstance();
 }
 
 bool RTM::FieldDescriptor::IsStatic() const
 {
-	return mColdMD->Flags.IsStatic;
+	return mColdMD->IsStatic();
 }
 
 bool RTM::FieldDescriptor::IsThreadLocal() const
 {
-	return mColdMD->Flags.IsThreadLocal;
+	return mColdMD->IsThreadLocal();
 }

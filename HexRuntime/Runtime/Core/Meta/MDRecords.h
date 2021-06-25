@@ -3,6 +3,12 @@
 
 namespace RTME
 {
+#define BEGIN_FLAGS(UNDERLYING_TYPE) UNDERLYING_TYPE Flags;
+
+#define FLAG_GET(NAME, BIT) bool NAME()const { return !!(Flags & (1 << BIT)); } 
+
+#define END_FLAGS
+
 	/*  Specially, when the highest bit of type ref token is set to 1. Then
 		it refers to generic parameter.
 	*/
@@ -26,6 +32,27 @@ namespace RTME
 		PropertyRef,
 		EventRef
 	};
+	struct GUID
+	{
+		Int32 X;
+		Int16 Y;
+		Int16 Z;
+		Int16 U[4];
+	public:
+		UInt32 GetHashCode()const {
+			const UInt8* _First = (const UInt8*)this;
+
+			const size_t _FNV_offset_basis = 2166136261U;
+			const size_t _FNV_prime = 16777619U;
+			size_t _Val = _FNV_offset_basis;
+			for (size_t _Next = 0; _Next < sizeof(GUID); ++_Next)
+			{
+				_Val ^= (size_t)_First[_Next];
+				_Val *= _FNV_prime;
+			}
+			return (_Val);
+		}
+	};
 
 	struct AssemblyHeaderMD
 	{
@@ -33,13 +60,7 @@ namespace RTME
 		Int32 MajorVersion;
 		Int32 MinorVersion;
 		MDToken GroupNameToken;
-		struct
-		{
-			Int32 X;
-			Int16 Y;
-			Int16 Z;
-			Int16 U[4];
-		} GUID;
+		GUID GUID;
 
 		static constexpr Int32 CompactSize =
 			sizeof(AssemblyHeaderMD::NameToken) +
@@ -54,11 +75,16 @@ namespace RTME
 		Int32 TypeRefCount;
 		Int32 MemberRefTableOffset;
 		Int32 MemberRefCount;
+		Int32 AssemblyRefTableOffset;
+		Int32 AssemblyRefCount;
+
 		static constexpr Int32 CompactSize =
 			sizeof(RefTableHeaderMD::TypeRefTableOffset) +
 			sizeof(RefTableHeaderMD::TypeRefCount) +
 			sizeof(RefTableHeaderMD::MemberRefTableOffset) +
-			sizeof(RefTableHeaderMD::MemberRefCount);
+			sizeof(RefTableHeaderMD::MemberRefCount) +	
+			sizeof(RefTableHeaderMD::AssemblyRefTableOffset) +
+			sizeof(RefTableHeaderMD::AssemblyRefCount);
 	};
 	/// <summary>
 	/// MD index table stores offsets of record in assembly
@@ -94,6 +120,13 @@ namespace RTME
 		MDToken MemberDefToken;
 	};
 
+	struct AssemblyRefMD
+	{
+		static constexpr MDToken SelfReference = 0u;
+		GUID GUID;
+		MDToken AssemblyName;
+	};
+
 	struct StringMD
 	{
 		Int32 Count;
@@ -125,15 +158,15 @@ namespace RTME
 		MDToken ParentTypeRefToken;
 		MDToken TypeRefToken;
 		MDToken NameToken;
-		struct
-		{
-			UInt8 Accessibility;
-			bool IsVolatile : 1;
-			bool IsInstance : 1;
-			bool IsStatic : 1;
-			bool IsConstant : 1;
-			bool IsThreadLocal : 1;
-		} Flags;
+		UInt8 Accessibility;
+
+		BEGIN_FLAGS(UInt16)
+			FLAG_GET(IsVolatile, 0)
+			FLAG_GET(IsInstance, 1)
+			FLAG_GET(IsStatic, 2)
+			FLAG_GET(IsConstant, 3)
+			FLAG_GET(IsThreadLocal, 4)
+		END_FLAGS
 
 		TOKEN_SERIES(Attribute);
 	};
@@ -146,15 +179,17 @@ namespace RTME
 		MDToken GetterToken;
 		MDToken BackingFieldToken;
 		MDToken NameToken;
-		struct
-		{
-			UInt8 Accessibility;
-			bool IsInstance : 1;
-			bool IsVirtual : 1;
-			bool IsOverride : 1;
-			bool IsFinal : 1;
-			bool IsRTSpecial : 1;
-		} Flags;
+		UInt8 Accessibility;
+
+		BEGIN_FLAGS(UInt16)
+			FLAG_GET(IsInstance, 0)
+			FLAG_GET(IsVirtual, 1)
+			FLAG_GET(IsStatic, 2)
+			FLAG_GET(IsOverride, 3)
+			FLAG_GET(IsFinal, 4)
+			FLAG_GET(IsRTSpecial, 5)
+		END_FLAGS
+
 		TOKEN_SERIES(Attribute);
 	};
 
@@ -166,14 +201,16 @@ namespace RTME
 		MDToken RemoverToken;
 		MDToken BackingFieldToken;
 		MDToken NameToken;
-		struct
-		{
-			UInt8 Accessibility;
-			bool IsInstance : 1;
-			bool IsVirtual : 1;
-			bool IsOverride : 1;
-			bool IsFinal : 1;
-		} Flags;
+		UInt8 Accessibility;
+
+		BEGIN_FLAGS(UInt16)
+			FLAG_GET(IsInstance, 0)
+			FLAG_GET(IsVirtual, 1)
+			FLAG_GET(IsStatic, 2)
+			FLAG_GET(IsOverride, 3)
+			FLAG_GET(IsFinal, 4)
+		END_FLAGS
+
 		TOKEN_SERIES(Attribute);
 	};
 
@@ -220,16 +257,18 @@ namespace RTME
 	{
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
-		struct 
-		{
-			UInt8 Accessibility;
-			bool IsInstance : 1;
-			bool IsVirtual : 1;
-			bool IsOverride : 1;
-			bool IsFinal : 1;
-			bool IsGeneric : 1;
-			bool IsRTSpecial : 1;
-		} Flags;
+		UInt8 Accessibility;
+
+		BEGIN_FLAGS(UInt16)
+			FLAG_GET(IsInstance, 0)
+			FLAG_GET(IsVirtual, 1)
+			FLAG_GET(IsStatic, 2)
+			FLAG_GET(IsOverride, 3)
+			FLAG_GET(IsFinal, 4)
+			FLAG_GET(IsGeneric, 5)
+			FLAG_GET(IsRTSpecial, 6)
+		END_FLAGS
+
 		MethodSignatureMD Signature;
 		ILMD ILCodeMD;
 		Int32 NativeLinkCount;
@@ -244,15 +283,17 @@ namespace RTME
 		MDToken EnclosingTypeRefToken;
 		MDToken NamespaceToken;
 		UInt8 CoreType;
-		struct {
-			UInt8 Accessibility;
-			bool IsSealed : 1;
-			bool IsAbstract : 1;
-			bool IsStruct : 1;
-			bool IsInterface : 1;
-			bool IsAttribute : 1;
-			bool IsGeneric : 1;
-		} Flags;
+		UInt8 Accessibility;
+
+		BEGIN_FLAGS(UInt16)
+			FLAG_GET(IsSealed, 0)
+			FLAG_GET(IsAbstract, 1)
+			FLAG_GET(IsStruct, 3)
+			FLAG_GET(IsInterface, 4)
+			FLAG_GET(IsAttribute, 5)
+			FLAG_GET(IsGeneric, 6)
+		END_FLAGS
+
 		TOKEN_SERIES(Field);
 		TOKEN_SERIES(Method);
 		TOKEN_SERIES(Property);

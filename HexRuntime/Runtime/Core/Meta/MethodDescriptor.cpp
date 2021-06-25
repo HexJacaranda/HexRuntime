@@ -2,7 +2,7 @@
 
 RT::UInt8 RTM::MethodDescriptor::GetAccessbility() const
 {
-	return mColdMD->Flags.Accessibility;
+	return mColdMD->Accessibility;
 }
 
 RTM::MethodSignature* RTM::MethodDescriptor::GetSignature() const
@@ -27,25 +27,25 @@ RTME::ILMD* RTM::MethodDescriptor::GetIL() const
 
 bool RTM::MethodDescriptor::IsInstance() const
 {
-	return mColdMD->Flags.IsInstance;
+	return mColdMD->IsInstance();
 }
 
 bool RTM::MethodDescriptor::IsVirtual() const
 {
-	return mColdMD->Flags.IsVirtual;
+	return mColdMD->IsVirtual();
 }
 
 bool RTM::MethodDescriptor::IsOverride() const
 {
-	return mColdMD->Flags.IsOverride;
+	return mColdMD->IsOverride();
 }
 
 bool RTM::MethodDescriptor::IsFinal() const
 {
-	return mColdMD->Flags.IsFinal;
+	return mColdMD->IsFinal();
 }
 
 bool RTM::MethodDescriptor::IsGeneric() const
 {
-	return mColdMD->Flags.IsGeneric;
+	return mColdMD->IsGeneric();
 }

@@ -2,8 +2,6 @@
 #include "MappedImportSession.h"
 #include "ImportSession.h"
 
-#define IF_FAIL_RET(EXPR) if (!(EXPR)) return false;
-
 #define IF_SESSION_FAIL_RET(EXPR) if (!(session->EXPR)) return false;
 
 //Locate session
@@ -68,11 +66,11 @@ bool RTME::MDImporter::PrepareImporter()
 		AssemblyHeaderMD::CompactSize);
 }
 
-RTME::MDImporter::MDImporter(RTString assemblyName, MDToken assembly, ImportOption option):
+RTME::MDImporter::MDImporter(RTString assemblyName, MDPrivateHeap* heap, ImportOption option):
 	mAssemblyFileName(assemblyName),
-	mImportOption(option)
+	mImportOption(option),
+	mHeap(heap)
 {
-	mHeap = MDHeap::GetPrivateHeap(assembly);
 	PrepareFile(option);
 	PrepareImporter();
 }
@@ -92,6 +90,13 @@ bool RTME::MDImporter::ImportIL(IImportSession* session, ILMD* ilMD)
 	IMPORT_NESTED_SERIES(ilMD->LocalVariableCount, ilMD->LocalVariables, ImportLocalVariable);
 	IF_FAIL_RET(ReadCode(session, ilMD->CodeLength, ilMD->IL));
 	return true;
+}
+
+bool RTME::MDImporter::ImportAssemblyRef(IImportSession* session, AssemblyRefMD* assemlbyRefMD)
+{
+	IF_SESSION_FAIL_RET(ReadInto(assemlbyRefMD->GUID));
+	IF_SESSION_FAIL_RET(ReadInto(assemlbyRefMD->AssemblyName));
+	return false;
 }
 
 bool RTME::MDImporter::ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD)
@@ -153,6 +158,7 @@ bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, Meth
 
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->NameToken));
+	IF_SESSION_FAIL_RET(ReadInto(methodMD->Accessibility));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Flags));
 
 	ImportMethodSignature(session, &methodMD->Signature);
@@ -175,6 +181,7 @@ bool RTME::MDImporter::ImportField(IImportSession* session, MDToken token, Field
 
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->NameToken));
+	IF_SESSION_FAIL_RET(ReadInto(fieldMD->Accessibility));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(fieldMD->AttributeCount, fieldMD->AttributeTokens));
 	return true;
 }
@@ -189,7 +196,8 @@ bool RTME::MDImporter::ImportProperty(IImportSession* session, MDToken token, Pr
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->GetterToken));
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->BackingFieldToken));
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->NameToken));
-	IF_SESSION_FAIL_RET(ReadInto(propertyMD->Flags));
+	IF_SESSION_FAIL_RET(ReadInto(propertyMD->Accessibility));
+	IF_SESSION_FAIL_RET(ReadInto(propertyMD->Flags));	
 	IF_SESSION_FAIL_RET(ReadIntoSeries(propertyMD->AttributeCount, propertyMD->AttributeTokens));
 	return true;
 }
@@ -298,7 +306,18 @@ bool RTME::MDImporter::ImportMemberRefTable(IImportSession* session, MemberRefMD
 	return true;
 }
 
-#undef IF_FAIL_RET
+bool RTME::MDImporter::ImportAssemblyRefTable(IImportSession* session, AssemblyRefMD*& assemblyRefTable)
+{
+	Int32 offset = mRefTableHeader.AssemblyRefTableOffset;
+	Int32 count = mRefTableHeader.AssemblyRefCount;
+	assemblyRefTable = new (mHeap) AssemblyRefMD[count];
+
+	for (Int32 i = 0; i < count; ++i)
+		IF_FAIL_RET(ImportAssemblyRef(session, &assemblyRefTable[i]));
+
+	return true;
+}
+
 #undef IF_SESSION_FAIL_RET
 #undef LOCATE
 #undef IMPORT_NESTED_SERIES
