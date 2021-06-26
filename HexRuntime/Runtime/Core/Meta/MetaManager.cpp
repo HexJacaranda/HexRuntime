@@ -1,10 +1,17 @@
 #include "MetaManager.h"
 #include "..\Exception\RuntimeException.h"
+#include "..\Memory\PrivateHeap.h"
+
+namespace RTM
+{
+	MetaManager* MetaData = nullptr;
+}
+
 
 RTM::AssemblyContext* RTM::MetaManager::TryQueryContextLocked(RTME::AssemblyRefMD* reference)
 {
 	std::shared_lock lock{ mContextLock };
-	TryQueryContext(reference);
+	return TryQueryContext(reference);
 }
 
 RTM::AssemblyContext* RTM::MetaManager::TryQueryContext(RTME::AssemblyRefMD* reference)
@@ -17,17 +24,115 @@ RTM::AssemblyContext* RTM::MetaManager::TryQueryContext(RTME::AssemblyRefMD* ref
 
 RTM::TypeDescriptor* RTM::MetaManager::TryQueryType(AssemblyContext* context, MDToken typeDefinition)
 {
-	return nullptr;
+	auto&& entry = context->Entries[typeDefinition];
+	
+	//In processing is not useable
+	if (entry.Status.load(std::memory_order::acquire) != TypeStatus::Done)
+		return nullptr;
+
+	return entry.Type.load(std::memory_order::acquire);
 }
 
-RTM::TypeDescriptor* RTM::MetaManager::TryQueryTypeLocked(AssemblyContext* context, MDToken typeDefinition)
+RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
+	AssemblyContext* context,
+	MDToken typeReference,
+	VisitSet& visited,
+	WaitingList& waitingList,
+	WaitingList& externalWaitingList,
+	bool& shouldWait,
+	bool allowWaitOnEntry)
 {
+	auto&& typeRef = context->TypeRefs[typeReference];
+	auto typeDefAssembly = GetAssemblyFromToken(context, typeRef.AssemblyToken);
+
+	auto&& entry = typeDefAssembly->Entries[typeRef.TypeDefToken];
+	auto status = entry.Status.load(std::memory_order::acquire);
+
+	//Already done
+	if (status == TypeStatus::Done)
+		return entry.Type.load(std::memory_order::acquire);
+
+	if (status == TypeStatus::NotYet)
+	{
+		if (entry.InitializeTicket.fetch_add(1, std::memory_order::acq_rel) == 0)
+		{
+			bool nextShouldWait = false;
+			//The first one to resolve type
+			entry.Status.store(TypeStatus::Processing);
+			auto type = ResolveType(typeDefAssembly, typeRef.TypeDefToken, visited, waitingList, externalWaitingList, nextShouldWait);
+			entry.Type.store(type, std::memory_order::release);
+
+			if (nextShouldWait)
+			{
+				//Append to waiting list since it's a type loaded by our thread
+				shouldWait = true;
+				waitingList.push_back(type);
+				entry.Status.store(TypeStatus::Almost, std::memory_order::release);
+			}
+			else
+				entry.Status.store(TypeStatus::Done, std::memory_order::release);
+
+			if (allowWaitOnEntry)
+			{
+				//Already root call, we need to promote type status to Done level in waiting list
+				for (auto&& each : waitingList)
+				{
+					auto&& pendingEntry = each->GetAssembly()->Entries[each->GetToken()];
+					pendingEntry.Status.store(TypeStatus::Done, std::memory_order::release);
+				}
+
+				//Then wait types loaded by other threads
+				for (auto&& each : externalWaitingList)
+				{
+					auto&& pendingEntry = each->GetAssembly()->Entries[each->GetToken()];
+					std::unique_lock lock{ pendingEntry.WaiterLock };
+					pendingEntry.Waiter.wait(lock,
+						[&]() { return pendingEntry.Status.load(std::memory_order::acquire) == TypeStatus::Done; });
+				}
+
+				//Wake up all waiting threads
+				entry.Waiter.notify_all();
+			}
+
+			return type;
+		}
+		else
+		{
+			//For those who did not get the zero-th ticket
+			//they should go processing status handling
+			goto IntermediateStatus;
+		}
+	}
+
+	if (status == TypeStatus::Processing || status == TypeStatus::Almost)
+	{
+	IntermediateStatus:
+
+		if (allowWaitOnEntry)
+		{
+			std::unique_lock lock{ entry.WaiterLock };
+			entry.Waiter.wait(lock,
+				[&]() { return entry.Status.load(std::memory_order::acquire) == TypeStatus::Done; });
+			return entry.Type.load(std::memory_order::acquire);
+		}
+		else
+		{
+			//Append to external waiting list (it's a type loaded by another thread) 
+			//and mark that our whole loading chain need too.
+			shouldWait = true;
+			auto type = entry.Type.load(std::memory_order::acquire);
+			externalWaitingList.push_back(type);
+			return type;
+		}
+	}
+
+	THROW("Not allowed type status.");
 	return nullptr;
 }
 
 RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
 {
-	auto heap = new RTME::MDPrivateHeap();
+	auto heap = new RTMM::PrivateHeap();
 	auto importer = new (heap) RTME::MDImporter(assembly, heap, RTME::ImportOption::Default);
 	auto context = new (heap) AssemblyContext(heap, importer);
 
@@ -47,6 +152,10 @@ RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
 		UnLoadAssembly(context);
 		THROW("Assembly loading failed.");
 	}
+	
+	//Prepare type def entries
+	auto&& typeDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::TypeDef];	
+	context->Entries = new (heap) TypeDefEntry[typeDefIndex.Count];
 
 	mContexts.insert({ context->Header.GUID.GetHashCode(), context });
 
@@ -55,22 +164,109 @@ RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
 
 void RTM::MetaManager::UnLoadAssembly(AssemblyContext* context)
 {
-	auto heap = context->Heap;
 	//Unload heap content
-	heap->Unload();
-
-	//Free heap object
-	delete heap;
+	if (context->Heap != nullptr)
+	{
+		delete context->Heap;
+		context->Heap = nullptr;
+	}
 }
 
-RTM::TypeDescriptor* RTM::MetaManager::ResolveType(AssemblyContext* context, MDToken typeDefinition)
+RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
+	AssemblyContext* context,
+	MDToken typeDefinition,
+	VisitSet& visited,
+	WaitingList& waitingList,
+	WaitingList& externalWaitingList,
+	bool& shouldWait)
 {
-	return nullptr;
+	auto&& importer = context->Importer;
+	auto meta = new (context->Heap) RTME::TypeMD();
+
+	//For performance, use a session across the whole meta data resolving
+	auto session = importer->NewSession();
+
+	if (!importer->ImportType(session, typeDefinition, meta))
+	{
+		importer->ReturnSession(session);
+		THROW("Error occurred when importing type meta data");
+	}
+
+	auto type = new (context->Heap) RTM::TypeDescriptor();
+
+	type->mColdMD = meta;
+	type->mSelf = typeDefinition;
+	type->mTypeName = GetStringFromToken(context, meta->NameToken);
+	type->mNamespace = GetStringFromToken(context, meta->NamespaceToken);
+	
+	//Load parent
+	if (meta->ParentTypeRefToken != NullToken)
+		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+
+	//Load implemented interfaces
+	if (meta->InterfaceCount > 0)
+	{
+		type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
+		for (Int32 i = 0; i < meta->InterfaceCount; ++i)
+			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], visited, waitingList, externalWaitingList, shouldWait);
+	}
+
+	//Load canonical
+	if (meta->CanonicalTypeRefToken != NullToken)
+		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+	
+	//Load enclosing
+	if (meta->EnclosingTypeRefToken != NullToken)
+		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+	
+	//Load fields
+	auto fieldTable = new (context->Heap) FieldTable();
+
+	//Field descriptors
+	fieldTable->FieldCount = meta->FieldCount;
+	fieldTable->Fields = new (context->Heap) FieldDescriptor * [meta->FieldCount];
+
+	for (Int32 i = 0; i < meta->FieldCount; ++i)
+	{
+		auto fieldMD = new (context->Heap) RTME::FieldMD();
+
+		if (!importer->ImportField(session, meta->FieldTokens[i], fieldMD))
+		{
+			importer->ReturnSession(session);
+			THROW("Error occurred when importing type meta data");
+		}
+
+		auto field = new (context->Heap) FieldDescriptor();
+		field->mColdMD = fieldMD;
+		field->mName = GetStringFromToken(context, fieldMD->NameToken);
+		field->mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+
+		fieldTable->Fields[i] = field;
+	}
+	//Compute layout
+	GenerateLayout(fieldTable);
+
+	//Set field table
+	type->mFieldTable = fieldTable;
+
+	//Load method table
+	auto methodTable = new (context->Heap) MethodTable();
+
+	type->mMethTable = methodTable;
+
+	importer->ReturnSession(session);
+
+	return type;
 }
 
-void RTM::MetaManager::StartUp(RTString assemblyName)
+void RTM::MetaManager::GenerateLayout(FieldTable* table)
 {
-	LoadAssembly(assemblyName);
+
+}
+
+RTM::AssemblyContext* RTM::MetaManager::StartUp(RTString assemblyName)
+{
+	return LoadAssembly(assemblyName);
 }
 
 void RTM::MetaManager::ShutDown()
@@ -108,25 +304,29 @@ RTM::AssemblyContext* RTM::MetaManager::GetAssemblyFromToken(AssemblyContext* co
 
 RTM::Type* RTM::MetaManager::GetTypeFromToken(AssemblyContext* context, MDToken typeReference)
 {
-	auto&& typeRef = context->TypeRefs[typeReference];
-	auto assembly = GetAssemblyFromToken(context, typeRef.AssemblyToken);
-	auto type = TryQueryTypeLocked(assembly, typeRef.TypeDefToken);
-	if (type == nullptr)
-	{
-		std::unique_lock lock{ mContextLock };
-		//A more concurrent way should be raised
-		type = TryQueryType(assembly, typeRef.TypeDefToken);
-		if (type != nullptr)
-			return type;
-		type = ResolveType(context, typeRef.TypeDefToken);
-	}
-
-	return type;
+	VisitSet visited;
+	WaitingList waitingList;
+	WaitingList externalWaitingList;
+	bool shouldWait = false;
+	return GetTypeFromTokenInternal(context, typeReference, visited, waitingList, externalWaitingList, shouldWait, true);
 }
 
 RTO::StringObject* RTM::MetaManager::GetStringFromToken(AssemblyContext* context, MDToken stringReference)
 {
-	return nullptr;
+	RTME::StringMD stringMD;
+	RTO::StringObject* string = nullptr;
+	auto&& importer = context->Importer;
+	importer->UseSession(
+		[&](auto session)
+		{
+			importer->PreImportString(session, stringReference, &stringMD);
+			string = (RTO::StringObject*)new (context->Heap) UInt8[sizeof(RTO::StringObject) + (stringMD.Count + 1) * sizeof(UInt16)];
+			new (string) RTO::StringObject(stringMD.Count);
+			stringMD.CharacterSequence = string->GetContent();
+			((MutableRTString)stringMD.CharacterSequence)[stringMD.Count] = L'\0';
+			return importer->ImportString(session, &stringMD);
+		});
+	return string;
 }
 
 RTM::MethodDescriptor* RTM::MetaManager::GetMethodFromToken(AssemblyContext* context, MDToken methodReference)

@@ -23,7 +23,7 @@ RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetTypeArguments(
 
 RT::UInt8 RTM::TypeDescriptor::GetCoreType() const
 {
-	return mCoreType;
+	return mColdMD->CoreType;
 }
 
 RTM::TypeDescriptor* RTM::TypeDescriptor::GetParentType() const
@@ -56,6 +56,16 @@ RTM::InterfaceDispatchTable* RTM::TypeDescriptor::GetInterfaceTable() const
 	return mInterfaceTable;
 }
 
+RT::MDToken RTM::TypeDescriptor::GetToken() const
+{
+	return mSelf;
+}
+
+RTM::AssemblyContext* RTM::TypeDescriptor::GetAssembly() const
+{
+	return mContext;
+}
+
 RT::Int32 RTM::TypeDescriptor::GetSize() const
 {
 	return mFieldTable->GetLayout()->Size;
@@ -63,10 +73,10 @@ RT::Int32 RTM::TypeDescriptor::GetSize() const
 
 bool RTM::TypeDescriptor::IsArray() const
 {
-	return mCoreType == CoreTypes::Array;
+	return GetCoreType() == CoreTypes::Array;
 }
 
 bool RTM::TypeDescriptor::IsString() const
 {
-	return mCoreType == CoreTypes::String;
+	return GetCoreType() == CoreTypes::String;
 }

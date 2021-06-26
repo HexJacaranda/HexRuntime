@@ -2,7 +2,6 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\Meta\MDRecords.h"
 #include "..\HexJITContext.h"
-#include "..\JITMemory.h"
 #include "IR.h"
 #include "EvaluationStack.h"
 
@@ -53,6 +52,7 @@ namespace RTJ::Hex
 		/// <returns></returns>
 		ForcedInline JITContext* GetRawContext()const;
 
+		ForcedInline RTM::AssemblyContext* GetAssembly()const;
 		/// <summary>
 		/// Decode the instruction at current memory
 		/// </summary>

@@ -52,9 +52,6 @@
     <Filter Include="头文件\Runtime\Core\Interfaces">
       <UniqueIdentifier>{805d7a80-6563-442c-980d-52acb959c2d2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="源文件\InteriorPointer">
-      <UniqueIdentifier>{0a98a74f-c815-4b1f-bb6b-12929420b1bd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="源文件\OSFile">
       <UniqueIdentifier>{361330e3-b8ef-48b7-b415-0aa55d0b19f2}</UniqueIdentifier>
     </Filter>
@@ -78,6 +75,21 @@
     </Filter>
     <Filter Include="源文件\Descriptors">
       <UniqueIdentifier>{b1850e02-d61b-494f-a5aa-90b40ecc9c30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Interlocked">
+      <UniqueIdentifier>{3cf5e619-470f-4010-b93f-f52274e0506e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Objects">
+      <UniqueIdentifier>{55aa090f-4b36-423e-8954-bf9e5cd0f754}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Runtime\Core\Memory">
+      <UniqueIdentifier>{310564bb-e018-41f8-a9be-2faf5e2f4fce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Memory">
+      <UniqueIdentifier>{84a3d092-3c66-43b5-96a1-824e4ecd030d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DebugVisual">
+      <UniqueIdentifier>{fd3daf33-4161-4eb1-bb47-a1c2352b1f7e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -147,9 +159,6 @@
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h">
       <Filter>头文件\Runtime\Core\JIT</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITMemory.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h">
       <Filter>头文件\Runtime\Core\Interfaces</Filter>
     </ClInclude>
@@ -174,9 +183,6 @@
     <ClInclude Include="Runtime\Core\Interfaces\OSFile.h">
       <Filter>头文件\Runtime\Core\Interfaces</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Meta\MDHeap.h">
-      <Filter>头文件\Runtime\Core\Meta</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h">
       <Filter>头文件\Runtime\Core\Meta\Descriptors</Filter>
     </ClInclude>
@@ -185,9 +191,6 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h">
       <Filter>头文件\Runtime\Core\Meta\ImportSession</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\Interlocked.h">
-      <Filter>头文件\Runtime\Core</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h">
       <Filter>头文件\Runtime\Core\Meta\ImportSession</Filter>
@@ -231,6 +234,18 @@
     <ClInclude Include="Runtime\Core\Meta\TypeRepresentation.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\AssemblyContext.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Memory\SegmentMemory.h">
+      <Filter>头文件\Runtime\Core\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Memory\PrivateHeap.h">
+      <Filter>头文件\Runtime\Core\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Interlocked.h">
+      <Filter>头文件\Runtime\Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -257,15 +272,6 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Object\Object.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Object\StringObject.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\Exception\RuntimeException.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -281,9 +287,6 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -291,9 +294,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\Meta\MDHeap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp">
@@ -326,10 +326,37 @@
     <ClCompile Include="Runtime\Core\Meta\TypeDescriptor.cpp">
       <Filter>源文件\Descriptors</Filter>
     </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\AssemblyContext.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp">
+      <Filter>源文件\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Object\Object.cpp">
+      <Filter>源文件\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Object\StringObject.cpp">
+      <Filter>源文件\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\RuntimeAlias.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Memory\PrivateHeap.cpp">
+      <Filter>源文件\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Memory\SegmentMemory.cpp">
+      <Filter>源文件\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\InterlockedWindows.cpp">
+      <Filter>源文件\Interlocked</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Runtime\Core\X86DWCAS.asm">
-      <Filter>源文件\InteriorPointer</Filter>
-    </None>
+    <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="Runtime\Core\Runtime.natvis">
+      <Filter>DebugVisual</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>

@@ -1,8 +1,10 @@
 #include "OSFile.h"
+#include "..\Exception\RuntimeException.h"
 #include <fileapi.h>
 #include <handleapi.h>
 #include <processthreadsapi.h>
 #include <memoryapi.h>
+#include <errhandlingapi.h>
 
 RTI::FileHandle RTI::OSFile::Open(RTString filePath, Int8 usageOption, Int8 sharingOption)
 {
@@ -19,7 +21,13 @@ RTI::FileHandle RTI::OSFile::Open(RTString filePath, Int8 usageOption, Int8 shar
 	if (sharingOption & SharingOption::SharedWrite)
 		shareFlag |= FILE_SHARE_WRITE;
 
-	return CreateFileW(filePath, accessFlag, shareFlag, nullptr, FILE_ATTRIBUTE_NORMAL, OPEN_EXISTING, nullptr);
+	auto file = CreateFileW(filePath, accessFlag, shareFlag, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE)
+	{
+		auto code = GetLastError();
+		THROW("Cannot open file.");
+	}
+	return file;
 }
 
 void RTI::OSFile::Close(FileHandle handle)

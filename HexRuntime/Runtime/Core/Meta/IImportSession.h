@@ -1,7 +1,7 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\Interfaces\OSFile.h"
-#include "MDHeap.h"
+#include "..\Memory\PrivateHeap.h"
 
 namespace RTME
 {
@@ -11,9 +11,9 @@ namespace RTME
 	class IImportSession
 	{
 	protected:
-		MDPrivateHeap* mHeap;
+		RTMM::PrivateHeap* mHeap;
 	public:
-		IImportSession(MDPrivateHeap* heap);
+		IImportSession(RTMM::PrivateHeap* heap);
 		virtual Int32 ReadInto(UInt8* memory, Int32 size) = 0;
 		virtual void Relocate(Int32 offset, RTI::LocateOption option) = 0;
 		virtual ~IImportSession();

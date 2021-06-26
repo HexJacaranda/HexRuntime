@@ -2,6 +2,7 @@
 #include "..\..\RuntimeAlias.h"
 #include "..\..\Utility.h"
 #include "..\Meta\MethodDescriptor.h"
+#include "..\Meta\AssemblyContext.h"
 #include <vector>
 
 namespace RTJ
@@ -26,5 +27,6 @@ namespace RTJ
 		/// Method
 		/// </summary>
 		RTM::MethodDescriptor* MethDescriptor;
+		RTM::AssemblyContext* Assembly;
 	};
 }

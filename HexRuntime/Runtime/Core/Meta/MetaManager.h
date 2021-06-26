@@ -3,29 +3,22 @@
 #include "..\Object\StringObject.h"
 #include "MDRecords.h"
 #include "MDImporter.h"
-#include "MDHeap.h"
 #include "MethodDescriptor.h"
 #include "FieldDescriptor.h"
 #include "TypeDescriptor.h"
+#include "AssemblyContext.h"
 
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 #include <shared_mutex>
 
 namespace RTM
 {
-	struct AssemblyContext
-	{
-		RTME::MDImporter* Importer;
-		RTME::MDPrivateHeap* Heap;
-		RTME::AssemblyRefMD* AssemblyRefs = nullptr;
-		RTME::TypeRefMD* TypeRefs = nullptr;
-		RTME::MemberRefMD* MemberRefs = nullptr;
-		RTME::AssemblyHeaderMD Header;
-	public:
-		AssemblyContext(RTME::MDPrivateHeap* heap, RTME::MDImporter* importer) :
-			Heap(heap),
-			Importer(importer) {}
-	};
+	using VisitSet = std::unordered_set<MDToken>;
+
+	using WaitingList = std::vector<TypeDescriptor*>;
+
 	/// <summary>
 	/// Manager that responsible for metadata management
 	/// </summary>
@@ -38,8 +31,26 @@ namespace RTM
 		AssemblyContext* TryQueryContext(RTME::AssemblyRefMD* reference);
 
 		TypeDescriptor* TryQueryType(AssemblyContext* context, MDToken typeDefinition);
-		TypeDescriptor* TryQueryTypeLocked(AssemblyContext* context, MDToken typeDefinition);
-		TypeDescriptor* ResolveType(AssemblyContext* context, MDToken typeDefinition);
+
+		TypeDescriptor* GetTypeFromTokenInternal(
+			AssemblyContext* context, 
+			MDToken typeReference, 
+			VisitSet& visited,
+			WaitingList& waitingList,
+			WaitingList& externalWaitingList,
+			bool& shouldWait,
+			bool allowWait = false);
+
+		TypeDescriptor* ResolveType(
+			AssemblyContext* context,
+			MDToken typeDefinition,
+			VisitSet& visited,
+			WaitingList& waitingList,
+			WaitingList& externalWaitingList,
+			bool& shouldWait);
+
+		void GenerateLayout(FieldTable* table);
+
 		/// <summary>
 		/// Unlocked
 		/// </summary>
@@ -54,7 +65,7 @@ namespace RTM
 		void UnLoadAssembly(AssemblyContext* context);
 		
 	public:
-		void StartUp(RTString assemblyName);
+		AssemblyContext* StartUp(RTString assemblyName);
 		void ShutDown();
 	public:
 		AssemblyContext* GetAssemblyFromToken(AssemblyContext* context, MDToken assemblyReference);

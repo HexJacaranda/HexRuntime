@@ -1,6 +1,6 @@
 #include "ImportSession.h"
 
-RTME::ImportSession::ImportSession(MDPrivateHeap* heap, RTI::FileHandle handle):
+RTME::ImportSession::ImportSession(RTMM::PrivateHeap* heap, RTI::FileHandle handle):
 	IImportSession(heap)
 {
 	mHandle = RTI::OSFile::Duplicate(handle);

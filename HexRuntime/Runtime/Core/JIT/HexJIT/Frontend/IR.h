@@ -39,7 +39,7 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Indicate the type info of this node
 		/// </summary>
-		UInt8 TypeInfo;
+		UInt8 TypeInfo = CoreTypes::Object;
 		/// <summary>
 		/// For linearization
 		/// </summary>

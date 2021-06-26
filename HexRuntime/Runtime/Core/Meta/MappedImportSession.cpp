@@ -1,7 +1,7 @@
 #include "MappedImportSession.h"
 #include <memory>
 
-RTME::MappedImportSession::MappedImportSession(MDPrivateHeap* heap, UInt8* address, Int32 fileSize) :
+RTME::MappedImportSession::MappedImportSession(RTMM::PrivateHeap* heap, UInt8* address, Int32 fileSize) :
 	IImportSession(heap),
 	mFileSize(fileSize),
 	mMappedBase(address),

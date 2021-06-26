@@ -1,12 +1,12 @@
-#include "JITMemory.h"
-#include "..\..\Exception\RuntimeException.h"
-#include <memory>
+#include "SegmentMemory.h"
+#include "..\Exception\RuntimeException.h"
+#include <mimalloc.h>
 
-void RTJ::Hex::JITMemory::AllocateSegment()
+void RTMM::SegmentMemory::AllocateSegment()
 {
-	Segment* newOne = (Segment*)std::malloc(SegmentSpace + sizeof(Segment));
+	Segment* newOne = (Segment*)mi_malloc(mSegmentSize + sizeof(Segment));
 	if (newOne == nullptr)
-		THROW("Failed to allocate more space for JIT");
+		THROW("Failed to allocate more space.");
 	else
 	{
 		newOne->Previous = mPODCurrent;;
@@ -15,11 +15,11 @@ void RTJ::Hex::JITMemory::AllocateSegment()
 	}
 }
 
-void RTJ::Hex::JITMemory::AllocateNonPODSegment()
+void RTMM::SegmentMemory::AllocateNonPODSegment()
 {
-	Segment* newOne = (Segment*)std::malloc(SegmentSpace + sizeof(Segment));
+	Segment* newOne = (Segment*)mi_malloc(mSegmentSize + sizeof(Segment));
 	if (newOne == nullptr)
-		THROW("Failed to allocate more space for JIT");
+		THROW("Failed to allocate more space.");
 	else
 	{
 		newOne->Previous = mNonPODCurrent;;
@@ -28,11 +28,11 @@ void RTJ::Hex::JITMemory::AllocateNonPODSegment()
 	}
 }
 
-void RTJ::Hex::JITMemory::AllocateOversizeSegment(Int32 size)
+void RTMM::SegmentMemory::AllocateOversizeSegment(Int32 size)
 {
-	Segment* newOne = (Segment*)std::malloc(size + sizeof(Segment));
+	Segment* newOne = (Segment*)mi_malloc(size + sizeof(Segment));
 	if (newOne == nullptr)
-		THROW("Failed to allocate more space for JIT");
+		THROW("Failed to allocate more space.");
 	else
 	{
 		newOne->Previous = mOversizeCurrent;
@@ -40,95 +40,101 @@ void RTJ::Hex::JITMemory::AllocateOversizeSegment(Int32 size)
 	}
 }
 
-bool RTJ::Hex::JITMemory::IsMoreSegmentNeeded(Int32 size)
+bool RTMM::SegmentMemory::IsMoreSegmentNeeded(Int32 size)
 {
-	Int8* endAddress = (Int8*)(mPODCurrent + 1) + SegmentSpace;
+	Int8* endAddress = (Int8*)(mPODCurrent + 1) + mSegmentSize;
 	return endAddress - mPODStart < size;
 }
 
-bool RTJ::Hex::JITMemory::IsMoreNonPODSegmentNeeded(Int32 size)
+bool RTMM::SegmentMemory::IsMoreNonPODSegmentNeeded(Int32 size)
 {
-	Int8* endAddress = (Int8*)(mNonPODCurrent + 1) + SegmentSpace;
+	Int8* endAddress = (Int8*)(mNonPODCurrent + 1) + mSegmentSize;
 	return endAddress - mNonPODStart < size + 2 * sizeof(NonPODEntry);
 }
 
-void RTJ::Hex::JITMemory::MarkNonPODSegmentEnd()
+void RTMM::SegmentMemory::MarkNonPODSegmentEnd()
 {
 	//Set ending NonPOD entry info
 	NonPODEntry* endMark = (NonPODEntry*)mNonPODStart;
 	endMark->Size = 0;
 }
 
-void RTJ::Hex::JITMemory::ReleaseOversizeArea()
+void RTMM::SegmentMemory::ReleaseOversizeArea()
 {
 	Segment* next = nullptr;
 	while (mOversizeCurrent != nullptr)
 	{
 		next = mOversizeCurrent->Previous;
-		std::free(mOversizeCurrent);
+		mi_free(mOversizeCurrent);
 		mOversizeCurrent = next;
 	}
 }
 
-void RTJ::Hex::JITMemory::ReleaseNonPODArea()
+void RTMM::SegmentMemory::ReleaseNonPODArea()
 {
 	Segment* next = nullptr;
 	while (mNonPODCurrent != nullptr)
 	{
 		NonPODEntry* entry = (NonPODEntry*)(mNonPODCurrent + 1);
-		NonPODEntry* upperBound = (NonPODEntry*)((Int8*)(mNonPODCurrent + 1) + SegmentSpace);
+		NonPODEntry* upperBound = (NonPODEntry*)((Int8*)(mNonPODCurrent + 1) + mSegmentSize);
 
 		while (entry->Size != 0)
 		{
 			auto userData = entry + 1;
-			entry->ReleaseCall(userData);
+			entry->Release(userData);
 			entry = (NonPODEntry*)((Int8*)userData + entry->Size);
 		}
 
 		next = mNonPODCurrent->Previous;
-		std::free(mNonPODCurrent);
+		mi_free(mNonPODCurrent);
 		mNonPODCurrent = next;
 	}
 }
 
-void RTJ::Hex::JITMemory::ReleasePODArea()
+void RTMM::SegmentMemory::ReleasePODArea()
 {
 	Segment* next = nullptr;
 	while (mPODCurrent != nullptr)
 	{
 		next = mPODCurrent->Previous;
-		std::free(mPODCurrent);
+		mi_free(mPODCurrent);
 		mPODCurrent = next;
 	}
 }
 
-RTJ::Hex::JITMemory::JITMemory()
+RTMM::SegmentMemory::SegmentMemory(Int32 align, Int32 segmentSize) :
+	mAlign(align),
+	mSegmentSize(segmentSize)
 {
 	AllocateSegment();
 	AllocateNonPODSegment();
 	MarkNonPODSegmentEnd();
 }
 
-RTJ::Hex::JITMemory::~JITMemory()
+RTMM::SegmentMemory::SegmentMemory() : SegmentMemory(Align, SegmentSize)
+{
+}
+
+RTMM::SegmentMemory::~SegmentMemory()
 {
 	ReleaseNonPODArea();
 	ReleasePODArea();
 	ReleaseOversizeArea();
 }
 
-void* RTJ::Hex::JITMemory::AllocateNonPOD(Int32 size, NonPODReleaseCall call)
+void* RTMM::SegmentMemory::AllocateNonPOD(Int32 size, ReleaseFun call)
 {
-	if (size > SegmentSpace)
+	if (size > mSegmentSize)
 	{
 		//Unsupported now
 	}
 	if (IsMoreNonPODSegmentNeeded(size))
 		AllocateNonPODSegment();
-	
+
 	//Set NonPOD entry info
 	NonPODEntry* entry = (NonPODEntry*)mNonPODStart;
 	entry->Size = size;
-	entry->ReleaseCall = call;
+	entry->Release = call;
 
 	//Get space
 	mNonPODStart += sizeof(NonPODEntry);
@@ -139,9 +145,9 @@ void* RTJ::Hex::JITMemory::AllocateNonPOD(Int32 size, NonPODReleaseCall call)
 	return space;
 }
 
-void* RTJ::Hex::JITMemory::Allocate(Int32 size)
+void* RTMM::SegmentMemory::Allocate(Int32 size)
 {
-	if (size > SegmentSpace)
+	if (size > mSegmentSize)
 	{
 		AllocateOversizeSegment(size);
 		return mOversizeCurrent + 1;
@@ -153,12 +159,20 @@ void* RTJ::Hex::JITMemory::Allocate(Int32 size)
 	return space;
 }
 
-void* operator new(size_t size, RTJ::Hex::JITMemory* allocator)
+void* operator new(size_t size, RTMM::SegmentMemory* allocator)
 {
 	return allocator->Allocate(size);
 }
 
-void* operator new[](size_t size, RTJ::Hex::JITMemory* allocator)
+void* operator new[](size_t size, RTMM::SegmentMemory* allocator)
 {
 	return allocator->Allocate(size);
+}
+
+void operator delete(void* target, RTMM::SegmentMemory* allocator)
+{
+}
+
+void operator delete[](void* target, RTMM::SegmentMemory* allocator)
+{
 }

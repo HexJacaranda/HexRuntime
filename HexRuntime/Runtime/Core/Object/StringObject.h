@@ -7,9 +7,10 @@ namespace RTO
 	class StringObject :public Object
 	{
 	private:
-		UInt32 mCount;
+		Int32 mCount;
 	public:
-		ForcedInline UInt32 GetCount()const;
-		ForcedInline Int8* GetContent()const;
+		StringObject(Int32 count);
+		Int32 GetCount()const;
+		RTString GetContent()const;
 	};
 }

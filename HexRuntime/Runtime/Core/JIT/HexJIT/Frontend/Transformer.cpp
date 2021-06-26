@@ -23,6 +23,11 @@ ForcedInline RTJ::JITContext* RTJ::Hex::ILTransformer::GetRawContext() const
 	return mJITContext->Context;
 }
 
+ForcedInline RTM::AssemblyContext* RTJ::Hex::ILTransformer::GetAssembly() const
+{
+	return GetRawContext()->Assembly;
+}
+
 ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
 {
 	mPreviousCodePtr = mCodePtr;
@@ -113,7 +118,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 	}
 	auto ret = new(POOL) LoadNode(SLMode, field);
 	//Set type info
-	auto&& fieldDescriptor = RTM::MetaManager::GetFieldFromToken(fieldToken);
+	auto&& fieldDescriptor = RTM::MetaData->GetFieldFromToken(GetAssembly(), fieldToken);
 	ret->TypeInfo = fieldDescriptor->GetType()->GetCoreType();
 
 	return ret;
@@ -165,7 +170,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 {
 	TreeNode* value = mEvalStack.Pop();
 	MDToken fieldToken = ReadAs<MDToken>();
-	auto field = RTM::MetaManager::GetFieldFromToken(fieldToken);
+	auto field = RTM::MetaData->GetFieldFromToken(GetAssembly(), fieldToken);
 	auto fieldCoreType = field->GetType()->GetCoreType();
 
 	if (!value->CheckWith(fieldCoreType))

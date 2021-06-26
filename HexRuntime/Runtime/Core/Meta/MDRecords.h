@@ -32,6 +32,7 @@ namespace RTME
 		PropertyRef,
 		EventRef
 	};
+
 	struct GUID
 	{
 		Int32 X;
@@ -42,12 +43,12 @@ namespace RTME
 		UInt32 GetHashCode()const {
 			const UInt8* _First = (const UInt8*)this;
 
-			const size_t _FNV_offset_basis = 2166136261U;
-			const size_t _FNV_prime = 16777619U;
-			size_t _Val = _FNV_offset_basis;
-			for (size_t _Next = 0; _Next < sizeof(GUID); ++_Next)
+			const UInt32 _FNV_offset_basis = 2166136261U;
+			const UInt32 _FNV_prime = 16777619U;
+			UInt32 _Val = _FNV_offset_basis;
+			for (UInt32 _Next = 0; _Next < sizeof(GUID); ++_Next)
 			{
-				_Val ^= (size_t)_First[_Next];
+				_Val ^= (UInt32)_First[_Next];
 				_Val *= _FNV_prime;
 			}
 			return (_Val);
@@ -66,6 +67,7 @@ namespace RTME
 			sizeof(AssemblyHeaderMD::NameToken) +
 			sizeof(AssemblyHeaderMD::MajorVersion) +
 			sizeof(AssemblyHeaderMD::MinorVersion) +
+			sizeof(AssemblyHeaderMD::GroupNameToken)+
 			sizeof(AssemblyHeaderMD::GUID);
 	};
 
@@ -273,6 +275,8 @@ namespace RTME
 		ILMD ILCodeMD;
 		Int32 NativeLinkCount;
 		NativeLinkMD* NativeLinks;
+
+		TOKEN_SERIES(Attribute);
 	};
 
 	struct TypeMD
@@ -281,6 +285,7 @@ namespace RTME
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
 		MDToken EnclosingTypeRefToken;
+		MDToken CanonicalTypeRefToken;
 		MDToken NamespaceToken;
 		UInt8 CoreType;
 		UInt8 Accessibility;

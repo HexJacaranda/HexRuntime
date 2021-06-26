@@ -1,13 +1,14 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
+#include "..\..\..\Memory\SegmentMemory.h"
 #include "..\HexJITContext.h"
-#include "..\JITMemory.h"
+
 
 namespace RTJ::Hex
 {
 	class SSAOptimizer
 	{
-		JITMemory* mMemory;
+		RTMM::SegmentMemory* mMemory;
 		HexJITContext* mJITContext;	
 		//Fold binary
 		TreeNode* FoldBinaryOpConstant(BinaryArithmeticNode* node);

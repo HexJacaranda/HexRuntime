@@ -1,4 +1,8 @@
 #pragma once
+#pragma warning(disable:28251)
+#include <numeric>
+#include <new>
+
 namespace Runtime
 {
 //Provide well-defined alias for runtime
@@ -17,6 +21,8 @@ namespace Runtime
 
 	using MDToken = UInt32;
 
+	constexpr MDToken NullToken = std::numeric_limits<MDToken>::max();
+
 #ifdef _M_AMD64
 	using IntPtr = Int64;
 	using Int = Int64;
@@ -27,6 +33,7 @@ namespace Runtime
 	using Int = Int32;
 #endif
 	using RTString = const wchar_t*;
+	using MutableRTString = wchar_t*;
 #define Text(T) L##T
 
 #define RT  Runtime
@@ -34,6 +41,8 @@ namespace Runtime
 #define RTO Runtime::Core::ManagedObject
 #define RTM Runtime::Core::Meta
 #define RTME Runtime::Core::Meta::EE
+
+#define RTMM Runtime::Core::Memory
 
 #define RTE Runtime::Exception
 #define RTGC Runtime::Core::GC
@@ -47,3 +56,12 @@ namespace Runtime
 //Argument as result annotation
 #define _RE_
 }
+
+//Overrides for mimalloc
+
+void* operator new(size_t size);
+void* operator new[](size_t size);
+void* operator new(size_t size, std::align_val_t align);
+void* operator new[](size_t size, std::align_val_t align);
+void operator delete(void* ptr) noexcept;
+void operator delete[](void* ptr) noexcept;

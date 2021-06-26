@@ -1,6 +1,6 @@
 #include "IImportSession.h"
 
-RTME::IImportSession::IImportSession(MDPrivateHeap* heap) :
+RTME::IImportSession::IImportSession(RTMM::PrivateHeap* heap) :
 	mHeap(heap)
 {
 }

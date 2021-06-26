@@ -1,8 +1,8 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\Interfaces\OSFile.h"
+#include "..\Memory\PrivateHeap.h"
 #include "MDRecords.h"
-#include "MDHeap.h"
 #include "IImportSession.h"
 #include <type_traits>
 
@@ -43,14 +43,14 @@ namespace RTME
 		//Meta data table part
 		MDIndexTable* mIndexTable = nullptr;
 		RefTableHeaderMD mRefTableHeader;
-		MDPrivateHeap* mHeap = nullptr;
+		RTMM::PrivateHeap* mHeap = nullptr;
 	private:
 		bool ReadCode(IImportSession* session, Int32& countTarget, UInt8*& target);
 		void LocateSession(IImportSession* session, MDRecordKinds kind, MDToken token);
 		void PrepareFile(ImportOption option);
 		bool PrepareImporter();
 	public:
-		MDImporter(RTString assemblyName, MDPrivateHeap* heap, ImportOption option);
+		MDImporter(RTString assemblyName, RTMM::PrivateHeap* heap, ImportOption option);
 		~MDImporter();
 	private:
 		bool ImportMethodSignature(IImportSession* session, MethodSignatureMD* signatureMD);
@@ -110,5 +110,7 @@ namespace RTME
 		bool ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable);
 		bool ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable);
 		bool ImportAssemblyRefTable(IImportSession* session, AssemblyRefMD*& assemblyRefTable);
+
+		MDIndexTable* GetIndexTable()const;
 	};
 }

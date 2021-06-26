@@ -40,12 +40,14 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITHelper.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITMemory.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\OpCodes.h" />
+    <ClInclude Include="Runtime\Core\Memory\PrivateHeap.h" />
+    <ClInclude Include="Runtime\Core\Memory\SegmentMemory.h" />
+    <ClInclude Include="Runtime\Core\Meta\AssemblyContext.h" />
     <ClInclude Include="Runtime\Core\Meta\CoreTypes.h" />
     <ClInclude Include="Runtime\Core\Meta\Descriptor.h" />
     <ClInclude Include="Runtime\Core\Meta\FieldDescriptor.h" />
@@ -54,7 +56,6 @@
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\InterfaceDispatchTable.h" />
     <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h" />
-    <ClInclude Include="Runtime\Core\Meta\MDHeap.h" />
     <ClInclude Include="Runtime\Core\Meta\MDImporter.h" />
     <ClInclude Include="Runtime\Core\Meta\MDRecords.h" />
     <ClInclude Include="Runtime\Core\Meta\MetaManager.h" />
@@ -76,6 +77,7 @@
     <ClCompile Include="Runtime\Core\Exception\RuntimeException.cpp" />
     <ClCompile Include="Runtime\Core\GC\GCInterface.cpp" />
     <ClCompile Include="Runtime\Core\Interfaces\OSFileWindows.cpp" />
+    <ClCompile Include="Runtime\Core\InterlockedWindows.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
@@ -85,14 +87,15 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITMemory.cpp" />
     <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp" />
+    <ClCompile Include="Runtime\Core\Memory\PrivateHeap.cpp" />
+    <ClCompile Include="Runtime\Core\Memory\SegmentMemory.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\AssemblyContext.cpp" />
     <ClCompile Include="Runtime\Core\Meta\FieldDescriptor.cpp" />
     <ClCompile Include="Runtime\Core\Meta\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp" />
-    <ClCompile Include="Runtime\Core\Meta\MDHeap.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp" />
@@ -102,9 +105,13 @@
     <ClCompile Include="Runtime\Core\Object\Object.cpp" />
     <ClCompile Include="Runtime\Core\Object\ObjectStorage.cpp" />
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
+    <ClCompile Include="Runtime\RuntimeAlias.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Runtime\Core\X86DWCAS.asm" />
+    <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="Runtime\Core\Runtime.natvis" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -2,7 +2,7 @@
 #include "..\..\RuntimeAlias.h"
 #include "..\Interfaces\OSFile.h"
 #include "IImportSession.h"
-#include "MDHeap.h"
+#include "..\Memory\PrivateHeap.h"
 
 namespace RTME
 {
@@ -15,7 +15,7 @@ namespace RTME
 		UInt8* mCurrent;
 		Int32 mFileSize;
 	public:
-		MappedImportSession(MDPrivateHeap* heap, UInt8* address, Int32 fileSize);
+		MappedImportSession(RTMM::PrivateHeap* heap, UInt8* address, Int32 fileSize);
 		virtual Int32 ReadInto(UInt8* memory, Int32 size);
 		virtual void Relocate(Int32 offset, RTI::LocateOption option);
 		virtual ~MappedImportSession();

@@ -18,7 +18,7 @@ bool RTME::MDImporter::ReadCode(IImportSession* session, Int32& countTarget, UIn
 	Int32 readBytes = session->ReadInto((UInt8*)&countTarget, sizeof(Int32));
 	if (readBytes != sizeof(Int32))
 		return false;
-	target = mHeap->AllocateForCode(countTarget);
+	target = new (mHeap) UInt8[countTarget];
 	readBytes = session->ReadInto(target, countTarget * sizeof(UInt8));
 	return readBytes == countTarget * sizeof(UInt8);
 }
@@ -54,6 +54,8 @@ bool RTME::MDImporter::PrepareImporter()
 			IF_SESSION_FAIL_RET(ReadInto(mRefTableHeader.TypeRefCount));
 			IF_SESSION_FAIL_RET(ReadInto(mRefTableHeader.MemberRefTableOffset));
 			IF_SESSION_FAIL_RET(ReadInto(mRefTableHeader.MemberRefCount));
+			IF_SESSION_FAIL_RET(ReadInto(mRefTableHeader.AssemblyRefTableOffset));
+			IF_SESSION_FAIL_RET(ReadInto(mRefTableHeader.AssemblyRefCount));
 
 			//Read regular table stream
 			for (Int32 i = 0; i < (Int32)MDRecordKinds::KindLimit; ++i)
@@ -66,7 +68,7 @@ bool RTME::MDImporter::PrepareImporter()
 		AssemblyHeaderMD::CompactSize);
 }
 
-RTME::MDImporter::MDImporter(RTString assemblyName, MDPrivateHeap* heap, ImportOption option):
+RTME::MDImporter::MDImporter(RTString assemblyName, RTMM::PrivateHeap* heap, ImportOption option):
 	mAssemblyFileName(assemblyName),
 	mImportOption(option),
 	mHeap(heap)
@@ -96,7 +98,7 @@ bool RTME::MDImporter::ImportAssemblyRef(IImportSession* session, AssemblyRefMD*
 {
 	IF_SESSION_FAIL_RET(ReadInto(assemlbyRefMD->GUID));
 	IF_SESSION_FAIL_RET(ReadInto(assemlbyRefMD->AssemblyName));
-	return false;
+	return true;
 }
 
 bool RTME::MDImporter::ImportNativeLink(IImportSession* session, NativeLinkMD* nativeLinkMD)
@@ -165,6 +167,7 @@ bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, Meth
 	ImportIL(session, &methodMD->ILCodeMD);
 	
 	IMPORT_NESTED_SERIES(methodMD->NativeLinkCount, methodMD->NativeLinks, ImportNativeLink);
+	IF_SESSION_FAIL_RET(ReadIntoSeries(methodMD->AttributeCount, methodMD->AttributeTokens));
 	return true;
 }
 
@@ -178,7 +181,6 @@ bool RTME::MDImporter::ImportMethodSignature(IImportSession* session, MethodSign
 bool RTME::MDImporter::ImportField(IImportSession* session, MDToken token, FieldMD* fieldMD)
 {
 	LOCATE(FieldDef);
-
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->Accessibility));
@@ -225,6 +227,7 @@ bool RTME::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->EnclosingTypeRefToken));
+	IF_SESSION_FAIL_RET(ReadInto(typeMD->CanonicalTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->NamespaceToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->CoreType));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(typeMD->FieldCount, typeMD->FieldTokens));
@@ -285,8 +288,12 @@ void RTME::MDImporter::ReturnSession(IImportSession* session)
 bool RTME::MDImporter::ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable)
 {
 	Int32 offset = mRefTableHeader.TypeRefTableOffset;
+	session->Relocate(offset, LocateOption::Start);
 	Int32 count = mRefTableHeader.TypeRefCount;
-	typeRefTable = new (mHeap) TypeRefMD[count];
+	if (count > 0)
+		typeRefTable = new (mHeap) TypeRefMD[count];
+	else
+		typeRefTable = nullptr;
 
 	for (Int32 i = 0; i < count; ++i)
 		IF_FAIL_RET(ImportTypeRef(session, &typeRefTable[i]));
@@ -297,8 +304,12 @@ bool RTME::MDImporter::ImportTypeRefTable(IImportSession* session, TypeRefMD*& t
 bool RTME::MDImporter::ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable)
 {
 	Int32 offset = mRefTableHeader.MemberRefTableOffset;
+	session->Relocate(offset, LocateOption::Start);
 	Int32 count = mRefTableHeader.MemberRefCount;
-	memberRefTable = new (mHeap) MemberRefMD[count];
+	if (count > 0)
+		memberRefTable = new (mHeap) MemberRefMD[count];
+	else
+		memberRefTable = nullptr;
 
 	for (Int32 i = 0; i < count; ++i)
 		IF_FAIL_RET(ImportMemberRef(session, &memberRefTable[i]));
@@ -309,13 +320,22 @@ bool RTME::MDImporter::ImportMemberRefTable(IImportSession* session, MemberRefMD
 bool RTME::MDImporter::ImportAssemblyRefTable(IImportSession* session, AssemblyRefMD*& assemblyRefTable)
 {
 	Int32 offset = mRefTableHeader.AssemblyRefTableOffset;
+	session->Relocate(offset, LocateOption::Start);
 	Int32 count = mRefTableHeader.AssemblyRefCount;
-	assemblyRefTable = new (mHeap) AssemblyRefMD[count];
+	if (count > 0)
+		assemblyRefTable = new (mHeap) AssemblyRefMD[count];
+	else
+		assemblyRefTable = nullptr;
 
 	for (Int32 i = 0; i < count; ++i)
 		IF_FAIL_RET(ImportAssemblyRef(session, &assemblyRefTable[i]));
 
 	return true;
+}
+
+RTME::MDIndexTable* RTME::MDImporter::GetIndexTable() const
+{
+	return mIndexTable;
 }
 
 #undef IF_SESSION_FAIL_RET

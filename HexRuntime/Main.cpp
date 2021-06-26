@@ -3,16 +3,19 @@
 #include "Runtime/Core/Meta/CoreTypes.h"
 #include "Runtime/RuntimeAlias.h"
 #include "Runtime/Core/JIT/JITContext.h"
-#include "Runtime/Core/JIT/HexJIT/JITMemory.h"
+#include "Runtime/Core/Memory/SegmentMemory.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
 #include "Runtime/Core/InteriorPointer.h"
+#include "Runtime/Core/Interlocked.h"
+#include "Runtime/Core/Meta/MetaManager.h"
 
 
 using namespace RTJ;
 using namespace RTC;
 using namespace RT;
+using namespace RTM;
 
 void PrepareIL(ILEmitter& il)
 {
@@ -72,7 +75,7 @@ void SSABuildAndOptimize(ILEmitter const& il)
 {
 	JITContext context;
 
-	Hex::JITMemory hexMemory;
+	Memory::SegmentMemory hexMemory;
 
 	Hex::HexJITContext hexContext;
 	hexContext.Context = &context;
@@ -91,11 +94,23 @@ void SSABuildAndOptimize(ILEmitter const& il)
 	bb = ssaOptimizer.Optimize();
 }
 
-int main()
+void JITTest()
 {
 	ILEmitter il;
 	PrepareBackIL(il);
 	SSABuildAndOptimize(il);
-	//for (int i = 0; i < 100000; ++i)
-	//	SSABuildAndOptimize(il);
+	for (int i = 0; i < 100000; ++i)
+		SSABuildAndOptimize(il);
+}
+
+void TSTest()
+{
+	MetaData = new MetaManager();
+	auto context = MetaData->StartUp(Text("HexRT.Core"));
+	auto type = MetaData->GetTypeFromToken(context, 1);
+}
+
+int main()
+{
+	TSTest();
 }

@@ -14,15 +14,20 @@ namespace RTO
 
 namespace RTM
 {
+	struct AssemblyContext;
+}
+
+namespace RTM
+{
 	class TypeDescriptor :public Descriptor<RTME::TypeMD>
 	{
 		friend class MetaManager;
+		MDToken mSelf;
 
 		RTO::StringObject* mTypeName;
 		RTO::StringObject* mNamespace;
 		TypeDescriptor* mParent;
 		TypeDescriptor* mEnclosing;
-		UInt8 mCoreType;
 		TypeDescriptor* mCanonical;
 		TypeDescriptor** mInterfaces;
 
@@ -31,6 +36,8 @@ namespace RTM
 		FieldTable* mFieldTable;
 		MethodTable* mMethTable;
 		InterfaceDispatchTable* mInterfaceTable;
+		
+		AssemblyContext* mContext;
 	public:
 		RTO::StringObject* GetTypeName()const;
 		RTO::StringObject* GetNamespace()const;
@@ -43,6 +50,8 @@ namespace RTM
 		FieldTable* GetFieldTable()const;
 		MethodTable* GetMethodTable()const;
 		InterfaceDispatchTable* GetInterfaceTable()const;
+		MDToken GetToken()const;
+		AssemblyContext* GetAssembly()const;
 
 		Int32 GetSize()const;
 

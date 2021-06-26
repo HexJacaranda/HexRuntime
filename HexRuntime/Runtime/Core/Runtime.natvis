@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+	<Type Name="Runtime::Core::ManagedObject::StringObject">
+		<StringView>GetContent(), su</StringView>
+		<Expand>
+			<Item Name="[Length]">mCount</Item>
+		</Expand>
+	</Type>
+</AutoVisualizer>

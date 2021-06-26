@@ -1,9 +1,9 @@
 #pragma once
 #include "..\..\..\RuntimeAlias.h"
 #include "..\..\..\Utility.h"
+#include "..\..\Memory\SegmentMemory.h"
 #include "..\JITContext.h"
 #include "Frontend\IR.h"
-#include "JITMemory.h"
 #include <vector>
 #include <type_traits>
 
@@ -41,7 +41,7 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Allocator
 		/// </summary>
-		JITMemory* Memory;
+		RTMM::SegmentMemory* Memory;
 		JITContext* Context;
 		/// <summary>
 		/// The attached local info

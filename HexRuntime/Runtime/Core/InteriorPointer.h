@@ -9,9 +9,12 @@ namespace RTC
 	template<>
 	struct InteriorPointerBase<4>
 	{
-		struct {
-			RTO::ObjectRef BasePointer;
-			Int Offset;
+		union {
+			struct {
+				RTO::ObjectRef BasePointer;
+				Int Offset;
+			};
+			Int64 Value;
 		};
 	};
 

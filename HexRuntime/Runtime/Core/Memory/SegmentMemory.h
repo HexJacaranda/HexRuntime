@@ -1,42 +1,47 @@
 #pragma once
-#include "..\..\..\RuntimeAlias.h"
+#include "..\..\RuntimeAlias.h"
 #include <type_traits>
-#pragma warning(disable:4291)
 
-namespace RTJ::Hex
+namespace RTMM
 {
-	using NonPODReleaseCall = void(*)(void*);
+	struct Segment
+	{
+		Segment* Previous = nullptr;
+	};
+
+	using ReleaseFun = void(*)(void*);
 
 	//Common generator of destructors
 	template<class T>
-	static void ReleaseCallGenerator(void* target) {
+	static void ReleaseFunGenerator(void* target) {
 		((T*)target)->~T();
 	}
 
-	/// <summary>
-	/// Provide an arena memory allocator
-	/// </summary>
-	class JITMemory
+	struct NonPODEntry
 	{
-		static constexpr Int32 SegmentSpace = 4096;
-		struct Segment
-		{
-			Segment* Previous;
-		};
+		Int32 Size;
+		ReleaseFun Release;
+	};
 
-		struct NonPODEntry
-		{
-			Int32 Size;
-			NonPODReleaseCall ReleaseCall;
-		};
-
+	/// <summary>
+	/// Provide fast and safe bumping pointer allocator
+	/// </summary>
+	class SegmentMemory
+	{
+	public:
+		static constexpr Int32 SegmentSize = 4096;
+		static constexpr Int32 Align = 8;
+	private:
+		Int32 mSegmentSize = SegmentSize;
+		Int32 mAlign = Align;
 		Segment* mOversizeCurrent = nullptr;
+
 		Segment* mPODCurrent = nullptr;
 		Int8* mPODStart = nullptr;
 
 		Segment* mNonPODCurrent = nullptr;
 		Int8* mNonPODStart = nullptr;
-
+	private:
 		void AllocateSegment();
 		void AllocateNonPODSegment();
 		void AllocateOversizeSegment(Int32 size);
@@ -48,10 +53,11 @@ namespace RTJ::Hex
 		void ReleaseNonPODArea();
 		void ReleasePODArea();
 	public:
-		JITMemory();
-		~JITMemory();
-	public:
-		void* AllocateNonPOD(Int32 size, NonPODReleaseCall call);
+		SegmentMemory(Int32 align, Int32 segmentSize);
+		SegmentMemory();
+		~SegmentMemory();
+
+		void* AllocateNonPOD(Int32 size, ReleaseFun call);
 		void* Allocate(Int32 size);
 
 		template<class T, class...Args>
@@ -63,8 +69,8 @@ namespace RTJ::Hex
 		}
 		template<class T, class...Args>
 		requires(!std::is_pod_v<T>)
-		inline T* New(Args&&...args) {
-			T* ret = (T*)AllocateNonPOD(sizeof(T), ReleaseCallGenerator<T>);
+			inline T* New(Args&&...args) {
+			T* ret = (T*)AllocateNonPOD(sizeof(T), ReleaseFunGenerator<T>);
 			new (ret) T(std::forward<Args>(args)...);
 			return ret;
 		}
@@ -77,6 +83,8 @@ namespace RTJ::Hex
 /// <param name="size"></param>
 /// <param name="allocator"></param>
 /// <returns></returns>
-void* operator new(size_t size, RTJ::Hex::JITMemory* allocator);
+void* operator new(size_t size, RTMM::SegmentMemory* allocator);
+void* operator new[](size_t size, RTMM::SegmentMemory* allocator);
 
-void* operator new[](size_t size, RTJ::Hex::JITMemory* allocator);
+void operator delete(void* target, RTMM::SegmentMemory* allocator);
+void operator delete[](void* target, RTMM::SegmentMemory* allocator);
