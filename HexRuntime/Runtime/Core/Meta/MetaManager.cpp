@@ -59,8 +59,19 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 			bool nextShouldWait = false;
 			//The first one to resolve type
 			entry.Status.store(TypeStatus::Processing);
+			
 			auto type = ResolveType(typeDefAssembly, typeRef.TypeDefToken, visited, waitingList, externalWaitingList, nextShouldWait);
-			entry.Type.store(type, std::memory_order::release);
+
+			/* Attention!
+			* The InitializeTicket may overflow and go back to 0 again in some extreme cases,
+			* where many threads pour in and the first thread who gets 0-th ticket has not set the 	
+			* status to Processing. Then there will be more than one thread getting 0-th ticket
+			* and doing the resolve job. But it will be fine if we use compare_and_swap to ensure
+			* that the final type descriptor you get is the same.
+			*/
+			auto entryValue = entry.Type.load(std::memory_order::relaxed);
+			if (!entry.Type.compare_exchange_weak(entryValue, type, std::memory_order::release, std::memory_order::relaxed))
+				type = entryValue;
 
 			if (nextShouldWait)
 			{
