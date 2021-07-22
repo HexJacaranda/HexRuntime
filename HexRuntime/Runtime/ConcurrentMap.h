@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "RuntimeAlias.h"
 #include <atomic>
 #include <thread>
@@ -140,6 +140,14 @@ namespace RT
 			}
 		};
 
+		enum EntryState
+		{
+			NotYet,
+			Set,
+			Migrated,
+			Dropped
+		};
+
 		template<class TKey, class TValue>
 		struct ConcurrentKeyValue
 		{
@@ -150,15 +158,27 @@ namespace RT
 		template<class TKey, class TValue>
 		struct ConcurrentEntry
 		{
-			Int32 Hash;
+			std::atomic<Int64> State;
 			ConcurrentReference<ConcurrentKeyValue<TKey, TValue>*> Data;
 		};
+
+		static inline void BreakState(Int64 stateValue, Int32& hash, Int32& state)
+		{
+			hash = stateValue & 0xFFFFFFFF;
+			state = (stateValue & 0xFFFFFFFF00000000) >> 32;
+		}
+
+		static inline Int64 TieUpState(Int32 hash, Int32 state)
+		{
+			return (state << 32) | hash;
+		}
 
 		template<class TKey, class TValue>
 		struct ConcurrentTable
 		{
 			ConcurrentReference<ConcurrentTable<TKey, TValue>*> OldVersion;
 			Int32 Capacity;
+			std::atomic<Int32> Count;
 			ConcurrentEntry<TKey, TValue>* Entries;
 		};
 
@@ -166,64 +186,228 @@ namespace RT
 		class ConcurrentMap
 		{
 			using Table = ConcurrentTable<TKey, TValue>;
+
+			template<class T>
+			using Guard = typename ConcurrentReference<T>::Guard;
+
 			using Entry = ConcurrentEntry<TKey, TValue>;
+
+			enum class ResizeState
+			{
+				NotStarted,
+				TablePreparing,
+				ProgressReady,
+				ProgressDone
+			};
+
 		private:
 			ConcurrentReference<Table*> mCurrent;
+			std::atomic<ResizeState> mResizeState;
 
-			Int32 GetHash(Int32 index)
+			bool EnsureKeyAbsenceInOldTable(Guard<Table*>& guard, TKey const& key, Int32 hashValue, ComparatorT && compare)
 			{
-				Table* table = mCurrent.load(std::memory_order_acquire);
-				return table->Entries[index].Hash;
+				auto oldGuard = guard->OldVersion.Acquire();
+
+				//If there is no old table, return true
+				if (!oldGuard.IsValid())
+					return true;
+
+				Int32 index = hashValue;
+				Int32 reprobeLimit = (table->Capacity - 1) >> 1;
+				while (true)
+				{
+					index &= (oldGuard->Capacity - 1);
+					auto&& entry = oldGuard->Entries[index];
+
+					Int64 stateValue = entry.State.load(std::memory_order_acquire);
+					Int32 hash, state;
+					BreakState(stateValue, hash, state);
+
+					if (state == Set && hash == hashValue)
+					{
+						auto dataGuard = entry.Data.Acquire();
+						if (compare(dataGuard->Key, key) == 0)
+							return false;
+					}
+
+					//Maybe we should be migration-aware
+
+					index++;
+					if (reprobeLimit-- == 0)
+						break;
+				}
+
+				return true;
 			}
 
+			void Migrate()
+			{
+				ResizeState resizeState = mResizeState.load(std::memory_order_relaxed);
+
+				if (resizeState == ResizeState::NotStarted
+					&& mResizeState.compare_exchange_weak(resizeState, ResizeState::TablePreparing))
+				{
+					//Winner is responsible for creating new table
+					auto table = mCurrent.Acquire();
+					Int32 capacity = table->Capacity << 1;
+					Table* newTable = new Table
+					{
+						Capacity = capacity,
+						Entries = new Entry[capacity],
+						Count = 0
+					};
+
+					newTable->OldVersion.Emplace(table);
+					mCurrent.Emplace(newTable);
+
+					//Ready
+					mResizeState.store(ResizeState::ProgressReady, std::memory_order_release);
+				}
+				else
+				{
+					//Wait for new table
+					while ((resizeState = mResizeState.load(std::memory_order_acquire)) == ResizeState::TablePreparing)
+						std::this_thread::yield();
+
+					//Is migration over?
+					if (resizeState != ResizeState::ProgressReady)
+						return;
+				}
+				auto table = mCurrent.Acquire();
+				auto oldTable = table->OldVersion.Acquire();
+
+				//Should we randomly partition the migration area?
+				for (Int32 i = 0; i < oldTable->Capacity; ++i)
+				{
+
+				}
+			}
 		public:
 			ConcurrentMap(Int32 initialCapacity)
 			{
 				Table* newTable = new Table
 				{
-					OldVersion = nullptr,
 					Capacity = initialCapacity,
-					Entries = new Entry[initialCapacity]
+					Entries = new Entry[initialCapacity],
+					Count = 0
 				};
 
-				mCurrent.store(newTable, std::memory_order_relaxed);
+				mCurrent.Emplace(newTable);
 			}
 
 			bool TryAdd(TKey const& key, TValue const& value)
 			{
 				Int32 hashValue = HasherT()(key);
+				Int32 index = hashValue;
+
 				ComparatorT compare{};
 
 				auto table = mCurrent.Acquire();
-				
-				
+
+				if (!EnsureKeyAbsenceInOldTable(table, key, hashValue, compare))
+					return false;
+
+				Int32 reprobeLimit = (table->Capacity - 1) >> 1;
+				while (true)
+				{
+					index &= (table->Capacity - 1);
+					auto&& entry = table->Entries[index];
+
+					Int64 stateValue = entry.State.load(std::memory_order_acquire);
+
+					Int32 hash, state;
+					BreakState(stateValue, hash, state);
+
+					Int64 newState = TieUpState(hashValue, Set);
+					if (state == NotYet &&
+						entry.State.compare_exchange_weak(
+							stateValue,
+							newState,
+							std::memory_order_acq_rel,
+							std::memory_order_relaxed))
+					{
+						//Emplace the value now
+						entry.Data.Emplace(new ConcurrentKeyValue{ key, value });
+					}
+					else
+					{
+						BreakState(stateValue, hash, state);
+
+						//Need to be sure that it's a different key
+						auto dataGuard = entry.Data.Acquire();
+						while (!dataGuard.IsValid())
+						{
+							std::this_thread::yield();
+							dataGuard = std::move(entry.Data.Acquire());
+						}
+
+						if (compare(dataGuard->Key, key) == 0 && state != Dropped)
+						{
+							//The same with target key, conflicting
+							return false;
+						}
+					}
+
+					//Reprobe
+					index++;
+
+					//Limit exceeded
+					if (reprobeLimit-- == 0)
+					{
+						//for all the writer that want
+						//to add new pair(s), they need to help complete the
+						//migration from old to new table
+						Migrate();
+					}
+				}
+			}
+
+			template<class Fn>
+			TValue GetOrUpdate(TKey const& key, Fn&& factory)
+			{
+
 			}
 
 			bool TryGet(TKey const& key, TValue& outValue) 
 			{
 				Int32 hashValue = HasherT()(key);
 				Int32 index = hashValue;
+				
 				ComparatorT compare{};
 
 				auto table = mCurrent.Acquire();
-				auto oldOne = table->OldVersion.Acquire();
-				if (oldOne.IsValid())
-					table = std::move(oldOne);
-
-				while (true)
+				while (table.IsValid())
 				{
-					index &= table->Capacity - 1;
-					auto guard = table->Entries[index].Data.Acquire();
-					if (!guard.IsValid())
-						return false;
-					Int32 hash = GetHash();
-					if (hashValue == hash && compare(key, guard->Key) == 0)
+					Int32 reprobeLimit = (table->Capacity - 1) >> 1;
+					while (true)
 					{
-						outValue = guard->Value;
-						return true;
+						index &= (table->Capacity - 1);
+						auto&& entry = table->Entries[index];
+
+						Int64 stateValue = entry.State.load(std::memory_order_acquire);
+						Int32 hash = stateValue & 0xFFFFFFFF;
+
+						if (hash == hashValue)
+						{
+							auto dataGuard = entry.Data.Acquire();
+							if (compare(dataGuard->Key, key) == 0)
+							{
+								outValue = dataGuard->Value;
+								return true;
+							}
+						}
+
+						//Reprobe
+						index++;
+
+						//Limit exceeded, go for elder table
+						if (reprobeLimit-- == 0)
+							break;
 					}
-					index++;   
+					table = std::move(table.OldVersion.Acquire());
 				}
+
+				return false;
 			}
 
 			void Remove(TKey const& key)
