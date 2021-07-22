@@ -109,6 +109,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="Runtime\ConcurrentMap.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Runtime\Core\Runtime.natvis" />

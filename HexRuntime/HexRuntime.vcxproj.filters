@@ -353,6 +353,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="Runtime\ConcurrentMap.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Runtime\Core\Runtime.natvis">
