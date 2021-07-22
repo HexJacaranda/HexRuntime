@@ -3,6 +3,7 @@
 #include <atomic>
 #include <thread>
 #include <utility>
+#include <type_traits>
 
 namespace RT
 {
@@ -67,7 +68,10 @@ namespace RT
 				}
 				Guard& operator=(Guard const&) = delete;
 				bool IsValid()const { return !!mInternal; }
-				T* operator->() const { return &mInternal->Value; };
+
+				T* operator->() requires(!std::is_pointer_v<T>) { return &mInternal->Value; };
+				T operator->()const requires(std::is_pointer_v<T>)  { return mInternal->Value; };
+
 				T& operator*() { return mInternal->Value; };
 				T const& operator*()const { return mInternal->Value; };
 				~Guard()
@@ -96,7 +100,11 @@ namespace RT
 				{
 					newExternal = old;
 					++newExternal.ExternalCount;
-				} while (!mExternal.compare_exchange_weak(old, newExternal));
+				} while (!mExternal.compare_exchange_weak(
+					old, 
+					newExternal, 
+					std::memory_order_acq_rel, 
+					std::memory_order_relaxed));
 
 				return Guard{ newExternal.InternalPtr };
 			}
@@ -107,7 +115,10 @@ namespace RT
 				Internal* newOne = new Internal(std::forward<Args>(args)...);
 				External newExternal{ 1, newOne };
 				External oldOne = mExternal.load(std::memory_order_relaxed);
-				while (!mExternal.compare_exchange_weak(oldOne, newExternal));
+				while (!mExternal.compare_exchange_weak(oldOne,
+					newExternal,
+					std::memory_order_acq_rel,
+					std::memory_order_relaxed));
 				
 				oldOne.Release();
 			}
@@ -121,7 +132,10 @@ namespace RT
 
 				bool casSuccessful = false;
 				while (oldOne.InternalPtr == oldGuard.mInternal &&
-					!(casSuccessful = mExternal.compare_exchange_weak(oldOne, newExternal)));
+					!(casSuccessful = mExternal.compare_exchange_weak(oldOne,
+						newExternal,
+						std::memory_order_acq_rel,
+						std::memory_order_relaxed)));
 
 				if (casSuccessful)
 					oldOne.Release();
@@ -135,7 +149,11 @@ namespace RT
 			{
 				External empty{ 0, nullptr };
 				External old = mExternal.load(std::memory_order_relaxed);
-				while (!mExternal.compare_exchange_weak(old, empty));
+				while (!mExternal.compare_exchange_weak(
+					old, 
+					empty, 
+					std::memory_order_acq_rel, 
+					std::memory_order_relaxed));
 				old.Release();
 			}
 		};
@@ -170,7 +188,18 @@ namespace RT
 
 		static inline Int64 TieUpState(Int32 hash, Int32 state)
 		{
-			return (state << 32) | hash;
+			return (((Int64)state) << 32 ) | (Int64)hash;
+		}
+
+		static inline Int32 RoundUpPower2(Int32 value)
+		{
+			value--;
+			value |= value >> 1;
+			value |= value >> 2;
+			value |= value >> 4;
+			value |= value >> 8;
+			value |= value >> 16;
+			return ++value;
 		}
 
 		template<class TKey, class TValue>
@@ -182,7 +211,43 @@ namespace RT
 			ConcurrentEntry<TKey, TValue>* Entries;
 		};
 
-		template<class TKey, class TValue, class HasherT, class ComparatorT>
+		struct GenericHasher
+		{
+			template<class T>
+			Int32 operator()(T&& value)
+			{
+				const UInt8* _First = (const UInt8*)&value;
+
+				const UInt32 _FNV_offset_basis = 2166136261U;
+				const UInt32 _FNV_prime = 16777619U;
+				UInt32 _Val = _FNV_offset_basis;
+				for (UInt32 _Next = 0; _Next < sizeof(T); ++_Next)
+				{
+					_Val ^= (UInt32)_First[_Next];
+					_Val *= _FNV_prime;
+				}
+				
+				Int32 hashValue = static_cast<Int32>(_Val);
+				if (hashValue < 0)
+					return hashValue + std::numeric_limits<Int32>::max();
+				else
+					return hashValue;
+			}
+		};
+
+		struct GenericComparator
+		{
+			template<class T,class U>
+			Int32 operator()(T&& left, U&& right)
+			{
+				return left == right ? 0 : 1;
+			}
+		};
+
+		template<class TKey, 
+			class TValue, 
+			class HasherT = GenericHasher, 
+			class ComparatorT = GenericComparator>
 		class ConcurrentMap
 		{
 			using Table = ConcurrentTable<TKey, TValue>;
@@ -200,13 +265,22 @@ namespace RT
 				ProgressDone
 			};
 
+			enum class SpaceState
+			{
+				Success,
+				DuplicateKey,
+				ReprobeLimit
+			};
+
 		private:
 			ConcurrentReference<Table*> mCurrent;
 			std::atomic<ResizeState> mResizeState;
+			ComparatorT mCompare;
+			HasherT mHashser;
 
-			bool EnsureKeyAbsenceInOldTable(Guard<Table*>& guard, TKey const& key, Int32 hashValue, ComparatorT && compare)
+			bool EnsureKeyAbsenceInOldTable(Guard<Table*>& table, TKey const& key, Int32 hashValue)
 			{
-				auto oldGuard = guard->OldVersion.Acquire();
+				auto oldGuard = table->OldVersion.Acquire();
 
 				//If there is no old table, return true
 				if (!oldGuard.IsValid())
@@ -226,7 +300,7 @@ namespace RT
 					if (state == Set && hash == hashValue)
 					{
 						auto dataGuard = entry.Data.Acquire();
-						if (compare(dataGuard->Key, key) == 0)
+						if (mCompare(dataGuard->Key, key) == 0)
 							return false;
 					}
 
@@ -240,6 +314,66 @@ namespace RT
 				return true;
 			}
 
+			template<class Fn, class GeneratorT>
+			SpaceState TryFindSpaceInTable(Guard<Table*>& table, TKey const& key, Int32 hashValue, Fn&& action, GeneratorT&& generator)
+			{
+				Int32 index = hashValue;
+				Int32 reprobeLimit = (table->Capacity - 1) >> 1;
+				while (true)
+				{
+					index &= (table->Capacity - 1);
+					auto&& entry = table->Entries[index];
+
+					Int64 stateValue = entry.State.load(std::memory_order_acquire);
+
+					Int32 hash, state;
+					BreakState(stateValue, hash, state);
+
+					Int64 newState = TieUpState(hashValue, Set);
+					if (state == NotYet &&
+						entry.State.compare_exchange_weak(
+							stateValue,
+							newState,
+							std::memory_order_acq_rel,
+							std::memory_order_relaxed))
+					{
+						table->Count.fetch_add(1, std::memory_order_acq_rel);
+						//Emplace the value now
+						entry.Data.Emplace(std::forward<GeneratorT>(generator)());
+						return SpaceState::Success;
+					}
+					else
+					{
+						BreakState(stateValue, hash, state);
+
+						//Need to be sure that it's a different key
+						auto dataGuard = entry.Data.Acquire();
+						while (!dataGuard.IsValid())
+						{
+							std::this_thread::yield();
+							dataGuard = std::move(entry.Data.Acquire());
+						}
+
+						if (mCompare(dataGuard->Key, key) == 0 
+							&& state != Dropped)
+						{
+							//The same with target key, conflicting
+							return SpaceState::DuplicateKey;
+						}
+					}
+
+					//Reprobe
+					index++;
+
+					//Limit exceeded
+					if (reprobeLimit-- == 0)
+					{
+						std::forward<Fn>(action)();
+						return SpaceState::ReprobeLimit;
+					}
+				}
+			}
+
 			void Migrate()
 			{
 				ResizeState resizeState = mResizeState.load(std::memory_order_relaxed);
@@ -250,14 +384,14 @@ namespace RT
 					//Winner is responsible for creating new table
 					auto table = mCurrent.Acquire();
 					Int32 capacity = table->Capacity << 1;
-					Table* newTable = new Table
+					Table* newTable = new Table;
 					{
-						Capacity = capacity,
-						Entries = new Entry[capacity],
-						Count = 0
-					};
+						newTable->Capacity = capacity;
+						newTable->Entries = new Entry[capacity];
+						newTable->Count.store(0, std::memory_order_relaxed);
+					}
 
-					newTable->OldVersion.Emplace(table);
+					newTable->OldVersion.Emplace(*table);
 					mCurrent.Emplace(newTable);
 
 					//Ready
@@ -279,101 +413,96 @@ namespace RT
 				//Should we randomly partition the migration area?
 				for (Int32 i = 0; i < oldTable->Capacity; ++i)
 				{
+					auto&& entry = table->Entries[i];
+					Int64 stateValue = entry.State.load(std::memory_order_acquire);
+					Int32 hash, state;
+					BreakState(stateValue, hash, state);
 
+					if (state == Set)
+					{
+						//Try acquire
+						Int64 newState = TieUpState(hash, Migrated);
+						if (entry.State.compare_exchange_weak(stateValue, newState))
+						{
+							//Succeed, find a place for copying
+							//Should always succeed
+							auto dataGuard = entry.Data.Acquire();
+							
+							TryFindSpaceInTable(
+								table,
+								dataGuard->Key,
+								hash,
+								[]() {},
+								[&]() { return *dataGuard; });
+						}
+					}
 				}
 			}
 		public:
 			ConcurrentMap(Int32 initialCapacity)
 			{
-				Table* newTable = new Table
-				{
-					Capacity = initialCapacity,
-					Entries = new Entry[initialCapacity],
-					Count = 0
-				};
+				if (initialCapacity < 32)
+					initialCapacity = 32;
+				else
+					initialCapacity = RoundUpPower2(initialCapacity);
 
+				Table* newTable = new Table;
+
+				{
+					newTable->Capacity = initialCapacity;
+					newTable->Entries = new Entry[initialCapacity];
+					newTable->Count.store(0, std::memory_order_relaxed);
+				}
+				
 				mCurrent.Emplace(newTable);
 			}
 
 			bool TryAdd(TKey const& key, TValue const& value)
 			{
-				Int32 hashValue = HasherT()(key);
+				Int32 hashValue = mHashser(key);
 				Int32 index = hashValue;
 
-				ComparatorT compare{};
-
-				auto table = mCurrent.Acquire();
-
-				if (!EnsureKeyAbsenceInOldTable(table, key, hashValue, compare))
-					return false;
-
-				Int32 reprobeLimit = (table->Capacity - 1) >> 1;
-				while (true)
+				bool migrationRetry = false;
+				
+				do 
 				{
-					index &= (table->Capacity - 1);
-					auto&& entry = table->Entries[index];
-
-					Int64 stateValue = entry.State.load(std::memory_order_acquire);
-
-					Int32 hash, state;
-					BreakState(stateValue, hash, state);
-
-					Int64 newState = TieUpState(hashValue, Set);
-					if (state == NotYet &&
-						entry.State.compare_exchange_weak(
-							stateValue,
-							newState,
-							std::memory_order_acq_rel,
-							std::memory_order_relaxed))
+					auto table = mCurrent.Acquire();
+					if (table->Count.load(std::memory_order_acquire) == table->Capacity)
 					{
-						//Emplace the value now
-						entry.Data.Emplace(new ConcurrentKeyValue{ key, value });
-					}
-					else
-					{
-						BreakState(stateValue, hash, state);
-
-						//Need to be sure that it's a different key
-						auto dataGuard = entry.Data.Acquire();
-						while (!dataGuard.IsValid())
-						{
-							std::this_thread::yield();
-							dataGuard = std::move(entry.Data.Acquire());
-						}
-
-						if (compare(dataGuard->Key, key) == 0 && state != Dropped)
-						{
-							//The same with target key, conflicting
-							return false;
-						}
-					}
-
-					//Reprobe
-					index++;
-
-					//Limit exceeded
-					if (reprobeLimit-- == 0)
-					{
-						//for all the writer that want
-						//to add new pair(s), they need to help complete the
-						//migration from old to new table
 						Migrate();
+						continue;
 					}
-				}
-			}
 
-			template<class Fn>
-			TValue GetOrUpdate(TKey const& key, Fn&& factory)
-			{
+					if (!EnsureKeyAbsenceInOldTable(table, key, hashValue))
+						return false;
 
+					auto state = TryFindSpaceInTable(
+						table,
+						key,
+						hashValue,
+						[&]() { Migrate(); },
+						[&]() { return new ConcurrentKeyValue{ key, value }; });
+
+					switch (state)
+					{
+					case SpaceState::Success:
+						return true;
+					case SpaceState::DuplicateKey:
+						return false;
+					case SpaceState::ReprobeLimit:
+						//Retry
+						continue;
+					}
+
+				} while (false);
+
+				return true;
 			}
 
 			bool TryGet(TKey const& key, TValue& outValue) 
 			{
-				Int32 hashValue = HasherT()(key);
+				Int32 hashValue = mHashser(key);
 				Int32 index = hashValue;
-				
-				ComparatorT compare{};
 
 				auto table = mCurrent.Acquire();
 				while (table.IsValid())
@@ -390,7 +519,7 @@ namespace RT
 						if (hash == hashValue)
 						{
 							auto dataGuard = entry.Data.Acquire();
-							if (compare(dataGuard->Key, key) == 0)
+							if (mCompare(dataGuard->Key, key) == 0)
 							{
 								outValue = dataGuard->Value;
 								return true;
@@ -404,13 +533,24 @@ namespace RT
 						if (reprobeLimit-- == 0)
 							break;
 					}
-					table = std::move(table.OldVersion.Acquire());
+					table = std::move(table->OldVersion.Acquire());
 				}
 
 				return false;
 			}
 
 			void Remove(TKey const& key)
+			{
+
+			}
+
+			template<class Fn>
+			TValue GetOrUpdate(TKey const& key, Fn&& factory)
+			{
+
+			}
+
+			~ConcurrentMap()
 			{
 
 			}
