@@ -79,9 +79,6 @@
     <Filter Include="源文件\Interlocked">
       <UniqueIdentifier>{3cf5e619-470f-4010-b93f-f52274e0506e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="源文件\Objects">
-      <UniqueIdentifier>{55aa090f-4b36-423e-8954-bf9e5cd0f754}</UniqueIdentifier>
-    </Filter>
     <Filter Include="头文件\Runtime\Core\Memory">
       <UniqueIdentifier>{310564bb-e018-41f8-a9be-2faf5e2f4fce}</UniqueIdentifier>
     </Filter>
@@ -90,6 +87,9 @@
     </Filter>
     <Filter Include="DebugVisual">
       <UniqueIdentifier>{fd3daf33-4161-4eb1-bb47-a1c2352b1f7e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Tables\Objects">
+      <UniqueIdentifier>{55aa090f-4b36-423e-8954-bf9e5cd0f754}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -333,13 +333,13 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp">
-      <Filter>源文件\Objects</Filter>
+      <Filter>源文件\Tables\Objects</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Object\Object.cpp">
-      <Filter>源文件\Objects</Filter>
+      <Filter>源文件\Tables\Objects</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp">
-      <Filter>源文件\Objects</Filter>
+      <Filter>源文件\Tables\Objects</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\RuntimeAlias.cpp">
       <Filter>源文件</Filter>
