@@ -7,7 +7,6 @@ namespace RTM
 	MetaManager* MetaData = nullptr;
 }
 
-
 RTM::AssemblyContext* RTM::MetaManager::TryQueryContextLocked(RTME::AssemblyRefMD* reference)
 {
 	std::shared_lock lock{ mContextLock };
@@ -51,6 +50,19 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	//Already done
 	if (status == TypeStatus::Done)
 		return entry.Type.load(std::memory_order::acquire);
+
+	/*
+	* The complexity of identity will get higer when we decide
+	* to implement generics with shared instantiation, and
+	* unavoidably introduce load limit of type for recursive
+	* and generative pattern of generics
+	*/
+	
+	TypeIdentity typeIdentity{ typeDefAssembly->Header.GUID, typeRef.TypeDefToken };
+	if (HasVisitedType(visited, typeIdentity))
+		return entry.Type.load(std::memory_order::acquire);
+	else
+		visited.insert(typeIdentity);
 
 	if (status == TypeStatus::NotYet)
 	{
@@ -230,35 +242,37 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	if (meta->EnclosingTypeRefToken != NullToken)
 		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
 	
-	//Load fields
-	auto fieldTable = new (context->Heap) FieldTable();
-
-	//Field descriptors
-	fieldTable->FieldCount = meta->FieldCount;
-	fieldTable->Fields = new (context->Heap) FieldDescriptor * [meta->FieldCount];
-
-	for (Int32 i = 0; i < meta->FieldCount; ++i)
 	{
-		auto fieldMD = new (context->Heap) RTME::FieldMD();
+		//Load fields
+		auto fieldTable = new (context->Heap) FieldTable();
 
-		if (!importer->ImportField(session, meta->FieldTokens[i], fieldMD))
+		//Field descriptors
+		fieldTable->FieldCount = meta->FieldCount;
+		fieldTable->Fields = new (context->Heap) FieldDescriptor * [meta->FieldCount];
+
+		for (Int32 i = 0; i < meta->FieldCount; ++i)
 		{
-			importer->ReturnSession(session);
-			THROW("Error occurred when importing type meta data");
+			auto fieldMD = new (context->Heap) RTME::FieldMD();
+
+			if (!importer->ImportField(session, meta->FieldTokens[i], fieldMD))
+			{
+				importer->ReturnSession(session);
+				THROW("Error occurred when importing type meta data");
+			}
+
+			auto field = new (context->Heap) FieldDescriptor();
+			field->mColdMD = fieldMD;
+			field->mName = GetStringFromToken(context, fieldMD->NameToken);
+			field->mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+
+			fieldTable->Fields[i] = field;
 		}
+		//Compute layout
+		GenerateLayout(fieldTable);
 
-		auto field = new (context->Heap) FieldDescriptor();
-		field->mColdMD = fieldMD;
-		field->mName = GetStringFromToken(context, fieldMD->NameToken);
-		field->mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
-
-		fieldTable->Fields[i] = field;
+		//Set field table
+		type->mFieldTable = fieldTable;
 	}
-	//Compute layout
-	GenerateLayout(fieldTable);
-
-	//Set field table
-	type->mFieldTable = fieldTable;
 
 	//Load method table
 	auto methodTable = new (context->Heap) MethodTable();
@@ -272,7 +286,12 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 
 void RTM::MetaManager::GenerateLayout(FieldTable* table)
 {
+	
+}
 
+bool RTM::MetaManager::HasVisitedType(VisitSet const& visited, TypeIdentity const& identity)
+{
+	return visited.find(identity) != visited.end();
 }
 
 RTM::AssemblyContext* RTM::MetaManager::StartUp(RTString assemblyName)

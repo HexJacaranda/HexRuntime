@@ -15,7 +15,34 @@
 
 namespace RTM
 {
-	using VisitSet = std::unordered_set<MDToken>;
+	struct TypeIdentity
+	{
+		RTME::GUID GUID;
+		MDToken TypeDef;
+
+		UInt32 GetHashCode()const
+		{
+			return RTME::ComputeHashCode(*this);
+		}
+	};
+
+	struct TypeIdentityHash
+	{
+		inline UInt32 operator()(TypeIdentity const& identity)const 
+		{
+			return identity.GetHashCode();
+		}
+	};
+
+	struct TypeIdentityEqual
+	{
+		inline bool operator()(TypeIdentity const& left, TypeIdentity const& right)const
+		{
+			return std::memcmp(&left, &right, sizeof(TypeIdentity)) == 0;
+		}
+	};
+
+	using VisitSet = std::unordered_set<TypeIdentity, TypeIdentityHash, TypeIdentityEqual>;
 
 	using WaitingList = std::vector<TypeDescriptor*>;
 
@@ -51,6 +78,7 @@ namespace RTM
 
 		void GenerateLayout(FieldTable* table);
 
+		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);
 		/// <summary>
 		/// Unlocked
 		/// </summary>
