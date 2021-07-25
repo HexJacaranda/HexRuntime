@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /HexRuntime/VTune Profiler Results/HexRuntime
 *.Core
+/HexRuntime/VTune Profiler Results/sample (matrix)
