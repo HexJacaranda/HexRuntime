@@ -11,11 +11,16 @@
 #include "Runtime/Core/Interlocked.h"
 #include "Runtime/Core/Meta/MetaManager.h"
 
+#undef _DEBUG
+
+#include "Runtime/ConcurrentMap.h"
+
 
 using namespace RTJ;
 using namespace RTC;
 using namespace RT;
 using namespace RTM;
+using namespace RT::Concurrent;
 
 void PrepareIL(ILEmitter& il)
 {
@@ -110,7 +115,41 @@ void TSTest()
 	auto type = MetaData->GetTypeFromToken(context, 1);
 }
 
+template<class Fn>
+static void ParallelRun(int threadCount, Fn&& action)
+{
+	std::vector<std::thread> threads{};
+
+	for (int i = 0; i < threadCount; ++i)
+		threads.push_back(std::thread(std::forward<Fn>(action), i));
+
+	for (auto&& thread : threads)
+		thread.join();
+}
+
 int main()
 {
-	TSTest();
+	ConcurrentMap<int, double> map{ 32 };
+	ParallelRun(20, [&](int i)
+		{
+			for (int k = 0; k < 100000; ++k)
+				map.GetOrAdd(k, []() { return 0.0; });
+		});
+
+	//ConcurrentMap<int, double> map{ 32 };
+	//std::vector<std::thread> threads{};
+
+	//for (int i = 0; i < 20; ++i)
+	//{
+	//	threads.push_back(std::thread(
+	//		[&, i]()
+	//		{
+	//			for (int k = 0; k < 100000; ++k)
+	//				map.TryAdd(i * 100000 + k, 0);
+	//		}
+	//	));
+	//}
+
+	//for (auto&& thread : threads)
+	//	thread.join();
 }
