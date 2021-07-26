@@ -228,13 +228,22 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
 	type->mNamespace = GetStringFromToken(context, meta->NamespaceToken);
 	
+	LOG_DEBUG("{}::{} [{}] resolution started",
+		type->GetNamespace()->GetContent(),
+		type->GetTypeName()->GetContent(),
+		type->GetToken());
+
 	//Load parent
 	if (meta->ParentTypeRefToken != NullToken)
+	{
+		LOG_DEBUG("Loading [{}] parent", type->GetToken());
 		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
-
+	}
+		
 	//Load implemented interfaces
 	if (meta->InterfaceCount > 0)
 	{
+		LOG_DEBUG("Loading [{}] interfaces", type->GetToken());
 		type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
 		for (Int32 i = 0; i < meta->InterfaceCount; ++i)
 			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], visited, waitingList, externalWaitingList, shouldWait);
@@ -242,13 +251,20 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 
 	//Load canonical
 	if (meta->CanonicalTypeRefToken != NullToken)
+	{
+		LOG_DEBUG("Loading [{}] canonical type", type->GetToken());
 		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+	}
 	
 	//Load enclosing
 	if (meta->EnclosingTypeRefToken != NullToken)
+	{
+		LOG_DEBUG("Loading [{}] enclosing type", type->GetToken());
 		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+	}
 	
 	{
+		LOG_DEBUG("Loading [{}] fields", type->GetToken());
 		//Load fields
 		auto fieldTable = new (context->Heap) FieldTable();
 
@@ -273,6 +289,8 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 
 			fieldTable->Fields[i] = field;
 		}
+
+		LOG_DEBUG("Generating layout of [{}]", type->GetToken());
 		//Compute layout
 		GenerateLayout(fieldTable, context);
 
@@ -280,13 +298,19 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 		type->mFieldTable = fieldTable;
 	}
 
-	//Load method table
-	auto methodTable = new (context->Heap) MethodTable();
-
-	type->mMethTable = methodTable;
+	{
+		LOG_DEBUG("Loading [{}] methods", type->GetToken());
+		//Load method table
+		auto methodTable = new (context->Heap) MethodTable();
+		type->mMethTable = methodTable;
+	}
 
 	importer->ReturnSession(session);
 
+	LOG_DEBUG("{}::{} [{}] resolution done",
+		type->GetNamespace()->GetContent(),
+		type->GetTypeName()->GetContent(),
+		type->GetToken());
 	return type;
 }
 
@@ -441,13 +465,15 @@ namespace RT
 	{
 		GET_LOGGER_METHOD
 		{
-			auto logger = std::make_shared<spdlog::async_logger>("meta-manager",
+			auto logger = std::make_shared<spdlog::async_logger>(
+				"meta-manager",
 				sinks.begin(),
 				sinks.end(),
-				spdlog::details::thread_pool(8196, 1),
+				threadPool,
 				spdlog::async_overflow_policy::block);
 
-		logger->set_pattern("[%n (%t)][%c] %l : %v");
+			logger->set_level(spdlog::level::debug);
+			logger->set_pattern("[%n (%t)][%c] %l : %v");
 			spdlog::register_logger(logger);
 
 			return logger;

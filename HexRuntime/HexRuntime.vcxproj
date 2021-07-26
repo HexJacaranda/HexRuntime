@@ -106,6 +106,7 @@
     <ClCompile Include="Runtime\Core\Object\Object.cpp" />
     <ClCompile Include="Runtime\Core\Object\ObjectStorage.cpp" />
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
+    <ClCompile Include="Runtime\Logging.cpp" />
     <ClCompile Include="Runtime\RuntimeAlias.cpp" />
   </ItemGroup>
   <ItemGroup>
