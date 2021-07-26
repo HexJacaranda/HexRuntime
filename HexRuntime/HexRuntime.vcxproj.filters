@@ -249,6 +249,9 @@
     <ClInclude Include="Runtime\Logging.h">
       <Filter>头文件\Runtime</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\LoggingConfiguration.h">
+      <Filter>头文件\Runtime</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

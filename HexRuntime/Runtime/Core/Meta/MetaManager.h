@@ -53,7 +53,7 @@ namespace RTM
 	/// </summary>
 	class MetaManager
 	{
-		INJECT_LOGGER(MetaManager);
+		USE_LOGGER(MetaManager);
 		std::shared_mutex mContextLock;
 		std::unordered_map<UInt32, AssemblyContext*> mContexts;
 	private:
@@ -96,6 +96,7 @@ namespace RTM
 		void UnLoadAssembly(AssemblyContext* context);
 		
 	public:
+		MetaManager();
 		AssemblyContext* StartUp(RTString assemblyName);
 		void ShutDown();
 	public:

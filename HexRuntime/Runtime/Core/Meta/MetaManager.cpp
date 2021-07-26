@@ -1,12 +1,35 @@
 #include "MetaManager.h"
 #include "..\Exception\RuntimeException.h"
 #include "..\Memory\PrivateHeap.h"
+#include "..\..\LoggingConfiguration.h"
 #include "..\..\Logging.h"
 #include "CoreTypes.h"
 #include <spdlog/async_logger.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/details/thread_pool.h>
+
+namespace RT
+{
+	SPECIFIC_LOGGER_FOR(MetaManager)
+	{
+		GET_LOGGER_METHOD
+		{
+			auto logger = std::make_shared<spdlog::async_logger>(
+				"meta-manager",
+				sinks.begin(),
+				sinks.end(),
+				threadPool,
+				spdlog::async_overflow_policy::block);
+
+			logger->set_level(spdlog::level::debug);
+			logger->set_pattern("[%n(%t)][%l]:%v");
+			spdlog::register_logger(logger);
+
+			return logger;
+		}
+	};
+}
 
 namespace RTM
 {
@@ -228,7 +251,7 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
 	type->mNamespace = GetStringFromToken(context, meta->NamespaceToken);
 	
-	LOG_DEBUG("{}::{} [{}] resolution started",
+	LOG_DEBUG("{}::{} [{:#x}] resolution started",
 		type->GetNamespace()->GetContent(),
 		type->GetTypeName()->GetContent(),
 		type->GetToken());
@@ -236,14 +259,14 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	//Load parent
 	if (meta->ParentTypeRefToken != NullToken)
 	{
-		LOG_DEBUG("Loading [{}] parent", type->GetToken());
+		LOG_DEBUG("Loading [{:#x}] parent", type->GetToken());
 		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
 	}
 		
 	//Load implemented interfaces
 	if (meta->InterfaceCount > 0)
 	{
-		LOG_DEBUG("Loading [{}] interfaces", type->GetToken());
+		LOG_DEBUG("Loading [{:#x}] interfaces", type->GetToken());
 		type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
 		for (Int32 i = 0; i < meta->InterfaceCount; ++i)
 			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], visited, waitingList, externalWaitingList, shouldWait);
@@ -252,19 +275,19 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	//Load canonical
 	if (meta->CanonicalTypeRefToken != NullToken)
 	{
-		LOG_DEBUG("Loading [{}] canonical type", type->GetToken());
+		LOG_DEBUG("Loading [{:#x}] canonical type", type->GetToken());
 		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
 	}
 	
 	//Load enclosing
 	if (meta->EnclosingTypeRefToken != NullToken)
 	{
-		LOG_DEBUG("Loading [{}] enclosing type", type->GetToken());
+		LOG_DEBUG("Loading [{:#x}] enclosing type", type->GetToken());
 		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
 	}
 	
 	{
-		LOG_DEBUG("Loading [{}] fields", type->GetToken());
+		LOG_DEBUG("Loading [{:#x}] fields", type->GetToken());
 		//Load fields
 		auto fieldTable = new (context->Heap) FieldTable();
 
@@ -290,7 +313,7 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 			fieldTable->Fields[i] = field;
 		}
 
-		LOG_DEBUG("Generating layout of [{}]", type->GetToken());
+		LOG_DEBUG("Generating layout of [{:#x}]", type->GetToken());
 		//Compute layout
 		GenerateLayout(fieldTable, context);
 
@@ -299,7 +322,7 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	}
 
 	{
-		LOG_DEBUG("Loading [{}] methods", type->GetToken());
+		LOG_DEBUG("Loading [{:#x}] methods", type->GetToken());
 		//Load method table
 		auto methodTable = new (context->Heap) MethodTable();
 		type->mMethTable = methodTable;
@@ -307,7 +330,7 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 
 	importer->ReturnSession(session);
 
-	LOG_DEBUG("{}::{} [{}] resolution done",
+	LOG_DEBUG("{}::{} [{:#x}] resolution done",
 		type->GetNamespace()->GetContent(),
 		type->GetTypeName()->GetContent(),
 		type->GetToken());
@@ -384,6 +407,11 @@ bool RTM::MetaManager::HasVisitedType(VisitSet const& visited, TypeIdentity cons
 	return visited.find(identity) != visited.end();
 }
 
+RTM::MetaManager::MetaManager()
+{
+	INJECT_LOGGER(MetaManager);
+}
+
 RTM::AssemblyContext* RTM::MetaManager::StartUp(RTString assemblyName)
 {
 	return LoadAssembly(assemblyName);
@@ -457,26 +485,4 @@ RTM::MethodDescriptor* RTM::MetaManager::GetMethodFromToken(AssemblyContext* con
 RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* context, MDToken fieldReference)
 {
 	return nullptr;
-}
-
-namespace RT
-{
-	SPECIFIC_LOGGER_FOR(RTM::MetaManager)
-	{
-		GET_LOGGER_METHOD
-		{
-			auto logger = std::make_shared<spdlog::async_logger>(
-				"meta-manager",
-				sinks.begin(),
-				sinks.end(),
-				threadPool,
-				spdlog::async_overflow_policy::block);
-
-			logger->set_level(spdlog::level::debug);
-			logger->set_pattern("[%n (%t)][%c] %l : %v");
-			spdlog::register_logger(logger);
-
-			return logger;
-		}
-	};
 }

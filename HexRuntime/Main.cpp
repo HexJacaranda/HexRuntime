@@ -113,4 +113,5 @@ void TSTest()
 int main()
 {
 	TSTest();
+	std::getchar();
 }
