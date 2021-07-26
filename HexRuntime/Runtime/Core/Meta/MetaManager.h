@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\Object\StringObject.h"
+#include "..\..\Logging.h"
 #include "MDRecords.h"
 #include "MDImporter.h"
 #include "MethodDescriptor.h"
@@ -12,6 +13,7 @@
 #include <unordered_set>
 #include <vector>
 #include <shared_mutex>
+#include <memory>
 
 namespace RTM
 {
@@ -51,6 +53,7 @@ namespace RTM
 	/// </summary>
 	class MetaManager
 	{
+		INJECT_LOGGER(MetaManager);
 		std::shared_mutex mContextLock;
 		std::unordered_map<UInt32, AssemblyContext*> mContexts;
 	private:
@@ -76,7 +79,7 @@ namespace RTM
 			WaitingList& externalWaitingList,
 			bool& shouldWait);
 
-		void GenerateLayout(FieldTable* table);
+		void GenerateLayout(FieldTable* table, AssemblyContext* context);
 
 		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);
 		/// <summary>

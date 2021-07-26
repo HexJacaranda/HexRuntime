@@ -246,6 +246,9 @@
     <ClInclude Include="Runtime\Core\Interlocked.h">
       <Filter>头文件\Runtime\Core</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Logging.h">
+      <Filter>头文件\Runtime</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

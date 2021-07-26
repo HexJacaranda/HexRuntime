@@ -67,6 +67,7 @@
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
+    <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
     <ClInclude Include="Runtime\Utility.h" />

@@ -1,6 +1,12 @@
 #include "MetaManager.h"
 #include "..\Exception\RuntimeException.h"
 #include "..\Memory\PrivateHeap.h"
+#include "..\..\Logging.h"
+#include "CoreTypes.h"
+#include <spdlog/async_logger.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/details/thread_pool.h>
 
 namespace RTM
 {
@@ -268,7 +274,7 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 			fieldTable->Fields[i] = field;
 		}
 		//Compute layout
-		GenerateLayout(fieldTable);
+		GenerateLayout(fieldTable, context);
 
 		//Set field table
 		type->mFieldTable = fieldTable;
@@ -284,9 +290,69 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	return type;
 }
 
-void RTM::MetaManager::GenerateLayout(FieldTable* table)
+void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* context)
 {
-	
+	auto fieldLayout = new (context->Heap) FieldsLayout();
+	fieldLayout->Align = sizeof(IntPtr);
+
+	fieldLayout->SlotCount = table->FieldCount;
+	fieldLayout->Slots = new (context->Heap) LayoutSlot[table->FieldCount];
+
+	auto getFieldSize = [](Type* type) 
+	{
+		auto coreType = type->GetCoreType();
+		Int32 fieldSize = 0;
+		if (CoreTypes::IsPrimitive(coreType) ||
+			coreType == CoreTypes::InteriorRef ||
+			coreType == CoreTypes::Ref)
+			fieldSize = CoreTypes::SizeOfCoreType[coreType];
+		else if (coreType == CoreTypes::Struct)
+			fieldSize = type->GetSize();
+		else
+			fieldSize = CoreTypes::Ref;
+
+		return fieldSize;
+	};
+
+	Int32 offset = 0;
+
+	for (Int32 i = 0; i < table->FieldCount; ++i)
+	{
+		auto&& fieldSlot = table->Fields[i];
+		auto&& type = fieldSlot->GetType();
+
+		Int32 leftToBoundary = sizeof(IntPtr) - (offset & (sizeof(IntPtr) - 1));
+		Int32 fieldSize = getFieldSize(type);
+
+		if (leftToBoundary < sizeof(IntPtr))
+		{
+			if (fieldSize <= leftToBoundary)
+			{
+				//Align small objects inside a big alignment
+				if (offset & (fieldSize - 1))
+				{
+					offset &= ~(fieldSize - 1);
+					offset += fieldSize;
+				}
+			}
+			else
+			{
+				//Align to next boundary
+				offset += leftToBoundary;
+			}
+		}
+
+		fieldLayout->Slots[i].Offset = offset;
+		offset += fieldSize;
+	}
+
+	fieldLayout->Size = offset;
+
+	Int32 leftToBoundary = sizeof(IntPtr) - (offset & (sizeof(IntPtr) - 1));
+	if (leftToBoundary != sizeof(IntPtr))
+		fieldLayout->Size += leftToBoundary;
+
+	table->Layout = fieldLayout;
 }
 
 bool RTM::MetaManager::HasVisitedType(VisitSet const& visited, TypeIdentity const& identity)
@@ -367,4 +433,24 @@ RTM::MethodDescriptor* RTM::MetaManager::GetMethodFromToken(AssemblyContext* con
 RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* context, MDToken fieldReference)
 {
 	return nullptr;
+}
+
+namespace RT
+{
+	SPECIFIC_LOGGER_FOR(RTM::MetaManager)
+	{
+		GET_LOGGER_METHOD
+		{
+			auto logger = std::make_shared<spdlog::async_logger>("meta-manager",
+				sinks.begin(),
+				sinks.end(),
+				spdlog::details::thread_pool(8196, 1),
+				spdlog::async_overflow_policy::block);
+
+		logger->set_pattern("[%n (%t)][%c] %l : %v");
+			spdlog::register_logger(logger);
+
+			return logger;
+		}
+	};
 }

@@ -23,6 +23,10 @@ namespace Runtime
 
 	constexpr MDToken NullToken = std::numeric_limits<MDToken>::max();
 
+#ifdef _DEBUG
+#define RTDEBUG
+#endif
+
 #ifdef _M_AMD64
 	using IntPtr = Int64;
 	using Int = Int64;
