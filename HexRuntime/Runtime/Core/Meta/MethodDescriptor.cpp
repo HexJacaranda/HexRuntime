@@ -5,19 +5,14 @@ RT::UInt8 RTM::MethodDescriptor::GetAccessbility() const
 	return mColdMD->Accessibility;
 }
 
-RTM::MethodSignature* RTM::MethodDescriptor::GetSignature() const
+RTM::MethodSignatureDescriptor * RTM::MethodDescriptor::GetSignature() const
 {
-	return nullptr;
+	return mSignature;
 }
 
-RT::ObservableArray<RTME::ArgumentMD> RTM::MethodDescriptor::GetArguments() const
+RT::ObservableArray<RTM::MethodLocalVariableDescriptor> RTM::MethodDescriptor::GetLocalVariables() const
 {
-	return { mArguments, mColdMD->Signature.ArgumentCount };
-}
-
-RT::ObservableArray<RTME::LocalVariableMD> RTM::MethodDescriptor::GetLocalVariables() const
-{
-	return { mColdMD->ILCodeMD.LocalVariables,  mColdMD->ILCodeMD.LocalVariableCount };
+	return { mLocals,  mColdMD->ILCodeMD.LocalVariableCount };
 }
 
 RTME::ILMD* RTM::MethodDescriptor::GetIL() const
@@ -48,4 +43,29 @@ bool RTM::MethodDescriptor::IsFinal() const
 bool RTM::MethodDescriptor::IsGeneric() const
 {
 	return mColdMD->IsGeneric();
+}
+
+RTM::TypeDescriptor* RTM::MethodArgumentDescriptor::GetType()
+{
+	return mType;
+}
+
+RTO::StringObject* RTM::MethodArgumentDescriptor::GetName()
+{
+	return mManagedName;
+}
+
+RTM::TypeDescriptor* RTM::MethodLocalVariableDescriptor::GetType()
+{
+	return mType;
+}
+
+RTO::StringObject* RTM::MethodLocalVariableDescriptor::GetName()
+{
+	return mManagedName;
+}
+
+RT::ObservableArray<RTM::MethodArgumentDescriptor> RTM::MethodSignatureDescriptor::GetArguments() const
+{
+	return { mArguments, mColdMD->ArgumentCount };
 }

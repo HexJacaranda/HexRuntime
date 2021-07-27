@@ -7,14 +7,38 @@
 
 namespace RTM
 {
-	struct MethodArgument : public Descriptor<RTME::ArgumentMD>
-	{
+	class TypeDescriptor;
+}
 
+namespace RTM
+{
+	class MethodArgumentDescriptor : public Descriptor<RTME::ArgumentMD>
+	{
+		friend class MetaManager;
+		TypeDescriptor* mType;
+		RTO::StringObject* mManagedName;
+	public:
+		TypeDescriptor* GetType();
+		RTO::StringObject* GetName();
 	};
 
-	struct MethodSignature : public Descriptor<RTME::MethodSignatureMD>
+	class MethodLocalVariableDescriptor : public Descriptor<RTME::LocalVariableMD>
 	{
+		friend class MetaManager;
+		TypeDescriptor* mType;
+		RTO::StringObject* mManagedName;
+	public:
+		TypeDescriptor* GetType();
+		RTO::StringObject* GetName();
+	};
 
+	class MethodSignatureDescriptor : public Descriptor<RTME::MethodSignatureMD>
+	{
+		friend class MetaManager;
+		TypeDescriptor* mReturnType;
+		MethodArgumentDescriptor* mArguments;
+	public:
+		ObservableArray<MethodArgumentDescriptor> GetArguments()const;
 	};
 
 	/// <summary>
@@ -24,13 +48,12 @@ namespace RTM
 	{
 		friend class MetaManager;
 		RTO::StringObject* mManagedName;
-		MethodSignature* mSignature;
-		RTME::ArgumentMD* mArguments;
+		MethodSignatureDescriptor* mSignature;
+		MethodLocalVariableDescriptor* mLocals;
 	public:
 		UInt8 GetAccessbility()const;
-		MethodSignature* GetSignature()const;
-		ObservableArray<RTME::ArgumentMD> GetArguments()const;
-		ObservableArray<RTME::LocalVariableMD> GetLocalVariables()const;
+		MethodSignatureDescriptor* GetSignature()const;
+		ObservableArray<MethodLocalVariableDescriptor> GetLocalVariables()const;
 		RTME::ILMD* GetIL()const;
 		bool IsInstance()const;
 		bool IsVirtual()const;

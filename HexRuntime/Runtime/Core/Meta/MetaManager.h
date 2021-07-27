@@ -4,16 +4,34 @@
 #include "..\..\Logging.h"
 #include "MDRecords.h"
 #include "MDImporter.h"
-#include "MethodDescriptor.h"
 #include "FieldDescriptor.h"
 #include "TypeDescriptor.h"
 #include "AssemblyContext.h"
+#include "MethodTable.h"
+#include "InterfaceDispatchTable.h"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <shared_mutex>
 #include <memory>
+
+#define INJECT(...) __VA_ARGS__
+
+//For consistency and convenience
+#define LOADING_CONTEXT VisitSet& visited,\
+		WaitingList& waitingList,\
+		WaitingList& externalWaitingList, \
+		bool& shouldWait
+
+#define IMPORT_CONTEXT AssemblyContext* context,\
+		RTME::TypeMD* meta,\
+		RTME::IImportSession* session,\
+		RTME::MDImporter* importer
+
+#define USE_IMPORT_CONTEXT context, meta, session, importer
+
+#define USE_LOADING_CONTEXT visited, waitingList, externalWaitingList, shouldWait
 
 namespace RTM
 {
@@ -65,21 +83,20 @@ namespace RTM
 		TypeDescriptor* GetTypeFromTokenInternal(
 			AssemblyContext* context, 
 			MDToken typeReference, 
-			VisitSet& visited,
-			WaitingList& waitingList,
-			WaitingList& externalWaitingList,
-			bool& shouldWait,
+			INJECT(LOADING_CONTEXT),
 			bool allowWait = false);
 
 		TypeDescriptor* ResolveType(
 			AssemblyContext* context,
 			MDToken typeDefinition,
-			VisitSet& visited,
-			WaitingList& waitingList,
-			WaitingList& externalWaitingList,
-			bool& shouldWait);
+			INJECT(LOADING_CONTEXT));
+
+		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
 
 		void GenerateLayout(FieldTable* table, AssemblyContext* context);
+
+		MethodTable* GenerateMethodTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
+		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
 
 		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);
 		/// <summary>

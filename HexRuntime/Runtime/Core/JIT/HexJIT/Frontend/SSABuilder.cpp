@@ -1,6 +1,7 @@
 #include "SSABuilder.h"
 #include "IR.h"
 #include "..\..\..\Meta\CoreTypes.h"
+#include "..\..\..\Meta\MethodDescriptor.h"
 
 #define IMPORT_LOCAL(LOCAL, INDEX, KIND) \
 	auto INDEX = LOCAL->LocalIndex; \
@@ -23,13 +24,13 @@ void RTJ::Hex::SSABuilder::DecideSSATrackability()
 	auto rawContext = mJITContext->Context;
 
 	auto localVariables = rawContext->MethDescriptor->GetLocalVariables();
-	auto arguments = rawContext->MethDescriptor->GetArguments();
+	auto arguments = rawContext->MethDescriptor->GetSignature()->GetArguments();
 
 	for (Int32 i = 0; i < localVariables.Count; ++i)
-		mJITContext->LocalAttaches[i].Flags |= trackableSign(localVariables[i].CoreType);
+		mJITContext->LocalAttaches[i].Flags |= trackableSign(localVariables[i].GetType()->GetCoreType());
 
 	for (Int32 i = 0; i < arguments.Count; ++i)
-		mJITContext->ArgumentAttaches[i].Flags |= trackableSign(arguments[i].CoreType);
+		mJITContext->ArgumentAttaches[i].Flags |= trackableSign(arguments[i].GetType()->GetCoreType());
 }
 
 bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)

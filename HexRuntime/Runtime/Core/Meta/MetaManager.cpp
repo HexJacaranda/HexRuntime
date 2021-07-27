@@ -64,10 +64,7 @@ RTM::TypeDescriptor* RTM::MetaManager::TryQueryType(AssemblyContext* context, MD
 RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	AssemblyContext* context,
 	MDToken typeReference,
-	VisitSet& visited,
-	WaitingList& waitingList,
-	WaitingList& externalWaitingList,
-	bool& shouldWait,
+	INJECT(LOADING_CONTEXT),
 	bool allowWaitOnEntry)
 {
 	auto&& typeRef = context->TypeRefs[typeReference];
@@ -227,10 +224,7 @@ void RTM::MetaManager::UnLoadAssembly(AssemblyContext* context)
 RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	AssemblyContext* context,
 	MDToken typeDefinition,
-	VisitSet& visited,
-	WaitingList& waitingList,
-	WaitingList& externalWaitingList,
-	bool& shouldWait)
+	INJECT(LOADING_CONTEXT))
 {
 	auto&& importer = context->Importer;
 	auto meta = new (context->Heap) RTME::TypeMD();
@@ -250,7 +244,7 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	type->mSelf = typeDefinition;
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
 	type->mNamespace = GetStringFromToken(context, meta->NamespaceToken);
-	
+
 	LOG_DEBUG("{}::{} [{:#x}] resolution started",
 		type->GetNamespace()->GetContent(),
 		type->GetTypeName()->GetContent(),
@@ -260,73 +254,43 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 	if (meta->ParentTypeRefToken != NullToken)
 	{
 		LOG_DEBUG("Loading [{:#x}] parent", type->GetToken());
-		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, USE_LOADING_CONTEXT);
 	}
-		
+
 	//Load implemented interfaces
 	if (meta->InterfaceCount > 0)
 	{
 		LOG_DEBUG("Loading [{:#x}] interfaces", type->GetToken());
 		type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
 		for (Int32 i = 0; i < meta->InterfaceCount; ++i)
-			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], visited, waitingList, externalWaitingList, shouldWait);
+			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], USE_LOADING_CONTEXT);
 	}
 
 	//Load canonical
 	if (meta->CanonicalTypeRefToken != NullToken)
 	{
 		LOG_DEBUG("Loading [{:#x}] canonical type", type->GetToken());
-		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
+		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, USE_LOADING_CONTEXT);
 	}
-	
+
 	//Load enclosing
 	if (meta->EnclosingTypeRefToken != NullToken)
 	{
 		LOG_DEBUG("Loading [{:#x}] enclosing type", type->GetToken());
-		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
-	}
-	
-	{
-		LOG_DEBUG("Loading [{:#x}] fields", type->GetToken());
-		//Load fields
-		auto fieldTable = new (context->Heap) FieldTable();
-
-		//Field descriptors
-		fieldTable->FieldCount = meta->FieldCount;
-		fieldTable->Fields = new (context->Heap) FieldDescriptor * [meta->FieldCount];
-
-		for (Int32 i = 0; i < meta->FieldCount; ++i)
-		{
-			auto fieldMD = new (context->Heap) RTME::FieldMD();
-
-			if (!importer->ImportField(session, meta->FieldTokens[i], fieldMD))
-			{
-				importer->ReturnSession(session);
-				THROW("Error occurred when importing type meta data");
-			}
-
-			auto field = new (context->Heap) FieldDescriptor();
-			field->mColdMD = fieldMD;
-			field->mName = GetStringFromToken(context, fieldMD->NameToken);
-			field->mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, visited, waitingList, externalWaitingList, shouldWait);
-
-			fieldTable->Fields[i] = field;
-		}
-
-		LOG_DEBUG("Generating layout of [{:#x}]", type->GetToken());
-		//Compute layout
-		GenerateLayout(fieldTable, context);
-
-		//Set field table
-		type->mFieldTable = fieldTable;
+		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, USE_LOADING_CONTEXT);
 	}
 
-	{
-		LOG_DEBUG("Loading [{:#x}] methods", type->GetToken());
-		//Load method table
-		auto methodTable = new (context->Heap) MethodTable();
-		type->mMethTable = methodTable;
-	}
+	//Loading field table
+	LOG_DEBUG("Loading [{:#x}] fields", type->GetToken());
+	type->mFieldTable = GenerateFieldTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
+
+	//Loading method table
+	LOG_DEBUG("Loading [{:#x}] methods", type->GetToken());
+	type->mMethTable = GenerateMethodTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
+
+	//Loading(generating) interface table
+	LOG_DEBUG("Loading [{:#x}] interface table", type->GetToken());
+	type->mInterfaceTable = GenerateInterfaceTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
 	importer->ReturnSession(session);
 
@@ -335,6 +299,39 @@ RTM::TypeDescriptor* RTM::MetaManager::ResolveType(
 		type->GetTypeName()->GetContent(),
 		type->GetToken());
 	return type;
+}
+
+RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT))
+{
+	//Load fields
+	auto fieldTable = new (context->Heap) FieldTable();
+
+	//Field descriptors
+	fieldTable->FieldCount = meta->FieldCount;
+	fieldTable->Fields = new (context->Heap) FieldDescriptor * [meta->FieldCount];
+	auto fieldMDs = new (context->Heap) RTME::FieldMD[meta->FieldCount];
+
+	for (Int32 i = 0; i < meta->FieldCount; ++i)
+	{
+		auto fieldMD = &fieldMDs[i];
+
+		if (!importer->ImportField(session, meta->FieldTokens[i], fieldMD))
+		{
+			importer->ReturnSession(session);
+			THROW("Error occurred when importing type meta data");
+		}
+
+		auto field = new (context->Heap) FieldDescriptor();
+		field->mColdMD = fieldMD;
+		field->mName = GetStringFromToken(context, fieldMD->NameToken);
+		field->mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, USE_LOADING_CONTEXT);
+
+		fieldTable->Fields[i] = field;
+	}
+
+	//Compute layout
+	GenerateLayout(fieldTable, context);
+	return fieldTable;
 }
 
 void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* context)
@@ -400,6 +397,70 @@ void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* contex
 		fieldLayout->Size += leftToBoundary;
 
 	table->Layout = fieldLayout;
+}
+
+RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT))
+{
+	auto methodTable = new (context->Heap) MethodTable();
+	methodTable->Methods = new (context->Heap) MethodDescriptor[meta->MethodCount];
+	auto methodMDs = new (context->Heap) RTME::MethodMD[meta->MethodCount];
+
+	auto generateSignature = [&](RTME::MethodSignatureMD& signatureMD) 
+	{
+		auto arguments = new (context->Heap) MethodArgumentDescriptor[signatureMD.ArgumentCount];
+		auto argumentMDs = new (context->Heap) RTME::ArgumentMD[signatureMD.ArgumentCount];
+		auto signature = new MethodSignatureDescriptor();
+
+		signature->mColdMD = &signatureMD;
+		signature->mReturnType = GetTypeFromTokenInternal(context, signatureMD.ReturnTypeRefToken, USE_LOADING_CONTEXT);
+		signature->mArguments = arguments;
+
+		for (Int32 i = 0; i < signatureMD.ArgumentCount; ++i)
+		{
+			auto&& argumentMD = argumentMDs[i];
+			auto&& argument = arguments[i];
+			if (!importer->ImportArgument(session, signatureMD.ArgumentTokens[i], &argumentMD))
+			{
+				importer->ReturnSession(session);
+				THROW("Error occurred when importing type meta data");
+			}
+
+			argument.mColdMD = &argumentMD;
+			argument.mType = GetTypeFromTokenInternal(context, signatureMD.ReturnTypeRefToken, USE_LOADING_CONTEXT);
+			argument.mManagedName = GetStringFromToken(context, argumentMD.NameToken);
+		}
+		return signature;
+	};
+
+	for (Int32 i = 0; i < meta->MethodCount; ++i)
+	{
+		auto&& descriptor = methodTable->Methods[i];
+		auto&& methodMD = methodMDs[i];
+
+		if (!importer->ImportMethod(session, meta->MethodTokens[i], &methodMD))
+		{
+			importer->ReturnSession(session);
+			THROW("Error occurred when importing type meta data");
+		}
+
+		if (methodMD.IsStatic())
+			methodTable->StaticMethodCount++;
+		else if (methodMD.IsVirtual())
+			methodTable->VirtualMethodCount++;
+		else
+			methodTable->InstanceMethodCount++;
+
+		descriptor.mColdMD = &methodMD;
+		descriptor.mManagedName = GetStringFromToken(context, methodMD.NameToken);
+		descriptor.mSignature = generateSignature(methodMD.Signature);
+	}
+
+	return methodTable;
+}
+
+RTM::InterfaceDispatchTable* RTM::MetaManager::GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT))
+{
+	return nullptr;
 }
 
 bool RTM::MetaManager::HasVisitedType(VisitSet const& visited, TypeIdentity const& identity)

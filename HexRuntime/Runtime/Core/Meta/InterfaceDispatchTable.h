@@ -5,6 +5,6 @@ namespace RTM
 {
 	class InterfaceDispatchTable
 	{
-
+		friend class MetaManager;
 	};
 }

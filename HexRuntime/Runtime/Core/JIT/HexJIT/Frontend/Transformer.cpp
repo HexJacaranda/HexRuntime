@@ -3,6 +3,7 @@
 #include "..\..\..\..\Utility.h"
 #include "..\..\..\Exception\RuntimeException.h"
 #include "..\..\..\Meta\MetaManager.h"
+#include "..\..\..\Meta\MethodDescriptor.h"
 #include <unordered_map>
 #include <assert.h>
 
@@ -84,7 +85,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 	//Keep uniformity for convenience of traversal in SSA building
 	auto ret = new(POOL) LoadNode(SLMode, local);
 	//Set node type info
-	ret->TypeInfo = locals[localIndex].CoreType;
+	ret->TypeInfo = locals[localIndex].GetType()->GetCoreType();
 	return ret;
 }
 
@@ -92,14 +93,14 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
 	auto local = new(POOL) LocalVariableNode(localIndex);
-	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
+	auto&& locals = GetRawContext()->MethDescriptor->GetSignature()->GetArguments();
 
 	if (localIndex >= locals.Count)
 		THROW("Argument index out of range.");
 	//Keep uniformity for convenience of traversal in SSA building
 	auto ret = new(POOL) LoadNode(SLMode, local);
 	//Set node type info
-	ret->TypeInfo = locals[localIndex].CoreType;
+	ret->TypeInfo = locals[localIndex].GetType()->GetCoreType();
 	return ret;
 }
 
@@ -199,8 +200,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 	TreeNode* value = mEvalStack.Pop();
 
 	auto argumentIndex = ReadAs<Int16>();
-	auto arguments = GetRawContext()->MethDescriptor->GetArguments();
-	auto coreType = arguments[argumentIndex].CoreType;
+	auto arguments = GetRawContext()->MethDescriptor->GetSignature()->GetArguments();
+	auto coreType = arguments[argumentIndex].GetType()->GetCoreType();
 
 	if (!value->CheckWith(coreType))
 		THROW("Type check failed.");
