@@ -38,7 +38,7 @@ RT::Int32 RTM::InterfaceDispatchTable::GetIndex(Int32 interfaceIndex, MDToken to
 	return -1;
 }
 
-void RTM::InterfaceDispatchTable::Put(Int32 interfaceIndex, MDToken token, Int32 index)
+void RTM::InterfaceDispatchTable::Put(Int32 interfaceIndex, MDToken token, Int32 methodIndex)
 {
 	Int64 key = (((Int64)interfaceIndex) << 32) | (Int64)token;
 	Int32 index, startIndex;
@@ -53,7 +53,7 @@ void RTM::InterfaceDispatchTable::Put(Int32 interfaceIndex, MDToken token, Int32
 		if (slot.GetHash() == 0)
 		{
 			slot.Key = key;
-			slot.Index = index;
+			slot.Index = methodIndex;
 			break;
 		}
 		index++;

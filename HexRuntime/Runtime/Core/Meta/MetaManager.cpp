@@ -467,10 +467,18 @@ RTM::InterfaceDispatchTable* RTM::MetaManager::GenerateInterfaceTable(Type* curr
 	std::unordered_set<Type*> interfaceSet;
 
 	Int32 totalCount = 0;
-	for (auto&& interface :interfaces)
+	for (auto&& interface : interfaces)
 	{
-
+		if (!interfaceSet.contains(interface))
+			interfaceSet.insert(interface);
 	}
+
+	for (auto&& each : interfaceSet)
+	{
+		auto methodTable = each->GetMethodTable();
+	}
+
+	return table;
 }
 
 bool RTM::MetaManager::HasVisitedType(VisitSet const& visited, TypeIdentity const& identity)
