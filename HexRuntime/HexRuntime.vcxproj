@@ -97,6 +97,7 @@
     <ClCompile Include="Runtime\Core\Meta\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp" />

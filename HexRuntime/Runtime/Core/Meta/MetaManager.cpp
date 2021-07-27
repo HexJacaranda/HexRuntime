@@ -460,7 +460,17 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(INJECT(IMPORT_CONTEXT, L
 
 RTM::InterfaceDispatchTable* RTM::MetaManager::GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT))
 {
-	return nullptr;
+	auto table = new InterfaceDispatchTable();
+	auto interfaces = current->GetInterfaces();
+
+	//Remove the duplicate interfaces
+	std::unordered_set<Type*> interfaceSet;
+
+	Int32 totalCount = 0;
+	for (auto&& interface :interfaces)
+	{
+
+	}
 }
 
 bool RTM::MetaManager::HasVisitedType(VisitSet const& visited, TypeIdentity const& identity)

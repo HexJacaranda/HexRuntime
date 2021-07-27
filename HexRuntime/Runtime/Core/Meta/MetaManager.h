@@ -96,6 +96,7 @@ namespace RTM
 		void GenerateLayout(FieldTable* table, AssemblyContext* context);
 
 		MethodTable* GenerateMethodTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
+
 		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
 
 		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);

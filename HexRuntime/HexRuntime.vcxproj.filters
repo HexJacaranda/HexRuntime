@@ -359,6 +359,9 @@
     <ClCompile Include="Runtime\Logging.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
