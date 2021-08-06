@@ -278,6 +278,7 @@ namespace RTME
 		END_FLAGS
 
 		MethodSignatureMD Signature;
+		MDToken OverridesMethodRef;
 		ILMD ILCodeMD;
 		Int32 NativeLinkCount;
 		NativeLinkMD* NativeLinks;

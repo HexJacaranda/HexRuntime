@@ -57,6 +57,12 @@ namespace RTM
 
 		bool IsArray()const;
 		bool IsString()const;
+		bool IsInterface()const;
+		bool IsSealed()const;
+		bool IsStruct()const;
+		bool IsAbstract()const;
+		bool IsAttribute()const;
+		bool IsGeneric()const;
 	};
 
 	using Type = TypeDescriptor;

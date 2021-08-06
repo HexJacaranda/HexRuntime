@@ -164,6 +164,7 @@ bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, Meth
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Flags));
 
 	ImportMethodSignature(session, &methodMD->Signature);
+	IF_SESSION_FAIL_RET(ReadInto(methodMD->OverridesMethodRef));
 	ImportIL(session, &methodMD->ILCodeMD);
 	
 	IMPORT_NESTED_SERIES(methodMD->NativeLinkCount, methodMD->NativeLinks, ImportNativeLink);

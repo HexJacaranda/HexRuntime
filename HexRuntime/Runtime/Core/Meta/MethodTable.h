@@ -12,9 +12,21 @@ namespace RTM
 	{
 		friend class MetaManager;
 
-		Int32 VirtualMethodCount;
-		Int32 InstanceMethodCount;
-		Int32 StaticMethodCount;
-		MethodDescriptor* Methods;
+		Int32 mVirtualMethodCount;
+		Int32 mInstanceMethodCount;
+		Int32 mStaticMethodCount;
+		Int32 mOverridenRegionCount;
+		MethodDescriptor** mOverridenRegion;
+		MethodDescriptor** mMethods;
+		MDToken mBaseMethodToken;
+	public:
+		ObservableArray<MethodDescriptor*> GetVirtualMethods()const;
+		ObservableArray<MethodDescriptor*> GetNonVirtualMethods()const;
+		ObservableArray<MethodDescriptor*> GetStaticMethods()const;
+		ObservableArray<MethodDescriptor*> GetInstanceMethods()const;
+		ObservableArray<MethodDescriptor*> GetMethods()const;
+		ObservableArray<MethodDescriptor*> GetOverridenRegion()const;
+		Int32 GetCount()const;
+		MethodDescriptor* GetMethodBy(MDToken methodDefToken);
 	};
 }

@@ -15,7 +15,9 @@ namespace RT
 	public:
 		ForcedInline T* begin()const { return Values; }
 		ForcedInline T* end()const { return Values + Count; }
-		ForcedInline T& operator[](Int32 index) { return Values[index]; };
-		ForcedInline T const& operator[](Int32 index)const { return Values[index]; };
+		ForcedInline T& operator[](Int32 index) { return Values[index]; }
+		ForcedInline T const& operator[](Int32 index)const { return Values[index]; }
+		ObservableArray<T> Slice(Int32 count)const { return { Values, count }; }
+		ObservableArray<T> Slice(Int32 index, Int32 count)const { return { Values + index, count }; }
 	};
 }

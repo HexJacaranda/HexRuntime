@@ -42,6 +42,11 @@ void* RTMM::PrivateHeap::Allocate(Int32 size, Int32 align)
 	return mi_heap_malloc_aligned(GetCurrentRawHeap(), size, align);
 }
 
+void* RTMM::PrivateHeap::Free(void* target)
+{
+	mi_free(target);
+}
+
 void* operator new(size_t size, RTMM::PrivateHeap* allocator)
 {
 	return allocator->Allocate(size);
@@ -54,8 +59,10 @@ void* operator new[](size_t size, RTMM::PrivateHeap* allocator)
 
 void operator delete(void* target, RTMM::PrivateHeap* allocator)
 {
+	allocator->Free(target);
 }
 
 void operator delete[](void* target, RTMM::PrivateHeap* allocator)
 {
+	allocator->Free(target);
 }

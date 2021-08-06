@@ -50,6 +50,7 @@ namespace RTM
 		RTO::StringObject* mManagedName;
 		MethodSignatureDescriptor* mSignature;
 		MethodLocalVariableDescriptor* mLocals;
+		Int32 mOverrideRedirectIndex = -1;
 	public:
 		UInt8 GetAccessbility()const;
 		MethodSignatureDescriptor* GetSignature()const;

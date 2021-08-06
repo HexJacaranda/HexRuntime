@@ -80,3 +80,33 @@ bool RTM::TypeDescriptor::IsString() const
 {
 	return GetCoreType() == CoreTypes::String;
 }
+
+bool RTM::TypeDescriptor::IsInterface() const
+{
+	return mColdMD->IsInterface();
+}
+
+bool RTM::TypeDescriptor::IsSealed() const
+{
+	return mColdMD->IsSealed();
+}
+
+bool RTM::TypeDescriptor::IsStruct() const
+{
+	return mColdMD->IsStruct();
+}
+
+bool RTM::TypeDescriptor::IsAbstract() const
+{
+	return mColdMD->IsAbstract();
+}
+
+bool RTM::TypeDescriptor::IsAttribute() const
+{
+	return mColdMD->IsAttribute();
+}
+
+bool RTM::TypeDescriptor::IsGeneric() const
+{
+	return mColdMD->IsGeneric();
+}

@@ -78,24 +78,34 @@ namespace RTM
 		AssemblyContext* TryQueryContextLocked(RTME::AssemblyRefMD* reference);
 		AssemblyContext* TryQueryContext(RTME::AssemblyRefMD* reference);
 
+		static TypeDefEntry& GetTypeEntryFrom(Type* target);
+
 		TypeDescriptor* TryQueryType(AssemblyContext* context, MDToken typeDefinition);
+
+		/*
+		* Load the type, called internally. The waitStatus actually will only work in case where
+		* the type you wish to load it's being loaded by other thread.
+		*/
 
 		TypeDescriptor* GetTypeFromTokenInternal(
 			AssemblyContext* context, 
 			MDToken typeReference, 
 			INJECT(LOADING_CONTEXT),
+			Int8 waitStatus = -1,
 			bool allowWait = false);
 
-		TypeDescriptor* ResolveType(
+		void ResolveType(
 			AssemblyContext* context,
+			TypeDescriptor* type,
 			MDToken typeDefinition,
+			TypeDefEntry& entry,
 			INJECT(LOADING_CONTEXT));
 
 		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
 
 		void GenerateLayout(FieldTable* table, AssemblyContext* context);
 
-		MethodTable* GenerateMethodTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
+		MethodTable* GenerateMethodTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
 
 		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
 

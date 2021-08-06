@@ -22,11 +22,13 @@ namespace RTM
 	{
 		friend class MetaManager;
 
-		FieldsLayout* Layout;
-		Int32 FieldCount;
-		FieldDescriptor** Fields;
+		FieldsLayout* mLayout;
+		Int32 mFieldCount;
+		FieldDescriptor* mFields;
+		MDToken mBaseToken;
 	public:
-		ObservableArray<FieldDescriptor*> GetFields()const;
+		ObservableArray<FieldDescriptor> GetFields()const;
+		FieldDescriptor* GetFieldBy(MDToken fieldDefToken)const;
 		FieldsLayout* GetLayout()const;
 	};
 }
