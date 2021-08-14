@@ -20,6 +20,11 @@ RTME::ILMD* RTM::MethodDescriptor::GetIL() const
 	return &mColdMD->ILCodeMD;
 }
 
+RT::MDToken RTM::MethodDescriptor::GetDefToken() const
+{
+	return mSelf;
+}
+
 bool RTM::MethodDescriptor::IsInstance() const
 {
 	return mColdMD->IsInstance();

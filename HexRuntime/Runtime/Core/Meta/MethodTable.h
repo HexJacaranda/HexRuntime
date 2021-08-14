@@ -28,5 +28,6 @@ namespace RTM
 		ObservableArray<MethodDescriptor*> GetOverridenRegion()const;
 		Int32 GetCount()const;
 		MethodDescriptor* GetMethodBy(MDToken methodDefToken);
+		Int32 GetMethodIndexBy(MDToken methodDefToken);
 	};
 }

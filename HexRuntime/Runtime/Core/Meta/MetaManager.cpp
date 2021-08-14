@@ -519,6 +519,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		descriptor->mColdMD = &methodMD;
 		descriptor->mManagedName = GetStringFromToken(context, methodMD.NameToken);
 		descriptor->mSignature = generateSignature(methodMD.Signature);
+		descriptor->mSelf = i;
 
 		if (methodMD.IsVirtual())
 		{
@@ -545,9 +546,20 @@ RTM::InterfaceDispatchTable* RTM::MetaManager::GenerateInterfaceTable(Type* curr
 	if (current->IsInterface())
 		return nullptr;
 
-	auto table = new InterfaceDispatchTable();
+	auto table = new (context->Heap) InterfaceDispatchTable();
 	auto interfaces = current->GetInterfaces();
 	auto methodTable = current->GetMethodTable();
+
+	auto findIndexInInterfaces = [&](Type* target) {
+		Int32 index = -1;
+		for (Int32 i = 0; i < interfaces.Count; ++i)
+			if (interfaces[i] == target)
+			{
+				index = i;
+				break;
+			}
+		return index;
+	};
 	//For all the methods, we
 	//1. try to find the revirtualized one overriden by us and redirect it
 	//2. try to arrange normal methods that directly implements the interface
@@ -557,31 +569,49 @@ RTM::InterfaceDispatchTable* RTM::MetaManager::GenerateInterfaceTable(Type* curr
 		auto&& methodMD = method->GetMetadata();
 		auto overrideToken = methodMD->OverridesMethodRef;
 		if (overrideToken != NullToken)
-		{ 
+		{
 			//It's not a new slot
 			auto&& memberRef = context->MemberRefs[overrideToken];
 			//Find the type that defines method to be overriden
-			auto type = GetTypeFromTokenInternal(context, memberRef.TypeRefToken, USE_LOADING_CONTEXT);
-			if (methodMD->IsVirtual())
+			auto type = GetTypeFromTokenInternal(context, memberRef.TypeRefToken, USE_LOADING_CONTEXT, TypeStatus::Basic);
+
+			if (!type->IsInterface())
 			{
-				if (type->IsInterface())
+				//Overrides normal type
+				//Requires higher level
+				type = GetTypeFromTokenInternal(context, memberRef.TypeRefToken, USE_LOADING_CONTEXT, TypeStatus::MethodTableDone);
+				auto overridenMethod = type->GetMethodTable()->GetMethodBy(overrideToken);
+
+				MDToken revirtualizedMethodRef = overridenMethod->mColdMD->OverridesMethodRef;
+				//The root virtual call is a revirtualization for some interface method
+				if (revirtualizedMethodRef != NullToken)
 				{
-					//Directly implements
+					auto revirtualizedMethodMemberRef = type->GetAssembly()->MemberRefs[revirtualizedMethodRef];
+					auto revirtualizedMethodOwner = GetTypeFromTokenInternal(type->GetAssembly(), revirtualizedMethodMemberRef.TypeRefToken, USE_LOADING_CONTEXT, TypeStatus::MethodTableDone);
+
+					if (!revirtualizedMethodOwner->IsInterface())
+						THROW("Bad metadata for overriding method");
+
+					//Update to the real interface target
+					type = revirtualizedMethodOwner;
+					overrideToken = revirtualizedMethodRef;
 				}
 				else
 				{
-					//Go for interface dispatch table
-
+					//Normal virtual method, continue
+					continue;
 				}
 			}
-			else
-			{
-				/* If it's not a virtual method, then the type of that overriden method
-				* must be interface
-				*/
 
+			Int32 index = findIndexInInterfaces(type);
+			if (index == -1)
+				THROW("Interface type not found in implementation list");
 
-			}		
+			//Requires higher level
+			type = GetTypeFromTokenInternal(context, memberRef.TypeRefToken, USE_LOADING_CONTEXT, TypeStatus::MethodTableDone);
+			auto overridenMethod = type->GetMethodTable()->GetMethodBy(overrideToken);
+			//Set in interface table
+			table->Put(index, overridenMethod->GetDefToken(), methodTable->GetMethodIndexBy(method->GetDefToken()));
 		}
 	}
 

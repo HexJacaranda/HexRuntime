@@ -51,11 +51,13 @@ namespace RTM
 		MethodSignatureDescriptor* mSignature;
 		MethodLocalVariableDescriptor* mLocals;
 		Int32 mOverrideRedirectIndex = -1;
+		MDToken mSelf;
 	public:
 		UInt8 GetAccessbility()const;
 		MethodSignatureDescriptor* GetSignature()const;
 		ObservableArray<MethodLocalVariableDescriptor> GetLocalVariables()const;
 		RTME::ILMD* GetIL()const;
+		MDToken GetDefToken()const;
 		bool IsInstance()const;
 		bool IsVirtual()const;
 		bool IsOverride()const;

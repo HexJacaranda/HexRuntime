@@ -45,3 +45,13 @@ RTM::MethodDescriptor* RTM::MethodTable::GetMethodBy(MDToken methodDefToken)
 
     return mMethods[methodDefToken - mBaseMethodToken];
 }
+
+RT::Int32 RTM::MethodTable::GetMethodIndexBy(MDToken methodDefToken)
+{
+    if (methodDefToken == NullToken ||
+        methodDefToken < mBaseMethodToken ||
+        (methodDefToken - mBaseMethodToken > GetCount()))
+        THROW("Token out of ranges");
+
+    return methodDefToken - mBaseMethodToken;
+}
