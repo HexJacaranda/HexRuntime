@@ -112,6 +112,8 @@
     <ClCompile Include="Runtime\RuntimeAlias.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Tools\Assemblier\metadata.l" />
+    <None Include="..\Tools\Assemblier\metadata.y" />
     <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
