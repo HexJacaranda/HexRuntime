@@ -1,8 +1,10 @@
-parser grammar assemblier;
-
+parser grammar Assemblier;
+@header {
+    package hex;
+}
 options {
     // 表示解析token的词法解析器使用SearchLexer
-    tokenVocab = assemblierLexer;
+    tokenVocab = AssemblierLexer;
 }
 
 start: class_def*;

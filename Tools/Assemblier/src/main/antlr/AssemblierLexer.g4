@@ -1,4 +1,7 @@
-lexer grammar assemblierLexer;
+lexer grammar AssemblierLexer;
+@header {
+    package hex;
+}
 
 WS : [ \t\n\r]+ -> skip;
 
