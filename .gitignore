@@ -364,3 +364,10 @@ FodyWeavers.xsd
 /HexRuntime/VTune Profiler Results/HexRuntime
 *.Core
 /HexRuntime/VTune Profiler Results/sample (matrix)
+/Tools/Assemblier/gen
+/Tools/Assemblier/build
+/Tools/Assemblier/.idea
+/Tools/Assemblier/.gradle
+/Tools/Assemblier/gradle/wrapper
+/Tools/Assemblier/gradlew.bat
+/Tools/Assemblier/gradlew

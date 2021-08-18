@@ -371,12 +371,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
-    <None Include="..\Tools\Assemblier\metadata.l">
-      <Filter>Tools\Assemblier</Filter>
-    </None>
-    <None Include="..\Tools\Assemblier\metadata.y">
-      <Filter>Tools\Assemblier</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Runtime\Core\Runtime.natvis">
