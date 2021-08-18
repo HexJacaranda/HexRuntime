@@ -226,7 +226,6 @@ namespace RTME
 	{
 		MDToken TypeRefToken;
 		MDToken NameToken;
-		UInt8 CoreType;	
 		union {
 			MDToken StringRefToken;
 			Int64 Data;
@@ -242,8 +241,8 @@ namespace RTME
 	
 	struct LocalVariableMD
 	{
-		UInt8 CoreType;
 		MDToken TypeRefToken;
+		MDToken NameToken;
 	};
 
 	struct ILMD

@@ -91,12 +91,6 @@
     <Filter Include="DebugVisual">
       <UniqueIdentifier>{fd3daf33-4161-4eb1-bb47-a1c2352b1f7e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Tools">
-      <UniqueIdentifier>{fb6f442d-c9e1-49a0-ad6d-7f55ee95ef08}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tools\Assemblier">
-      <UniqueIdentifier>{ca1b993f-25e7-4931-b230-a3459a7fa19c}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -366,7 +360,7 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\Tables</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
