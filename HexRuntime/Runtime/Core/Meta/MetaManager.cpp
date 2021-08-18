@@ -519,7 +519,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		descriptor->mColdMD = &methodMD;
 		descriptor->mManagedName = GetStringFromToken(context, methodMD.NameToken);
 		descriptor->mSignature = generateSignature(methodMD.Signature);
-		descriptor->mSelf = i;
+		descriptor->mSelf = meta->MethodTokens[i];
 
 		if (methodMD.IsVirtual())
 		{
@@ -531,7 +531,11 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		else
 			methodTable->mInstanceMethodCount++;
 	}
-
+	if (methodTable->GetCount() > 0)
+	{
+		//Set base token
+		methodTable->mBaseMethodToken = methodTable->mMethods[0]->GetDefToken();
+	}
 	//Set our overriden region
 	methodTable->mOverridenRegionCount = overridenMethods.size();
 	methodTable->mOverridenRegion = new (context->Heap) MethodDescriptor * [overridenMethods.size()];

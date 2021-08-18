@@ -156,7 +156,6 @@ bool RTME::MDImporter::ImportArgument(IImportSession* session, MDToken token, Ar
 bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, MethodMD* methodMD)
 {
 	LOCATE(MethodDef);
-
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Accessibility));
