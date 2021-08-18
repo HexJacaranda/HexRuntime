@@ -303,6 +303,7 @@ namespace RTME
 			FLAG_GET(IsInterface, 4)
 			FLAG_GET(IsAttribute, 5)
 			FLAG_GET(IsGeneric, 6)
+			FLAG_GET(IsNested, 7)
 		END_FLAGS
 
 		TOKEN_SERIES(Field);
