@@ -170,9 +170,9 @@ namespace RTME
 
 		BEGIN_FLAGS(UInt16)
 			FLAG_GET(IsVolatile, 0)
-			FLAG_GET(IsInstance, 1)
-			FLAG_GET(IsStatic, 2)
-			FLAG_GET(IsConstant, 3)
+			FLAG_GET(IsStatic, 1)
+			FLAG_GET(IsConstant, 2)
+			FLAG_GET(IsReadOnly, 3)
 			FLAG_GET(IsThreadLocal, 4)
 		END_FLAGS
 
