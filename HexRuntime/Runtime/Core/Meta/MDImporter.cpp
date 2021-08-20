@@ -167,6 +167,7 @@ bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, Meth
 	
 	IMPORT_NESTED_SERIES(methodMD->NativeLinkCount, methodMD->NativeLinks, ImportNativeLink);
 	IF_SESSION_FAIL_RET(ReadIntoSeries(methodMD->AttributeCount, methodMD->AttributeTokens));
+	IF_SESSION_FAIL_RET(ReadIntoSeries(methodMD->GenericParameterCount, methodMD->GenericParameterTokens));
 	return true;
 }
 
@@ -197,8 +198,6 @@ bool RTME::MDImporter::ImportProperty(IImportSession* session, MDToken token, Pr
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->GetterToken));
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->BackingFieldToken));
 	IF_SESSION_FAIL_RET(ReadInto(propertyMD->NameToken));
-	IF_SESSION_FAIL_RET(ReadInto(propertyMD->Accessibility));
-	IF_SESSION_FAIL_RET(ReadInto(propertyMD->Flags));	
 	IF_SESSION_FAIL_RET(ReadIntoSeries(propertyMD->AttributeCount, propertyMD->AttributeTokens));
 	return true;
 }
@@ -213,7 +212,6 @@ bool RTME::MDImporter::ImportEvent(IImportSession* session, MDToken token, Event
 	IF_SESSION_FAIL_RET(ReadInto(eventMD->RemoverToken));
 	IF_SESSION_FAIL_RET(ReadInto(eventMD->BackingFieldToken));
 	IF_SESSION_FAIL_RET(ReadInto(eventMD->NameToken));
-	IF_SESSION_FAIL_RET(ReadInto(eventMD->Flags));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(eventMD->AttributeCount, eventMD->AttributeTokens));
 	return true;
 }
@@ -256,6 +254,7 @@ bool RTME::MDImporter::ImportString(IImportSession* session, StringMD* stringMD)
 bool RTME::MDImporter::ImportTypeRef(IImportSession* session, TypeRefMD* typeRefMD)
 {
 	IF_SESSION_FAIL_RET(ReadInto(typeRefMD->AssemblyToken));
+	IF_SESSION_FAIL_RET(ReadInto(typeRefMD->DefKind));
 	IF_SESSION_FAIL_RET(ReadInto(typeRefMD->TypeDefToken));
 	return true;
 }

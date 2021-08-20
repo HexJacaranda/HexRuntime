@@ -13,12 +13,13 @@ namespace RTME
 		it refers to generic parameter.
 	*/
 
-	enum class MDRecordKinds
+	enum class MDRecordKinds: Int16
 	{
 		String,
 		Argument,
 		GenericParameter,
 		TypeDef,
+		GenericInstantiationDef,
 		AttributeDef,
 		MethodDef,
 		FieldDef,
@@ -73,7 +74,7 @@ namespace RTME
 			sizeof(AssemblyHeaderMD::NameToken) +
 			sizeof(AssemblyHeaderMD::MajorVersion) +
 			sizeof(AssemblyHeaderMD::MinorVersion) +
-			sizeof(AssemblyHeaderMD::GroupNameToken)+
+			sizeof(AssemblyHeaderMD::GroupNameToken) +
 			sizeof(AssemblyHeaderMD::GUID);
 	};
 
@@ -115,7 +116,23 @@ namespace RTME
 	struct TypeRefMD
 	{
 		MDToken AssemblyToken;
-		MDToken TypeDefToken;
+		/// <summary>
+		/// Only GenericInstantiationDef, GenericParamter and TypeDef are allowed
+		/// </summary>
+		MDRecordKinds DefKind;
+		union 
+		{
+			/// <summary>
+			/// Actually the TypeDefToken is at the same level with GenericInstantiationDefToken.
+			/// They really points to some While GenericParameterDefToken here 
+			/// </summary>
+			MDToken TypeDefToken;
+			MDToken GenericInstantiationDefToken;
+			/// <summary>
+			/// Use the generic parameter from outer context
+			/// </summary>
+			MDToken GenericParameterDefToken;
+		};		
 	};
 
 	/// <summary>
@@ -124,8 +141,22 @@ namespace RTME
 	struct MemberRefMD
 	{
 		MDToken TypeRefToken;
+		/// <summary>
+		/// Highest bit to indicate whether it's a generic instantiation
+		/// </summary>
 		MDRecordKinds MemberDefKind;
-		MDToken MemberDefToken;
+		union
+		{
+			MDToken MemberDefToken;
+			//Only available when it's a method 
+			MDToken GenericInstantiationDefToken;
+		};		
+		MDRecordKinds GetMemberDefKind()const { 
+			return (MDRecordKinds)((Int32)MemberDefKind & ~0x80000000); 
+		};
+		bool IsGenericInstantiation()const { 
+			return !!((Int32)MemberDefKind & 0x80000000);
+		}
 	};
 
 	struct AssemblyRefMD
@@ -187,16 +218,6 @@ namespace RTME
 		MDToken GetterToken;
 		MDToken BackingFieldToken;
 		MDToken NameToken;
-		UInt8 Accessibility;
-
-		BEGIN_FLAGS(UInt16)
-			FLAG_GET(IsInstance, 0)
-			FLAG_GET(IsVirtual, 1)
-			FLAG_GET(IsStatic, 2)
-			FLAG_GET(IsOverride, 3)
-			FLAG_GET(IsFinal, 4)
-			FLAG_GET(IsRTSpecial, 5)
-		END_FLAGS
 
 		TOKEN_SERIES(Attribute);
 	};
@@ -209,15 +230,6 @@ namespace RTME
 		MDToken RemoverToken;
 		MDToken BackingFieldToken;
 		MDToken NameToken;
-		UInt8 Accessibility;
-
-		BEGIN_FLAGS(UInt16)
-			FLAG_GET(IsInstance, 0)
-			FLAG_GET(IsVirtual, 1)
-			FLAG_GET(IsStatic, 2)
-			FLAG_GET(IsOverride, 3)
-			FLAG_GET(IsFinal, 4)
-		END_FLAGS
 
 		TOKEN_SERIES(Attribute);
 	};
@@ -260,6 +272,12 @@ namespace RTME
 		};
 	};
 
+	struct GenericInstantiationMD
+	{
+		MDToken CanonicalTypeRefToken;
+		TOKEN_SERIES(TypeParameter);
+	};
+
 	struct MethodMD
 	{
 		MDToken ParentTypeRefToken;
@@ -282,6 +300,7 @@ namespace RTME
 		Int32 NativeLinkCount;
 		NativeLinkMD* NativeLinks;
 
+		TOKEN_SERIES(GenericParameter);
 		TOKEN_SERIES(Attribute);
 	};
 
