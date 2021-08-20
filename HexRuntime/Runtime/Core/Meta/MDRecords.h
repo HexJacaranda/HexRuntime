@@ -309,9 +309,9 @@ namespace RTME
 		MDToken ParentAssemblyToken;
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
+		MDToken FullQualifiedNameToken;
 		MDToken EnclosingTypeRefToken;
 		MDToken CanonicalTypeRefToken;
-		MDToken NamespaceToken;
 		UInt8 CoreType;
 		UInt8 Accessibility;
 

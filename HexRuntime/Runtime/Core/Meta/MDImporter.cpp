@@ -223,9 +223,9 @@ bool RTME::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentAssemblyToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->NameToken));
+	IF_SESSION_FAIL_RET(ReadInto(typeMD->FullQualifiedNameToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->EnclosingTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->CanonicalTypeRefToken));
-	IF_SESSION_FAIL_RET(ReadInto(typeMD->NamespaceToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->CoreType));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(typeMD->FieldCount, typeMD->FieldTokens));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(typeMD->MethodCount, typeMD->MethodTokens));
