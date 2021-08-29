@@ -86,11 +86,10 @@ RTJ::FlowEntry RTJ::ILEmitter::EmitJmp(Int32 offset)
 	return entry;
 }
 
-void RTJ::ILEmitter::EmitConv(UInt8 from, UInt8 to)
+void RTJ::ILEmitter::EmitConv( UInt8 to)
 {
-	Requires(OpcodeSize + 2 * sizeof(UInt8));
+	Requires(OpcodeSize + sizeof(UInt8));
 	Write(OpCodes::Conv);
-	Write(from);
 	Write(to);
 }
 

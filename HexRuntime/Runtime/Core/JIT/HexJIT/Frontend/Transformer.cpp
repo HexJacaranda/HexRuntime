@@ -311,9 +311,8 @@ RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic
 RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 {
 	auto value = mEvalStack.Pop();
-	UInt8 from = ReadAs<UInt8>();
 	UInt8 to = ReadAs<UInt8>();
-	return new(POOL) ConvertNode(value, from, to);
+	return new(POOL) ConvertNode(value, to);
 }
 
 void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)

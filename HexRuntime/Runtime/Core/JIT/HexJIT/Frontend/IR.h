@@ -276,14 +276,11 @@ namespace RTJ::Hex
 	{
 		ConvertNode(
 			TreeNode* value,
-			UInt8 from,
 			UInt8 to)
 			: UnaryNode(NodeKinds::UnaryArithmetic),
 			Value(value),
-			From(from),
 			To(to) {}
 		TreeNode* Value;
-		UInt8 From;
 		UInt8 To;
 	};
 
