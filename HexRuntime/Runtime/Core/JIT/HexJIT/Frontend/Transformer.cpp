@@ -213,7 +213,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
 	TreeNode* value = mEvalStack.Pop();
 	auto localIndex = ReadAs<Int16>();
-	auto coreType = mILMD->LocalVariables[localIndex].CoreType;
+	auto coreType = Meta::MetaData->GetTypeFromToken(GetRawContext()->Assembly,
+		mILMD->LocalVariables[localIndex].TypeRefToken)->GetCoreType();
 
 	if (!value->CheckWith(coreType))
 		THROW("Type check failed.");

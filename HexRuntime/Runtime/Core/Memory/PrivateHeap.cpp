@@ -42,7 +42,7 @@ void* RTMM::PrivateHeap::Allocate(Int32 size, Int32 align)
 	return mi_heap_malloc_aligned(GetCurrentRawHeap(), size, align);
 }
 
-void* RTMM::PrivateHeap::Free(void* target)
+void RTMM::PrivateHeap::Free(void* target)
 {
 	mi_free(target);
 }

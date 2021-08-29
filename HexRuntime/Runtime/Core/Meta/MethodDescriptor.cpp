@@ -25,9 +25,9 @@ RT::MDToken RTM::MethodDescriptor::GetDefToken() const
 	return mSelf;
 }
 
-bool RTM::MethodDescriptor::IsInstance() const
+bool RTM::MethodDescriptor::IsStatic() const
 {
-	return mColdMD->IsInstance();
+	return mColdMD->IsStatic();
 }
 
 bool RTM::MethodDescriptor::IsVirtual() const
