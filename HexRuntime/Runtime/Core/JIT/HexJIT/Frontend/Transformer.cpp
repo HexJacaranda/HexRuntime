@@ -297,15 +297,19 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 {
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
-	UInt8 kind = ReadAs<UInt8>();
-	return new(POOL) BinaryArithmeticNode(left, right, kind, opcode);
+	auto node = new(POOL) BinaryArithmeticNode(left, right, opcode);
+	if (left->TypeInfo != right->TypeInfo)
+		THROW("Unconsistency of binary operators");
+	node->TypeInfo = left->TypeInfo;
+	return node;
 }
 
 RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic(UInt8 opcode)
 {
 	auto value = mEvalStack.Pop();
-	UInt8 kind = ReadAs<UInt8>();
-	return new(POOL) UnaryArithmeticNode(value, kind, opcode);
+	auto node = new(POOL) UnaryArithmeticNode(value, opcode);
+	node->TypeInfo = value->TypeInfo;
+	return node;
 }
 
 RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()

@@ -93,11 +93,10 @@ void RTJ::ILEmitter::EmitConv( UInt8 to)
 	Write(to);
 }
 
-void RTJ::ILEmitter::EmitAriOperation(UInt8 opcode, UInt8 coreType)
+void RTJ::ILEmitter::EmitAriOperation(UInt8 opcode)
 {
 	Requires(OpcodeSize + sizeof(UInt8));
 	Write(opcode);
-	Write(coreType);
 }
 
 void RTJ::ILEmitter::EmitCompare(UInt8 condition)

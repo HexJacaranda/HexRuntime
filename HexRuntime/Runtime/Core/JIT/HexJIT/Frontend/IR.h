@@ -241,16 +241,13 @@ namespace RTJ::Hex
 		BinaryArithmeticNode(
 			TreeNode* left,
 			TreeNode* right,
-			UInt8 type,
 			UInt8 opcode)
 			: BinaryNode(NodeKinds::BinaryArithmetic),
-			Type(type),
 			Left(left),
 			Right(right),
 			Opcode(opcode) {}
 		TreeNode* Left;
 		TreeNode* Right;
-		UInt8 Type;
 		UInt8 Opcode;
 	};
 
@@ -258,14 +255,11 @@ namespace RTJ::Hex
 	{
 		UnaryArithmeticNode(
 			TreeNode* value,
-			UInt8 type,
 			UInt8 opcode)
 			: UnaryNode(NodeKinds::UnaryArithmetic),
 			Value(value),
-			Type(type),
 			Opcode(opcode) {}
 		TreeNode* Value;
-		UInt8 Type;
 		UInt8 Opcode;
 	};
 

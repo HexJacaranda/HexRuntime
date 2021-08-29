@@ -85,7 +85,7 @@ namespace RTJ
 		/// </summary>
 		/// <param name="opcode"></param>
 		/// <param name="coreType"></param>
-		void EmitAriOperation(UInt8 opcode, UInt8 coreType);
+		void EmitAriOperation(UInt8 opcode);
 		/// <summary>
 		/// Emit compare operation
 		/// </summary>
