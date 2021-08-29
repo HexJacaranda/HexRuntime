@@ -20,7 +20,6 @@ namespace RTM
 		TypeDescriptor* GetType()const;
 		RTO::StringObject* GetName()const;
 
-		bool IsInstance()const;
 		bool IsStatic()const;
 		bool IsThreadLocal()const;
 	};
