@@ -205,12 +205,12 @@ namespace RTJ
 		IL(Cmp, 0x43, 0x21);
 		
 		/// <summary>
-		/// Conditional, followed by int16 il offset
+		/// Conditional, followed by int32 il offset
 		/// </summary>
 		IL(Jcc, 0x44, 0x10);
 		
 		/// <summary>
-		/// Unconditional, followed by int16 il offset
+		/// Unconditional, followed by int32 il offset
 		/// </summary>
 		IL(Jmp, 0x45, 0x00);
 		

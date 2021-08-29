@@ -108,8 +108,8 @@ bool RTME::MDImporter::ImportNativeLink(IImportSession* session, NativeLinkMD* n
 
 bool RTME::MDImporter::ImportLocalVariable(IImportSession* session, LocalVariableMD* localMD)
 {
-	IF_SESSION_FAIL_RET(ReadInto(localMD->CoreType));
 	IF_SESSION_FAIL_RET(ReadInto(localMD->TypeRefToken));
+	IF_SESSION_FAIL_RET(ReadInto(localMD->NameToken));
 	return true;
 }
 
@@ -147,7 +147,6 @@ bool RTME::MDImporter::ImportArgument(IImportSession* session, MDToken token, Ar
 	LOCATE(Argument);
 
 	IF_SESSION_FAIL_RET(ReadInto(argumentMD->TypeRefToken));
-	IF_SESSION_FAIL_RET(ReadInto(argumentMD->CoreType));
 	IF_SESSION_FAIL_RET(ReadInto(argumentMD->DefaultValue));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(argumentMD->AttributeCount, argumentMD->AttributeTokens));
 
@@ -157,7 +156,6 @@ bool RTME::MDImporter::ImportArgument(IImportSession* session, MDToken token, Ar
 bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, MethodMD* methodMD)
 {
 	LOCATE(MethodDef);
-
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Accessibility));

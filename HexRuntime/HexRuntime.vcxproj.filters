@@ -360,7 +360,7 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\Tables</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -170,9 +170,9 @@ namespace RTME
 
 		BEGIN_FLAGS(UInt16)
 			FLAG_GET(IsVolatile, 0)
-			FLAG_GET(IsInstance, 1)
-			FLAG_GET(IsStatic, 2)
-			FLAG_GET(IsConstant, 3)
+			FLAG_GET(IsStatic, 1)
+			FLAG_GET(IsConstant, 2)
+			FLAG_GET(IsReadOnly, 3)
 			FLAG_GET(IsThreadLocal, 4)
 		END_FLAGS
 
@@ -226,7 +226,6 @@ namespace RTME
 	{
 		MDToken TypeRefToken;
 		MDToken NameToken;
-		UInt8 CoreType;	
 		union {
 			MDToken StringRefToken;
 			Int64 Data;
@@ -242,8 +241,8 @@ namespace RTME
 	
 	struct LocalVariableMD
 	{
-		UInt8 CoreType;
 		MDToken TypeRefToken;
+		MDToken NameToken;
 	};
 
 	struct ILMD
@@ -304,6 +303,7 @@ namespace RTME
 			FLAG_GET(IsInterface, 4)
 			FLAG_GET(IsAttribute, 5)
 			FLAG_GET(IsGeneric, 6)
+			FLAG_GET(IsNested, 7)
 		END_FLAGS
 
 		TOKEN_SERIES(Field);
