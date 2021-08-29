@@ -267,13 +267,12 @@ namespace RTME
 		UInt8 Accessibility;
 
 		BEGIN_FLAGS(UInt16)
-			FLAG_GET(IsInstance, 0)
-			FLAG_GET(IsVirtual, 1)
-			FLAG_GET(IsStatic, 2)
-			FLAG_GET(IsOverride, 3)
-			FLAG_GET(IsFinal, 4)
-			FLAG_GET(IsGeneric, 5)
-			FLAG_GET(IsRTSpecial, 6)
+			FLAG_GET(IsVirtual, 0)
+			FLAG_GET(IsStatic, 1)
+			FLAG_GET(IsOverride, 2)
+			FLAG_GET(IsFinal, 3)
+			FLAG_GET(IsGeneric, 4)
+			FLAG_GET(IsRTSpecial, 5)
 		END_FLAGS
 
 		MethodSignatureMD Signature;

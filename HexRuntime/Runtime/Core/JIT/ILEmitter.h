@@ -79,13 +79,13 @@ namespace RTJ
 		/// </summary>
 		/// <param name="from"></param>
 		/// <param name="to"></param>
-		void EmitConv(UInt8 from, UInt8 to);
+		void EmitConv(UInt8 to);
 		/// <summary>
 		/// Emit arithmetic operation
 		/// </summary>
 		/// <param name="opcode"></param>
 		/// <param name="coreType"></param>
-		void EmitAriOperation(UInt8 opcode, UInt8 coreType);
+		void EmitAriOperation(UInt8 opcode);
 		/// <summary>
 		/// Emit compare operation
 		/// </summary>

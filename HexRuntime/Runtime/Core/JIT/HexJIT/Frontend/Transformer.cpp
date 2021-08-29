@@ -213,7 +213,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
 	TreeNode* value = mEvalStack.Pop();
 	auto localIndex = ReadAs<Int16>();
-	auto coreType = mILMD->LocalVariables[localIndex].CoreType;
+	auto coreType = Meta::MetaData->GetTypeFromToken(GetRawContext()->Assembly,
+		mILMD->LocalVariables[localIndex].TypeRefToken)->GetCoreType();
 
 	if (!value->CheckWith(coreType))
 		THROW("Type check failed.");
@@ -296,23 +297,26 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 {
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
-	UInt8 kind = ReadAs<UInt8>();
-	return new(POOL) BinaryArithmeticNode(left, right, kind, opcode);
+	auto node = new(POOL) BinaryArithmeticNode(left, right, opcode);
+	if (left->TypeInfo != right->TypeInfo)
+		THROW("Unconsistency of binary operators");
+	node->TypeInfo = left->TypeInfo;
+	return node;
 }
 
 RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic(UInt8 opcode)
 {
 	auto value = mEvalStack.Pop();
-	UInt8 kind = ReadAs<UInt8>();
-	return new(POOL) UnaryArithmeticNode(value, kind, opcode);
+	auto node = new(POOL) UnaryArithmeticNode(value, opcode);
+	node->TypeInfo = value->TypeInfo;
+	return node;
 }
 
 RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 {
 	auto value = mEvalStack.Pop();
-	UInt8 from = ReadAs<UInt8>();
 	UInt8 to = ReadAs<UInt8>();
-	return new(POOL) ConvertNode(value, from, to);
+	return new(POOL) ConvertNode(value, to);
 }
 
 void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
