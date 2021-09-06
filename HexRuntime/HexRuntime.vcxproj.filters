@@ -362,6 +362,9 @@
     <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp">
       <Filter>源文件\Tables</Filter>
     </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

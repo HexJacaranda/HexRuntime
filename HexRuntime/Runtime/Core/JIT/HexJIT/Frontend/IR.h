@@ -5,6 +5,13 @@
 #include "..\..\..\Meta\CoreTypes.h"
 #include <vector>
 
+namespace RTM
+{
+	class TypeDescriptor;
+	class FieldDescriptor;
+	class MethodDescriptor;
+}
+
 namespace RTJ::Hex
 {
 	enum class NodeKinds : UInt8
@@ -39,7 +46,7 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Indicate the type info of this node
 		/// </summary>
-		UInt8 TypeInfo = CoreTypes::Object;
+		RTM::TypeDescriptor* TypeInfo = nullptr;
 		/// <summary>
 		/// For linearization
 		/// </summary>
@@ -60,17 +67,11 @@ namespace RTJ::Hex
 			return (T*)this;
 		}
 
-		ForcedInline bool CheckWith(TreeNode* target)const {
-			return TypeInfo == target->TypeInfo;
-		}
-
-		ForcedInline bool CheckWith(UInt8 coreType)const {
-			return TypeInfo == coreType;
-		}
-
-		ForcedInline void TypeFrom(TreeNode* target) {
-			TypeInfo = target->TypeInfo;
-		}
+		bool CheckEquivalentWith(TreeNode* target)const;
+		bool CheckEquivalentWith(RTM::TypeDescriptor* target)const;
+		bool CheckUpCastFrom(TreeNode* target)const;
+		bool CheckUpCastFrom(RTM::TypeDescriptor* source)const;
+		void TypeFrom(TreeNode* target);
 	};
 
 	struct UnaryNode : TreeNode {
@@ -123,16 +124,16 @@ namespace RTJ::Hex
 	struct CallNode : TreeNode
 	{
 		CallNode(
-			UInt32 methodReference,
+			RTM::MethodDescriptor* method,
 			TreeNode** arugments,
 			Int32 argumentCount)
 			:TreeNode(NodeKinds::Call),
-			MethodReference(methodReference),
+			Method(method),
 			Arguments(arugments),
 			ArgumentCount(argumentCount) {}
 		Int32 ArgumentCount;
 		TreeNode** Arguments;
-		UInt32 MethodReference;
+		RTM::MethodDescriptor* Method;
 	};
 
 
@@ -186,30 +187,30 @@ namespace RTJ::Hex
 
 	struct StaticFieldNode : TreeNode
 	{
-		StaticFieldNode(UInt32 fieldReference)
+		StaticFieldNode(RTM::FieldDescriptor* field)
 			:TreeNode(NodeKinds::StaticField),
-			FieldReference(fieldReference) {}
-		UInt32 FieldReference;
+			Field(field) {}
+		RTM::FieldDescriptor* Field;
 	};
 
 	struct InstanceFieldNode : UnaryNode
 	{
-		InstanceFieldNode(UInt32 fieldReference, TreeNode* source)
+		InstanceFieldNode(RTM::FieldDescriptor* field, TreeNode* source)
 			:UnaryNode(NodeKinds::InstanceField),
-			FieldReference(fieldReference),
+			Field(field),
 			Source(source) {}
 		TreeNode* Source;
-		UInt32 FieldReference;
+		RTM::FieldDescriptor* Field;
 	};
 
 	struct NewNode : TreeNode
 	{
-		NewNode(UInt32 ctor)
+		NewNode(RTM::MethodDescriptor* ctor)
 			:TreeNode(NodeKinds::New),
-			MethodReference(ctor) {}
+			Method(ctor) {}
 		Int32 ArgumentCount = 0;
 		TreeNode** Arguments = nullptr;
-		UInt32 MethodReference;
+		RTM::MethodDescriptor* Method;
 	};
 
 	struct NewArrayNode : TreeNode
@@ -276,14 +277,11 @@ namespace RTJ::Hex
 	{
 		ConvertNode(
 			TreeNode* value,
-			UInt8 from,
 			UInt8 to)
 			: UnaryNode(NodeKinds::UnaryArithmetic),
 			Value(value),
-			From(from),
 			To(to) {}
 		TreeNode* Value;
-		UInt8 From;
 		UInt8 To;
 	};
 

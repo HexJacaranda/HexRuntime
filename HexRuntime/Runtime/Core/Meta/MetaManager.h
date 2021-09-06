@@ -133,6 +133,8 @@ namespace RTM
 		RTO::StringObject* GetStringFromToken(AssemblyContext* context, MDToken stringToken);
 		MethodDescriptor* GetMethodFromToken(AssemblyContext* context, MDToken methodReference);
 		FieldDescriptor* GetFieldFromToken(AssemblyContext* context, MDToken fieldReference);
+
+		TypeDescriptor* GetIntrinsicTypeFromCoreType(UInt8 coreType);
 	};
 
 	extern MetaManager* MetaData;

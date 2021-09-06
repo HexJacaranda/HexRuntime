@@ -1,14 +1,15 @@
 #include "TypeDescriptor.h"
 #include "CoreTypes.h"
+#include "..\Exception\RuntimeException.h"
 
 RTO::StringObject* RTM::TypeDescriptor::GetTypeName() const
 {
 	return mTypeName;
 }
 
-RTO::StringObject* RTM::TypeDescriptor::GetNamespace() const
+RTO::StringObject* RTM::TypeDescriptor::GetFullQualifiedName() const
 {
-	return mNamespace;
+	return mFullQualifiedName;
 }
 
 RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetInterfaces() const
@@ -109,4 +110,23 @@ bool RTM::TypeDescriptor::IsAttribute() const
 bool RTM::TypeDescriptor::IsGeneric() const
 {
 	return mColdMD->IsGeneric();
+}
+
+bool RTM::TypeDescriptor::IsAssignableFrom(TypeDescriptor* another) const
+{
+	if (another == nullptr)
+		THROW("Invalid type descriptor");
+
+	auto parentChain = another;
+	while (parentChain != nullptr && this != parentChain)
+		parentChain = parentChain->GetParentType();
+	if (parentChain != nullptr)
+		return true;
+
+	//TODO: Loop unrolling to improve perf
+	for (auto&& interface : another->GetInterfaces())
+		if (interface == this)
+			return true;
+
+	return false;
 }

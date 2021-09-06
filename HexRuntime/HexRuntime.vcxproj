@@ -84,6 +84,7 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp" />

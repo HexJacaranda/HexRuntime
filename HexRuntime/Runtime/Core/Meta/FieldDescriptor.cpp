@@ -10,11 +10,6 @@ RTO::StringObject* RTM::FieldDescriptor::GetName() const
 	return mName;
 }
 
-bool RTM::FieldDescriptor::IsInstance() const
-{
-	return mColdMD->IsInstance();
-}
-
 bool RTM::FieldDescriptor::IsStatic() const
 {
 	return mColdMD->IsStatic();

@@ -25,7 +25,7 @@ namespace RTM
 		MDToken mSelf;
 
 		RTO::StringObject* mTypeName;
-		RTO::StringObject* mNamespace;
+		RTO::StringObject* mFullQualifiedName;
 		TypeDescriptor* mParent;
 		TypeDescriptor* mEnclosing;
 		TypeDescriptor* mCanonical;
@@ -40,7 +40,7 @@ namespace RTM
 		AssemblyContext* mContext;
 	public:
 		RTO::StringObject* GetTypeName()const;
-		RTO::StringObject* GetNamespace()const;
+		RTO::StringObject* GetFullQualifiedName()const;
 		ObservableArray<TypeDescriptor*> GetInterfaces()const;
 		ObservableArray<TypeDescriptor*> GetTypeArguments()const;
 		UInt8 GetCoreType()const;
@@ -63,6 +63,8 @@ namespace RTM
 		bool IsAbstract()const;
 		bool IsAttribute()const;
 		bool IsGeneric()const;
+
+		bool IsAssignableFrom(TypeDescriptor* another)const;
 	};
 
 	using Type = TypeDescriptor;

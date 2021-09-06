@@ -258,11 +258,10 @@ void RTM::MetaManager::ResolveType(
 	type->mColdMD = meta;
 	type->mSelf = typeDefinition;
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
-	type->mNamespace = GetStringFromToken(context, meta->NamespaceToken);
+	type->mFullQualifiedName = GetStringFromToken(context, meta->FullQualifiedNameToken);
 
-	LOG_DEBUG("{}::{} [{:#10x}] resolution started",
-		type->GetNamespace()->GetContent(),
-		type->GetTypeName()->GetContent(),
+	LOG_DEBUG("{} [{:#10x}] resolution started",
+		type->GetFullQualifiedName()->GetContent(),
 		type->GetToken());
 
 	//Load parent
@@ -318,9 +317,8 @@ void RTM::MetaManager::ResolveType(
 
 	importer->ReturnSession(session);
 
-	LOG_DEBUG("{}::{} [{:#10x}] resolution done",
-		type->GetNamespace()->GetContent(),
-		type->GetTypeName()->GetContent(),
+	LOG_DEBUG("{} [{:#10x}] resolution done",
+		type->GetFullQualifiedName()->GetContent(),
 		type->GetToken());
 }
 
@@ -709,4 +707,10 @@ RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* conte
 	auto&& memberRef = context->MemberRefs[fieldReference];
 	auto type = GetTypeFromToken(context, memberRef.TypeRefToken);
 	return type->GetFieldTable()->GetFieldBy(memberRef.MemberDefToken);
+}
+
+RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreType)
+{
+	//TODO
+	return nullptr;
 }

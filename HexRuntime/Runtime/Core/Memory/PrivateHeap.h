@@ -28,7 +28,7 @@ namespace RTMM
 
 		void* Allocate(Int32 size);
 		void* Allocate(Int32 size, Int32 align);
-		void* Free(void* target);
+		void Free(void* target);
 	};
 }
 

@@ -18,10 +18,6 @@ namespace RTJ::Hex
 		const UInt8* mCodePtrBound;
 		const UInt8* mPreviousCodePtr;
 		EvaluationStack mEvalStack;
-		// Current instruction BAE state
-
-		UInt8 mBaeIn = 0;
-		UInt8 mBaeOut = 0;
 
 		// Fast streaming
 		template<class T> ForcedInline T ReadAs() {
