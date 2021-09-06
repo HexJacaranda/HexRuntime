@@ -215,14 +215,14 @@ namespace RTJ::Hex
 
 	struct NewArrayNode : TreeNode
 	{
-		NewArrayNode(UInt32 type, TreeNode** dimensions, Int32 dimensionCount)
+		NewArrayNode(RTM::TypeDescriptor* elementType, TreeNode** dimensions, Int32 dimensionCount)
 			:TreeNode(NodeKinds::NewArray),
-			TypeReference(type),
+			ElementType(elementType),
 			Dimensions(dimensions),
 			DimensionCount(dimensionCount) {}
 		Int32 DimensionCount;
 		TreeNode** Dimensions;	
-		UInt32 TypeReference;
+		RTM::TypeDescriptor* ElementType;
 	};
 
 	struct CompareNode : BinaryNode
