@@ -256,6 +256,7 @@ void RTM::MetaManager::ResolveType(
 	}
 
 	type->mColdMD = meta;
+	type->mContext = context;
 	type->mSelf = typeDefinition;
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
 	type->mFullQualifiedName = GetStringFromToken(context, meta->FullQualifiedNameToken);
@@ -534,10 +535,14 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		//Set base token
 		methodTable->mBaseMethodToken = methodTable->mMethods[0]->GetDefToken();
 	}
+
 	//Set our overriden region
-	methodTable->mOverridenRegionCount = overridenMethods.size();
-	methodTable->mOverridenRegion = new (context->Heap) MethodDescriptor * [overridenMethods.size()];
-	std::memcpy(methodTable->mOverridenRegion, &overridenMethods[0], sizeof(MethodDescriptor*) * overridenMethods.size());
+	if (overridenMethods.size() > 0)
+	{
+		methodTable->mOverridenRegionCount = overridenMethods.size();
+		methodTable->mOverridenRegion = new (context->Heap) MethodDescriptor * [overridenMethods.size()];
+		std::memcpy(methodTable->mOverridenRegion, &overridenMethods[0], sizeof(MethodDescriptor*)* overridenMethods.size());
+	}
 
 	return methodTable;
 }
