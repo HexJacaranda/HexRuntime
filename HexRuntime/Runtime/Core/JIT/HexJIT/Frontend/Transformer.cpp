@@ -227,9 +227,10 @@ RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 	for (int i = 0; i < dimensionCount; ++i)
 		dimensions[i] = mEvalStack.Pop();
 
-	//Read method reference token
+	//Read type reference token
 	auto typeRef = ReadAs<MDToken>();
-	return new(POOL) NewArrayNode(typeRef, dimensions, dimensionCount);
+	auto elementType = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
+	return new(POOL) NewArrayNode(elementType, dimensions, dimensionCount);
 }
 
 RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()

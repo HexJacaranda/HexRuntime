@@ -107,7 +107,7 @@ void TSTest()
 {
 	MetaData = new MetaManager();
 	auto context = MetaData->StartUp(Text("HexRT.Core"));
-	auto type = MetaData->GetTypeFromToken(context, 1);
+	auto type = MetaData->GetTypeFromToken(context, 0);
 }
 
 int main()
