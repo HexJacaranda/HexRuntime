@@ -261,21 +261,21 @@ void RTM::MetaManager::ResolveType(
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
 	type->mFullQualifiedName = GetStringFromToken(context, meta->FullQualifiedNameToken);
 
-	LOG_DEBUG("{} [{:#10x}] resolution started",
+	LOG_DEBUG("{} [{:#010x}] Resolution started",
 		type->GetFullQualifiedName()->GetContent(),
 		type->GetToken());
 
 	//Load parent
 	if (meta->ParentTypeRefToken != NullToken)
 	{
-		LOG_DEBUG("Loading [{:#10x}] parent", type->GetToken());
+		LOG_DEBUG("{} [{:#010x}] Loading parent", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, USE_LOADING_CONTEXT);
 	}
 
 	//Load implemented interfaces
 	if (meta->InterfaceCount > 0)
 	{
-		LOG_DEBUG("Loading [{:#10x}] interfaces", type->GetToken());
+		LOG_DEBUG("{} [{:#010x}] Loading interfaces", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 		type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
 		for (Int32 i = 0; i < meta->InterfaceCount; ++i)
 			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], USE_LOADING_CONTEXT);
@@ -284,41 +284,41 @@ void RTM::MetaManager::ResolveType(
 	//Load canonical
 	if (meta->CanonicalTypeRefToken != NullToken)
 	{
-		LOG_DEBUG("Loading [{:#10x}] canonical type", type->GetToken());
+		LOG_DEBUG("{} [{:#010x}] Loading canonical type", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, USE_LOADING_CONTEXT);
 	}
 
 	//Load enclosing
 	if (meta->EnclosingTypeRefToken != NullToken)
 	{
-		LOG_DEBUG("Loading [{:#10x}] enclosing type", type->GetToken());
+		LOG_DEBUG("{} [{:#010x}] Loading enclosing type", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, USE_LOADING_CONTEXT);
 	}
 	entry.Status.store(TypeStatus::Basic, std::memory_order_release);
 
 	//Loading field table
-	LOG_DEBUG("Loading [{:#10x}] fields", type->GetToken());
+	LOG_DEBUG("{} [{:#010x}] Loading fields", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 	type->mFieldTable = GenerateFieldTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
 	//Update to layout done
 	entry.Status.store(TypeStatus::LayoutDone, std::memory_order_release);
 
 	//Loading method table
-	LOG_DEBUG("Loading [{:#10x}] methods", type->GetToken());
+	LOG_DEBUG("{} [{:#010x}] Loading methods", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 	type->mMethTable = GenerateMethodTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
 	//Update to method table done
 	entry.Status.store(TypeStatus::MethodTableDone, std::memory_order_release);
 
 	//Loading(generating) interface table
-	LOG_DEBUG("Loading [{:#10x}] interface table", type->GetToken());
+	LOG_DEBUG("{} [{:#010x}] Loading interface table", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 	type->mInterfaceTable = GenerateInterfaceTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
 	entry.Status.store(TypeStatus::InterfaceTableDone, std::memory_order_release);
 
 	importer->ReturnSession(session);
 
-	LOG_DEBUG("{} [{:#10x}] resolution done",
+	LOG_DEBUG("{} [{:#010x}] Resolution done",
 		type->GetFullQualifiedName()->GetContent(),
 		type->GetToken());
 }
