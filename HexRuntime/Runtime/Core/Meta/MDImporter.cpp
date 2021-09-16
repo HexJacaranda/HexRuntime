@@ -158,6 +158,7 @@ bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, Meth
 	LOCATE(MethodDef);
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->NameToken));
+	IF_SESSION_FAIL_RET(ReadInto(methodMD->FullyQualifiedNameToken));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Accessibility));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Flags));
 
@@ -183,6 +184,7 @@ bool RTME::MDImporter::ImportField(IImportSession* session, MDToken token, Field
 	LOCATE(FieldDef);
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->NameToken));
+	IF_SESSION_FAIL_RET(ReadInto(fieldMD->FullyQualifiedNameToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->Accessibility));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(fieldMD->AttributeCount, fieldMD->AttributeTokens));
 	return true;
@@ -223,7 +225,7 @@ bool RTME::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentAssemblyToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->NameToken));
-	IF_SESSION_FAIL_RET(ReadInto(typeMD->FullQualifiedNameToken));
+	IF_SESSION_FAIL_RET(ReadInto(typeMD->FullyQualifiedNameToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->EnclosingTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->CanonicalTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(typeMD->CoreType));

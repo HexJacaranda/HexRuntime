@@ -197,6 +197,7 @@ namespace RTME
 		MDToken ParentTypeRefToken;
 		MDToken TypeRefToken;
 		MDToken NameToken;
+		MDToken FullyQualifiedNameToken;
 		UInt8 Accessibility;
 
 		BEGIN_FLAGS(UInt16)
@@ -282,6 +283,7 @@ namespace RTME
 	{
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
+		MDToken FullyQualifiedNameToken;
 		UInt8 Accessibility;
 
 		BEGIN_FLAGS(UInt16)
@@ -309,7 +311,7 @@ namespace RTME
 		MDToken ParentAssemblyToken;
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
-		MDToken FullQualifiedNameToken;
+		MDToken FullyQualifiedNameToken;
 		MDToken EnclosingTypeRefToken;
 		MDToken CanonicalTypeRefToken;
 		UInt8 CoreType;
