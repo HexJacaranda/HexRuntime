@@ -259,7 +259,7 @@ void RTM::MetaManager::ResolveType(
 	type->mContext = context;
 	type->mSelf = typeDefinition;
 	type->mTypeName = GetStringFromToken(context, meta->NameToken);
-	type->mFullQualifiedName = GetStringFromToken(context, meta->FullQualifiedNameToken);
+	type->mFullQualifiedName = GetStringFromToken(context, meta->FullyQualifiedNameToken);
 
 	LOG_DEBUG("{} [{:#010x}] Resolution started",
 		type->GetFullQualifiedName()->GetContent(),
