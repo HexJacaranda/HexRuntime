@@ -78,10 +78,6 @@ namespace RTM
 		AssemblyContext* TryQueryContextLocked(RTME::AssemblyRefMD* reference);
 		AssemblyContext* TryQueryContext(RTME::AssemblyRefMD* reference);
 
-		static TypeDefEntry& GetTypeEntryFrom(Type* target);
-
-		TypeDescriptor* TryQueryType(AssemblyContext* context, MDToken typeDefinition);
-
 		/*
 		* Load the type, called internally. The waitStatus actually will only work in case where
 		* the type you wish to load it's being loaded by other thread.

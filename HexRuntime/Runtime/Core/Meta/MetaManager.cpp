@@ -50,23 +50,6 @@ RTM::AssemblyContext* RTM::MetaManager::TryQueryContext(RTME::AssemblyRefMD* ref
 	return target->second;
 }
 
-RTM::TypeDefEntry& RTM::MetaManager::GetTypeEntryFrom(Type* target)
-{
-	auto typeDefAssembly = target->GetAssembly();
-	return typeDefAssembly->Entries[target->GetToken()];
-}
-
-RTM::TypeDescriptor* RTM::MetaManager::TryQueryType(AssemblyContext* context, MDToken typeDefinition)
-{
-	auto&& entry = context->Entries[typeDefinition];
-	
-	auto type = entry.Type.load(std::memory_order::acquire);
-	if (type == nullptr)
-		return nullptr;
-	else
-		return type->Status.load(std::memory_order_acquire) != TypeStatus::Done ? nullptr : type;
-}
-
 RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	AssemblyContext* context,
 	MDToken typeReference,
@@ -240,6 +223,34 @@ RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
 	//Prepare type def entries
 	auto&& typeDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::TypeDef];	
 	context->Entries = new (heap) TypeDefEntry[typeDefIndex.Count];
+
+	//Prepare generic instantiaion def
+	auto&& genericDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericInstantiationDef];                                                   
+	context->GenericDef = new (heap) RTME::GenericInstantiationMD[genericDefIndex.Count];
+
+	importer->UseSession(
+		[&](auto session)
+		{
+			for (MDToken i = 0; i < genericDefIndex.Count; ++i)
+			{
+				IF_FAIL_RET(importer->ImportGenericInstantiation(session, i, &context->GenericDef[i]));
+			}
+			return true;
+		});
+	//Prepare generic parameter def
+	auto&& genericParamIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericParameter];
+	context->GenerciParamDef = new (heap) RTME::GenericParamterMD[genericParamIndex.Count];
+
+	importer->UseSession(
+		[&](auto session)
+		{
+			for (MDToken i = 0; i < genericParamIndex.Count; ++i)
+			{
+				IF_FAIL_RET(importer->ImportGenericParameter(session, i, &context->GenerciParamDef[i]));
+			}
+			return true;
+		});
+
 
 	mContexts.insert({ context->Header.GUID.GetHashCode(), context });
 
