@@ -98,7 +98,6 @@ namespace RTM
 			AssemblyContext* context,
 			TypeDescriptor* type,
 			MDToken typeDefinition,
-			TypeDefEntry& entry,
 			INJECT(LOADING_CONTEXT));
 
 		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));

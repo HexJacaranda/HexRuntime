@@ -239,6 +239,22 @@ bool RTME::MDImporter::ImportType(IImportSession* session, MDToken token, TypeMD
 	return true;
 }
 
+bool RTME::MDImporter::ImportGenericInstantiation(IImportSession* session, MDToken token, GenericInstantiationMD* genericMD)
+{
+	LOCATE(GenericInstantiationDef);
+
+	IF_SESSION_FAIL_RET(ReadInto(genericMD->CanonicalTypeRefToken));
+	IF_SESSION_FAIL_RET(ReadIntoSeries(genericMD->TypeParameterCount, genericMD->TypeParameterTokens));
+	return true;
+}
+
+bool RTME::MDImporter::ImportGenericParameter(IImportSession* session, MDToken token, GenericParamterMD* genericParamMD)
+{
+	LOCATE(GenericParameter);
+	IF_SESSION_FAIL_RET(ReadInto(genericParamMD->NameToken));
+	return true;
+}
+
 bool RTME::MDImporter::PreImportString(IImportSession* session, MDToken token, StringMD* stringMD)
 {
 	LOCATE(String);

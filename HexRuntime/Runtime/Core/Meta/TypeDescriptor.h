@@ -6,6 +6,7 @@
 #include "FieldTable.h"
 #include "MethodTable.h"
 #include "InterfaceDispatchTable.h"
+#include <atomic>
 
 namespace RTO
 {
@@ -65,6 +66,8 @@ namespace RTM
 		bool IsGeneric()const;
 
 		bool IsAssignableFrom(TypeDescriptor* another)const;
+	public:
+		std::atomic<Int8> Status;
 	};
 
 	using Type = TypeDescriptor;

@@ -93,7 +93,8 @@ namespace RTME
 		bool ImportProperty(IImportSession* session, MDToken token, PropertyMD* propertyMD);
 		bool ImportEvent(IImportSession* session, MDToken token, EventMD* eventMD);
 		bool ImportType(IImportSession* session, MDToken token, TypeMD* typeMD);
-		
+		bool ImportGenericInstantiation(IImportSession* session, MDToken token, GenericInstantiationMD* genericMD);
+		bool ImportGenericParameter(IImportSession* session, MDToken token, GenericParamterMD* genericParamMD);
 		/// <summary>
 		/// Special for string importation, it's controlled by two phases.
 		/// In the first phase we will provide the length.
@@ -110,6 +111,8 @@ namespace RTME
 		bool ImportTypeRefTable(IImportSession* session, TypeRefMD*& typeRefTable);
 		bool ImportMemberRefTable(IImportSession* session, MemberRefMD*& memberRefTable);
 		bool ImportAssemblyRefTable(IImportSession* session, AssemblyRefMD*& assemblyRefTable);
+
+		
 
 		MDIndexTable* GetIndexTable()const;
 	};

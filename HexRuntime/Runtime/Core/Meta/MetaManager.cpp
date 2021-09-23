@@ -60,11 +60,11 @@ RTM::TypeDescriptor* RTM::MetaManager::TryQueryType(AssemblyContext* context, MD
 {
 	auto&& entry = context->Entries[typeDefinition];
 	
-	//In processing is not useable
-	if (entry.Status.load(std::memory_order::acquire) != TypeStatus::Done)
+	auto type = entry.Type.load(std::memory_order::acquire);
+	if (type == nullptr)
 		return nullptr;
-
-	return entry.Type.load(std::memory_order::acquire);
+	else
+		return type->Status.load(std::memory_order_acquire) != TypeStatus::Done ? nullptr : type;
 }
 
 RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
@@ -77,66 +77,85 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	auto&& typeRef = context->TypeRefs[typeReference];
 	auto typeDefAssembly = GetAssemblyFromToken(context, typeRef.AssemblyToken);
 
-	auto&& entry = typeDefAssembly->Entries[typeRef.TypeDefToken];
-	auto status = entry.Status.load(std::memory_order::acquire);
-
-	//Already done
-	if (status == TypeStatus::Done)
-		return entry.Type.load(std::memory_order::acquire);
-
-	/*
-	* The complexity of identity will get higher when we decide
-	* to implement generics with shared instantiation, and
-	* unavoidably introduce load limit of type for recursive
-	* and generative pattern of generics
-	*/
-	
-	TypeIdentity typeIdentity{ typeDefAssembly->Header.GUID, typeRef.TypeDefToken };
-	if (HasVisitedType(visited, typeIdentity))
+	if (typeRef.DefKind == RTME::MDRecordKinds::GenericInstantiationDef)
 	{
-		if (waitStatus != -1)
+		//Generic instantiation
+		auto&& genericInstantiation = context->GenericDef[typeRef.GenericInstantiationDefToken];
+		//Firstly make sure that we get the right type identity
+		auto canonicalType = GetTypeFromTokenInternal(
+			context,
+			genericInstantiation.CanonicalTypeRefToken,
+			USE_LOADING_CONTEXT,
+			TypeStatus::Basic);
+
+		std::vector<RTM::TypeDescriptor*> parameters(genericInstantiation.TypeParameterCount);
+
+		for (Int32 i = 0; i < genericInstantiation.TypeParameterCount; ++i)
 		{
-			while (entry.Status.load(std::memory_order_acquire) < waitStatus)
-				std::this_thread::yield();
+			parameters.push_back(GetTypeFromTokenInternal(
+				context,
+				genericInstantiation.CanonicalTypeRefToken,
+				USE_LOADING_CONTEXT,
+				TypeStatus::Basic));
 		}
-		return entry.Type.load(std::memory_order::acquire);
+
+		/*
+			* The complexity of identity will get higher when we decide
+			* to implement generics with shared instantiation, and
+			* unavoidably introduce load limit of type for recursive
+			* and generative pattern of generics
+		*/
+
+		return nullptr;
 	}
-	else
+	else if (typeRef.DefKind == RTME::MDRecordKinds::GenericParameter)
+	{
+		return nullptr;
+	}
+
+	//Canonical type loading
+
+	auto&& entry = typeDefAssembly->Entries[typeRef.TypeDefToken];
+	auto type = entry.Type.load(std::memory_order::acquire);
+	TypeIdentity typeIdentity{ typeDefAssembly->Header.GUID, typeRef.TypeDefToken };
+
+	if (type == nullptr)
+	{
+		//Try to content for its resolve
+
+		//We must have not visited this type: if we have visited, either it has been loaded by us
+		//or it has been or is being loaded by other thread
+		//For both, it should always be a valid pointer	
 		visited.insert(typeIdentity);
 
-	TypeDescriptor* type = nullptr;
-
-	if (status == TypeStatus::NotYet)
-	{
-		type = new (context->Heap) TypeDescriptor();
-		auto oldValue = entry.Type.load(std::memory_order_acquire);
-
-		if (oldValue == nullptr &&
-			entry.Type.compare_exchange_weak(oldValue, type, std::memory_order_release, std::memory_order_relaxed))
+		auto newTypeDescriptor = new (context->Heap) TypeDescriptor();
+		if (entry.Type.compare_exchange_strong(
+			type,
+			newTypeDescriptor,
+			std::memory_order_release,
+			std::memory_order_relaxed))
 		{
-			entry.Status.store(TypeStatus::Processing, std::memory_order_release);
-			//The first one to resolve type
+			//Won this contention
+			newTypeDescriptor->Status.store(TypeStatus::Processing, std::memory_order_release);
+
 			bool nextShouldWait = false;
-			ResolveType(typeDefAssembly, type, typeRef.TypeDefToken, entry, USE_LOADING_CONTEXT);
+			ResolveType(typeDefAssembly, newTypeDescriptor, typeRef.TypeDefToken, USE_LOADING_CONTEXT);
 
 			if (nextShouldWait)
 			{
 				//Append to waiting list since it's a type loaded by our thread
 				shouldWait = true;
 				waitingList.push_back(type);
-				entry.Status.store(TypeStatus::Almost, std::memory_order::release);
+				newTypeDescriptor->Status.store(TypeStatus::Almost, std::memory_order::release);
 			}
 			else
-				entry.Status.store(TypeStatus::Done, std::memory_order::release);
+				newTypeDescriptor->Status.store(TypeStatus::Done, std::memory_order::release);
 
 			if (allowWaitOnEntry)
 			{
 				//Already root call, we need to promote type status to Done level in waiting list
 				for (auto&& each : waitingList)
-				{
-					auto&& pendingEntry = each->GetAssembly()->Entries[each->GetToken()];
-					pendingEntry.Status.store(TypeStatus::Done, std::memory_order::release);
-				}
+					each->Status.store(TypeStatus::Done, std::memory_order::release);
 
 				//Then wait types loaded by other threads
 				for (auto&& each : externalWaitingList)
@@ -144,50 +163,51 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 					auto&& pendingEntry = each->GetAssembly()->Entries[each->GetToken()];
 					std::unique_lock lock{ pendingEntry.WaiterLock };
 					pendingEntry.Waiter.wait(lock,
-						[&]() { return pendingEntry.Status.load(std::memory_order::acquire) == TypeStatus::Done; });
+						[&]() { return each->Status.load(std::memory_order::acquire) == TypeStatus::Done; });
 				}
 
 				//Wake up all waiting threads
 				entry.Waiter.notify_all();
 			}
 
-			return type;
+			//Return directly
+			return newTypeDescriptor;
 		}
 		else
 		{
-			if (type != nullptr)
-				::operator delete(type, context->Heap);
-
-			type = oldValue;
-			goto IntermediateStatus;
+			//Clean resource
+			::operator delete(type, context->Heap);
 		}
 	}
-
-	if (status != TypeStatus::Done)
+	else
 	{
-		type = entry.Type.load(std::memory_order_acquire);
-	IntermediateStatus:
-		if (allowWaitOnEntry)
+		//Decide whether we have visited
+		if (!HasVisitedType(visited, typeIdentity))
+			visited.insert(typeIdentity);
+		//Its loaded by other thread. Go to wait case
+	}
+
+	//Wait here
+	if (allowWaitOnEntry)
+	{
+		std::unique_lock lock{ entry.WaiterLock };
+		entry.Waiter.wait(lock,
+			[&]() { return type->Status.load(std::memory_order::acquire) == TypeStatus::Done; });
+		return type;
+	}
+	else
+	{
+		//Append to external waiting list (it's a type loaded by another thread) 
+		//and mark that our whole loading chain need too.
+		shouldWait = true;
+		externalWaitingList.push_back(type);
+		if (waitStatus != -1)
 		{
-			std::unique_lock lock{ entry.WaiterLock };
-			entry.Waiter.wait(lock,
-				[&]() { return entry.Status.load(std::memory_order::acquire) == TypeStatus::Done; });
-			return type;
+			//Need to wait until specific intermediate state is reached
+			while (type->Status.load(std::memory_order_acquire) < waitStatus)
+				std::this_thread::yield();
 		}
-		else
-		{
-			//Append to external waiting list (it's a type loaded by another thread) 
-			//and mark that our whole loading chain need too.
-			shouldWait = true;
-			externalWaitingList.push_back(type);
-			if (waitStatus != -1)
-			{
-				//Need to wait until specific intermediate state is reached
-				while (entry.Status.load(std::memory_order_acquire) < waitStatus)
-					std::this_thread::yield();
-			}
-			return type;
-		}
+		return type;
 	}
 
 	THROW("Not allowed type status.");
@@ -240,7 +260,6 @@ void RTM::MetaManager::ResolveType(
 	AssemblyContext* context,
 	TypeDescriptor* type,
 	MDToken typeDefinition,
-	TypeDefEntry& entry,
 	INJECT(LOADING_CONTEXT))
 {
 	auto&& importer = context->Importer;
@@ -294,27 +313,27 @@ void RTM::MetaManager::ResolveType(
 		LOG_DEBUG("{} [{:#010x}] Loading enclosing type", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, USE_LOADING_CONTEXT);
 	}
-	entry.Status.store(TypeStatus::Basic, std::memory_order_release);
+	type->Status.store(TypeStatus::Basic, std::memory_order_release);
 
 	//Loading field table
 	LOG_DEBUG("{} [{:#010x}] Loading fields", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 	type->mFieldTable = GenerateFieldTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
 	//Update to layout done
-	entry.Status.store(TypeStatus::LayoutDone, std::memory_order_release);
+	type->Status.store(TypeStatus::LayoutDone, std::memory_order_release);
 
 	//Loading method table
 	LOG_DEBUG("{} [{:#010x}] Loading methods", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 	type->mMethTable = GenerateMethodTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
 	//Update to method table done
-	entry.Status.store(TypeStatus::MethodTableDone, std::memory_order_release);
+	type->Status.store(TypeStatus::MethodTableDone, std::memory_order_release);
 
 	//Loading(generating) interface table
 	LOG_DEBUG("{} [{:#010x}] Loading interface table", type->GetFullQualifiedName()->GetContent(), type->GetToken());
 	type->mInterfaceTable = GenerateInterfaceTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT);
 
-	entry.Status.store(TypeStatus::InterfaceTableDone, std::memory_order_release);
+	type->Status.store(TypeStatus::InterfaceTableDone, std::memory_order_release);
 
 	importer->ReturnSession(session);
 
@@ -371,9 +390,8 @@ void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* contex
 			fieldSize = CoreTypes::SizeOfCoreType[coreType];
 		else if (coreType == CoreTypes::Struct)
 		{
-			auto&& entry = GetTypeEntryFrom(type);
 			//Should be very short
-			while (entry.Status.load(std::memory_order_acquire) < TypeStatus::LayoutDone)
+			while (type->Status.load(std::memory_order_acquire) < TypeStatus::LayoutDone)
 				std::this_thread::yield();
 			//Ensure the layout is done
 			fieldSize = type->GetSize();
@@ -437,9 +455,8 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 	ObservableArray<MethodDescriptor*> overridenRegion{ nullptr, 0 };
 	if (parent != nullptr)
 	{
-		auto&& entry = GetTypeEntryFrom(parent);
 		//Should be very short, wait for method table to be done.
-		while (entry.Status.load(std::memory_order_acquire) < TypeStatus::MethodTableDone)
+		while (parent->Status.load(std::memory_order_acquire) < TypeStatus::MethodTableDone)
 			std::this_thread::yield();
 
 		parentMT = parent->GetMethodTable();

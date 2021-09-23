@@ -32,7 +32,6 @@ namespace RTM
 	{
 		std::mutex WaiterLock;
 		std::condition_variable Waiter;
-		std::atomic<Int8> Status = TypeStatus::NotYet;
 		std::atomic<TypeDescriptor*> Type = nullptr;
 	};
 
@@ -43,6 +42,8 @@ namespace RTM
 		RTME::AssemblyRefMD* AssemblyRefs = nullptr;
 		RTME::TypeRefMD* TypeRefs = nullptr;
 		RTME::MemberRefMD* MemberRefs = nullptr;
+		RTME::GenericInstantiationMD* GenericDef = nullptr;
+		RTME::GenericParamterMD* GenerciParamDef = nullptr;
 		RTME::AssemblyHeaderMD Header = {};
 		TypeDefEntry* Entries = nullptr;
 	public:
