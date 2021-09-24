@@ -68,8 +68,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 		auto canonicalType = GetTypeFromTokenInternal(
 			context,
 			genericInstantiation.CanonicalTypeRefToken,
-			USE_LOADING_CONTEXT,
-			TypeStatus::Basic);
+			USE_LOADING_CONTEXT);
 
 		std::vector<RTM::TypeDescriptor*> parameters(genericInstantiation.TypeParameterCount);
 
@@ -78,8 +77,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 			parameters.push_back(GetTypeFromTokenInternal(
 				context,
 				genericInstantiation.CanonicalTypeRefToken,
-				USE_LOADING_CONTEXT,
-				TypeStatus::Basic));
+				USE_LOADING_CONTEXT));
 		}
 
 		/*
@@ -100,16 +98,10 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 
 	auto&& entry = typeDefAssembly->Entries[typeRef.TypeDefToken];
 	auto type = entry.Type.load(std::memory_order::acquire);
-	TypeIdentity typeIdentity{ typeDefAssembly->Header.GUID, typeRef.TypeDefToken };
 
 	if (type == nullptr)
 	{
 		//Try to content for its resolve
-
-		//We must have not visited this type: if we have visited, either it has been loaded by us
-		//or it has been or is being loaded by other thread
-		//For both, it should always be a valid pointer	
-		visited.insert(typeIdentity);
 
 		auto newTypeDescriptor = new (context->Heap) TypeDescriptor();
 		if (entry.Type.compare_exchange_strong(
@@ -153,20 +145,27 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 				entry.Waiter.notify_all();
 			}
 
+			//We must have not visited this type: if we have visited, either it has been loaded by us
+			//or it has been or is being loaded by other thread
+			//For both, it should always be a valid pointer	
+			visited.insert(TypeIdentity{ type });
+
 			//Return directly
 			return newTypeDescriptor;
 		}
 		else
 		{
 			//Clean resource
-			::operator delete(type, context->Heap);
+			::operator delete(newTypeDescriptor, context->Heap);
+			visited.insert(TypeIdentity{ type });
 		}
 	}
 	else
 	{
+		TypeIdentity identity{ type };
 		//Decide whether we have visited
-		if (!HasVisitedType(visited, typeIdentity))
-			visited.insert(typeIdentity);
+		if (!HasVisitedType(visited, identity))
+			visited.insert(identity);
 		//Its loaded by other thread. Go to wait case
 	}
 
@@ -180,6 +179,9 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	}
 	else
 	{
+		//If type has already been loaded
+		if (type->Status.load(std::memory_order_acquire) == TypeStatus::Done)
+			return type;
 		//Append to external waiting list (it's a type loaded by another thread) 
 		//and mark that our whole loading chain need too.
 		shouldWait = true;
