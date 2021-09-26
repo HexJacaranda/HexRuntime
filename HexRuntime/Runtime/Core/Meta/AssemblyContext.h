@@ -1,6 +1,8 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\Memory\PrivateHeap.h"
+#include "..\..\DynamicTokenTable.h"
+#include "TypeIdentity.h"
 #include "TypeDescriptor.h"
 #include "MDRecords.h"
 #include "MDImporter.h"
@@ -35,6 +37,9 @@ namespace RTM
 		std::atomic<TypeDescriptor*> Type = nullptr;
 	};
 
+
+	using TypeEntryTableT = DynamicTokenTable<TypeIdentity, TypeDefEntry, TypeIdentityHash, TypeIdentityEqual>;
+
 	struct AssemblyContext
 	{
 		RTME::MDImporter* Importer;
@@ -45,7 +50,7 @@ namespace RTM
 		RTME::GenericInstantiationMD* GenericDef = nullptr;
 		RTME::GenericParamterMD* GenerciParamDef = nullptr;
 		RTME::AssemblyHeaderMD Header = {};
-		TypeDefEntry* Entries = nullptr;
+		TypeEntryTableT Entries;
 	public:
 		AssemblyContext(RTMM::PrivateHeap* heap, RTME::MDImporter* importer);
 	};

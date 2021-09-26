@@ -6,9 +6,11 @@
 #include "MDImporter.h"
 #include "FieldDescriptor.h"
 #include "TypeDescriptor.h"
+#include "TypeIdentity.h"
 #include "AssemblyContext.h"
 #include "MethodTable.h"
 #include "InterfaceDispatchTable.h"
+#include "InstantiationMap.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -19,78 +21,30 @@
 #define INJECT(...) __VA_ARGS__
 
 //For consistency and convenience
-#define LOADING_CONTEXT VisitSet& visited,\
-		WaitingList& waitingList,\
-		WaitingList& externalWaitingList, \
+#define LOADING_CONTEXT RTM::VisitSet& visited,\
+		RTM::WaitingList& waitingList,\
+		RTM::WaitingList& externalWaitingList, \
+		RTM::TypeIdentityReclaimList& identityReclaimList, \
 		bool& shouldWait
 
-#define IMPORT_CONTEXT AssemblyContext* context,\
+#define IMPORT_CONTEXT RTM::AssemblyContext* context,\
 		RTME::TypeMD* meta,\
 		RTME::IImportSession* session,\
 		RTME::MDImporter* importer
 
+#define INSTANTIATION_CONTEXT InstantiationMap& genericMap
+
 #define USE_IMPORT_CONTEXT context, meta, session, importer
 
-#define USE_LOADING_CONTEXT visited, waitingList, externalWaitingList, shouldWait
+#define USE_LOADING_CONTEXT visited, waitingList, externalWaitingList, identityReclaimList, shouldWait
+
+#define USE_INSTANTIATION_CONTEXT genericMap
 
 namespace RTM
 {
-	struct TypeIdentity
-	{
-		TypeDescriptor* Canonical;
-		Int32 ArgumentCount;
-		union
-		{
-			TypeDescriptor** Arguments;
-			TypeDescriptor* SingleArgument = nullptr;
-		};
-		
-		TypeIdentity(TypeDescriptor* normal) 
-			:Canonical(normal), ArgumentCount(0) {}
-
-		TypeIdentity(TypeDescriptor* canonical, TypeDescriptor* singleArgument)
-			:Canonical(canonical), ArgumentCount(1), SingleArgument(singleArgument) {}
-
-		UInt32 GetHashCode()const
-		{
-			if (ArgumentCount == 0)
-				return RTME::ComputeHashCode(&Canonical);
-			else if (ArgumentCount == 1)
-				return RTME::ComputeHashCode(this);
-			else
-				return RTME::ComputeHashCode(&Canonical) + RTME::ComputeHashCode(Arguments, sizeof(TypeDescriptor*) * ArgumentCount);
-		}
-	};
-
-	struct TypeIdentityHash
-	{
-		inline UInt32 operator()(TypeIdentity const& identity)const 
-		{
-			return identity.GetHashCode();
-		}
-	};
-
-	struct TypeIdentityEqual
-	{
-		inline bool operator()(TypeIdentity const& left, TypeIdentity const& right)const
-		{
-			if (left.Canonical != right.Canonical)
-				return false;
-			if (left.ArgumentCount != right.ArgumentCount)
-				return false;
-			
-			if (left.ArgumentCount == 0)
-				return true;
-			else if (left.ArgumentCount == 1)
-				return left.SingleArgument == right.SingleArgument;
-			else
-				return std::memcmp(left.Arguments, right.Arguments, sizeof(TypeDescriptor*) * left.ArgumentCount) == 0;
-		}
-	};
-
 	using VisitSet = std::unordered_set<TypeIdentity, TypeIdentityHash, TypeIdentityEqual>;
-
 	using WaitingList = std::vector<TypeDescriptor*>;
+	using TypeIdentityReclaimList = std::vector<TypeIdentity>;
 
 	/// <summary>
 	/// Manager that responsible for metadata management
@@ -112,7 +66,7 @@ namespace RTM
 		TypeDescriptor* GetTypeFromTokenInternal(
 			AssemblyContext* context, 
 			MDToken typeReference, 
-			INJECT(LOADING_CONTEXT),
+			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT),
 			Int8 waitStatus = -1,
 			bool allowWait = false);
 
@@ -120,15 +74,20 @@ namespace RTM
 			AssemblyContext* context,
 			TypeDescriptor* type,
 			MDToken typeDefinition,
-			INJECT(LOADING_CONTEXT));
+			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
-		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
+		TypeDescriptor* InstantiateType(
+			AssemblyContext* context,
+			TypeDescriptor* canonical,
+			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+
+		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
 		void GenerateLayout(FieldTable* table, AssemblyContext* context);
 
-		MethodTable* GenerateMethodTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
+		MethodTable* GenerateMethodTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
-		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT));
+		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
 		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);
 		/// <summary>

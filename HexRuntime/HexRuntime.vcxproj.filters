@@ -231,9 +231,6 @@
     <ClInclude Include="Runtime\Core\Meta\CoreTypes.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Meta\TypeRepresentation.h">
-      <Filter>头文件\Runtime\Core\Meta</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\Meta\AssemblyContext.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
@@ -251,6 +248,15 @@
     </ClInclude>
     <ClInclude Include="Runtime\LoggingConfiguration.h">
       <Filter>头文件\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\DynamicTokenTable.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\TypeIdentity.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\InstantiationMap.h">
+      <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -363,6 +369,9 @@
       <Filter>源文件\Tables</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\Meta\InstantiationMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

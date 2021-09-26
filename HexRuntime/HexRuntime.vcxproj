@@ -54,6 +54,7 @@
     <ClInclude Include="Runtime\Core\Meta\FieldTable.h" />
     <ClInclude Include="Runtime\Core\Meta\IImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h" />
+    <ClInclude Include="Runtime\Core\Meta\InstantiationMap.h" />
     <ClInclude Include="Runtime\Core\Meta\InterfaceDispatchTable.h" />
     <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\MDImporter.h" />
@@ -62,11 +63,12 @@
     <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h" />
     <ClInclude Include="Runtime\Core\Meta\MethodTable.h" />
     <ClInclude Include="Runtime\Core\Meta\TypeDescriptor.h" />
-    <ClInclude Include="Runtime\Core\Meta\TypeRepresentation.h" />
+    <ClInclude Include="Runtime\Core\Meta\TypeIdentity.h" />
     <ClInclude Include="Runtime\Core\Object\ArrayObject.h" />
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
+    <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
@@ -98,6 +100,7 @@
     <ClCompile Include="Runtime\Core\Meta\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\InstantiationMap.cpp" />
     <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp" />
