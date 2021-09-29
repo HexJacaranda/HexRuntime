@@ -44,7 +44,7 @@ RTM::AssemblyContext* RTM::MetaManager::TryQueryContextLocked(RTME::AssemblyRefM
 
 RTM::AssemblyContext* RTM::MetaManager::TryQueryContext(RTME::AssemblyRefMD* reference)
 {
-	auto target = mContexts.find(reference->GUID.GetHashCode());
+	auto target = mContexts.find(reference->GUID);
 	if (target == mContexts.end())
 		return nullptr;
 	return target->second;
@@ -60,8 +60,48 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	auto&& typeRef = context->TypeRefs[typeReference];
 	auto typeDefAssembly = GetAssemblyFromToken(context, typeRef.AssemblyToken);
 
+	//Wait method
+	auto waitAndGetType = [&](TypeDefEntry& entry, TypeDescriptor* type) {
+		//If type has already been loaded or there is no requirement
+		if (waitStatus == -1 || 
+			type->Status.load(std::memory_order_acquire) == TypeStatus::Done)
+			return type;
+
+		if (allowWaitOnEntry)
+		{
+			std::unique_lock lock{ entry.WaiterLock };
+			/*
+			* Currently it will only be notified when the type is fully loaded.
+			* Not sure if we should add more notificiations in ResolveType and 
+			* InstantiateType
+			*/
+			entry.Waiter.wait(lock,
+				[&]() { return type->Status.load(std::memory_order::acquire) >= waitStatus; });
+			return type;
+		}
+		else
+		{
+			//Append to external waiting list (it's a type loaded by another thread) 
+			//and mark that our whole loading chain need too.
+			shouldWait = true;
+			externalWaitingList.push_back(type);
+
+			//Need to wait until specific intermediate state is reached
+			while (type->Status.load(std::memory_order_acquire) < waitStatus)
+				std::this_thread::yield();
+
+			return type;
+		}
+	};
+
 	if (typeRef.DefKind == RTME::MDRecordKinds::GenericInstantiationDef)
 	{
+		/*
+		* Always allocate meta memory from the assembly that defines
+		* the canonical type, this is out of a further design: generic
+		* instantiation sharing
+		*/
+
 		//Generic instantiation
 		auto&& genericInstantiation = context->GenericDef[typeRef.GenericInstantiationDefToken];
 		//Firstly make sure that we get the right type identity
@@ -81,7 +121,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 		}
 		else
 		{
-			identity.Arguments = new (context->Heap) TypeDescriptor * [identity.ArgumentCount];
+			identity.Arguments = new (typeDefAssembly->Heap) TypeDescriptor * [identity.ArgumentCount];
 			for (Int32 i = 0; i < genericInstantiation.TypeParameterCount; ++i)
 			{
 				identity.Arguments[i] = GetTypeFromTokenInternal(
@@ -97,35 +137,46 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 			* unavoidably introduce load limit of type for recursive
 			* and generative pattern of generics
 		*/
-		TypeDefEntry* entry = new (context->Heap) TypeDefEntry();
-		TypeDefEntry* returnValue = nullptr;
-		if (!context->Entries.GetOrAdd(identity, entry, returnValue))
+		auto entry = new (typeDefAssembly->Heap) TypeDefEntry();
+		auto instantiationType = new (typeDefAssembly->Heap) TypeDescriptor();
+		entry->Type.store(instantiationType, std::memory_order_release);
+
+		MDToken newDefinitionToken = NullToken;
+		TypeDefEntry* finalValue = nullptr;
+		if (!typeDefAssembly->Entries.DefineGenericInstantiation(identity, entry, finalValue, newDefinitionToken))
 		{
-			::operator delete(entry, context->Heap);
+			::operator delete(instantiationType, typeDefAssembly->Heap);
+			::operator delete(entry, typeDefAssembly->Heap);
 			/*
 			* Mark type identity (if there is an allocated array inside) to be freed in heap
 			* held by AssemblyContext to avoid memory leak when the loading is over
 			*/
 			if (identity.ArgumentCount > 1)
 				identityReclaimList.push_back(identity);
-		}
-
-		InstantiationLayerMap layer{};
-
-		if (identity.ArgumentCount == 1)
-		{
-			layer.insert(std::make_pair(genericInstantiation.TypeParameterTokens[0], identity.SingleArgument));
+		
+			return waitAndGetType(*finalValue, finalValue->Type.load(std::memory_order_acquire));
 		}
 		else
 		{
-			for (Int32 i = 0; i < identity.ArgumentCount; ++i)
-				layer.insert(std::make_pair(genericInstantiation.TypeParameterTokens[i], identity.Arguments[i]));
-		}
+			InstantiationLayerMap layer{};
 
-		{
-			INSTANTIATION_SESSION(layer);
-			return InstantiateType(context, canonicalType, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
-		}	
+			if (identity.ArgumentCount == 1)
+			{
+				layer.insert(std::make_pair(genericInstantiation.TypeParameterTokens[0], identity.SingleArgument));
+			}
+			else
+			{
+				for (Int32 i = 0; i < identity.ArgumentCount; ++i)
+					layer.insert(std::make_pair(genericInstantiation.TypeParameterTokens[i], identity.Arguments[i]));
+			}
+
+			{
+				INSTANTIATION_SESSION(layer);
+				InstantiateType(typeDefAssembly, canonicalType, instantiationType, newDefinitionToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+				//Notify waiting threads after instantiation
+				finalValue->Waiter.notify_all();
+			}		
+		}
 	}
 	else if (typeRef.DefKind == RTME::MDRecordKinds::GenericParameter)
 	{
@@ -136,8 +187,59 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	}
 
 	//Canonical type loading
+	return GetTypeFromDefTokenInternal(
+		typeDefAssembly,
+		typeRef.TypeDefToken,
+		USE_LOADING_CONTEXT,
+		USE_INSTANTIATION_CONTEXT,
+		waitStatus,
+		allowWaitOnEntry);
+}
 
-	auto&& entry = typeDefAssembly->Entries[typeRef.TypeDefToken];
+RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefTokenInternal(
+	AssemblyContext* context,
+	MDToken typeDefinition, 
+	INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT), 
+	Int8 waitStatus, 
+	bool allowWait)
+{
+	//Wait method
+	auto waitAndGetType = [&](TypeDefEntry& entry, TypeDescriptor* type) {
+		//If type has already been loaded or there is no requirement
+		if (waitStatus == -1 ||
+			type->Status.load(std::memory_order_acquire) == TypeStatus::Done)
+			return type;
+
+		if (allowWait)
+		{
+			std::unique_lock lock{ entry.WaiterLock };
+			/*
+			* Currently it will only be notified when the type is fully loaded.
+			* Not sure if we should add more notificiations in ResolveType and
+			* InstantiateType
+			*/
+			entry.Waiter.wait(lock,
+				[&]() { return type->Status.load(std::memory_order::acquire) >= waitStatus; });
+			return type;
+		}
+		else
+		{
+			//Append to external waiting list (it's a type loaded by another thread) 
+			//and mark that our whole loading chain need too.
+			shouldWait = true;
+			externalWaitingList.push_back(type);
+
+			//Need to wait until specific intermediate state is reached
+			while (type->Status.load(std::memory_order_acquire) < waitStatus)
+				std::this_thread::yield();
+
+			return type;
+		}
+	};
+
+	//Canonical type loading
+
+	auto&& entry = context->Entries[typeDefinition];
 	auto type = entry.Type.load(std::memory_order::acquire);
 
 	if (type == nullptr)
@@ -155,7 +257,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 			newTypeDescriptor->Status.store(TypeStatus::Processing, std::memory_order_release);
 
 			bool nextShouldWait = false;
-			ResolveType(typeDefAssembly, newTypeDescriptor, typeRef.TypeDefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+			ResolveType(context, newTypeDescriptor, typeDefinition, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
 
 			if (nextShouldWait)
 			{
@@ -167,7 +269,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 			else
 				newTypeDescriptor->Status.store(TypeStatus::Done, std::memory_order::release);
 
-			if (allowWaitOnEntry)
+			if (allowWait)
 			{
 				//Already root call, we need to promote type status to Done level in waiting list
 				for (auto&& each : waitingList)
@@ -217,34 +319,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 		//Its loaded by other thread. Go to wait case
 	}
 
-	//Wait here
-	if (allowWaitOnEntry)
-	{
-		std::unique_lock lock{ entry.WaiterLock };
-		entry.Waiter.wait(lock,
-			[&]() { return type->Status.load(std::memory_order::acquire) == TypeStatus::Done; });
-		return type;
-	}
-	else
-	{
-		//If type has already been loaded
-		if (type->Status.load(std::memory_order_acquire) == TypeStatus::Done)
-			return type;
-		//Append to external waiting list (it's a type loaded by another thread) 
-		//and mark that our whole loading chain need too.
-		shouldWait = true;
-		externalWaitingList.push_back(type);
-		if (waitStatus != -1)
-		{
-			//Need to wait until specific intermediate state is reached
-			while (type->Status.load(std::memory_order_acquire) < waitStatus)
-				std::this_thread::yield();
-		}
-		return type;
-	}
-
-	THROW("Not allowed type status.");
-	return nullptr;
+	return waitAndGetType(entry, type);
 }
 
 RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
@@ -274,6 +349,22 @@ RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
 	auto&& typeDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::TypeDef];	
 	context->Entries = std::move(TypeEntryTableT(new (heap) TypeDefEntry[typeDefIndex.Count], typeDefIndex.Count));
 
+	{
+		//Prepare fully qualified name mapping
+		RTME::TypeMD typeMD{};
+		importer->UseSession(
+			[&](auto session)
+			{
+				for (MDToken i = 0; i < typeDefIndex.Count; ++i)
+				{
+					IF_FAIL_RET(importer->ImportType(session, i, &typeMD));
+					auto fqn = GetStringFromToken(context, typeMD.FullyQualifiedNameToken);
+					context->Entries.DefineMetaMap({ fqn->GetContent(), (std::size_t)fqn->GetCount() }, i);
+				}
+				return true;
+			});
+	}
+
 	//Prepare generic instantiaion def
 	auto&& genericDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericInstantiationDef];                                                   
 	context->GenericDef = new (heap) RTME::GenericInstantiationMD[genericDefIndex.Count];
@@ -301,9 +392,7 @@ RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
 			return true;
 		});
 
-
-	mContexts.insert({ context->Header.GUID.GetHashCode(), context });
-
+	mContexts.insert({ context->Header.GUID, context });
 	return context;
 }
 
@@ -345,6 +434,10 @@ void RTM::MetaManager::ResolveType(
 		type->GetFullQualifiedName()->GetContent(),
 		type->GetToken());
 
+	//For pure canonical type, we will only load basic metadata.
+	if (meta->IsGeneric())
+		return;
+		
 	//Load parent
 	if (meta->ParentTypeRefToken != NullToken)
 	{
@@ -356,9 +449,16 @@ void RTM::MetaManager::ResolveType(
 	if (meta->InterfaceCount > 0)
 	{
 		LOG_DEBUG("{} [{:#010x}] Loading interfaces", type->GetFullQualifiedName()->GetContent(), type->GetToken());
-		type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
-		for (Int32 i = 0; i < meta->InterfaceCount; ++i)
-			type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+		if (meta->InterfaceCount == 1)
+		{
+			type->mInterfaceInline = GetTypeFromTokenInternal(context, meta->InterfaceTokens[0], USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+		}
+		else
+		{
+			type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
+			for (Int32 i = 0; i < meta->InterfaceCount; ++i)
+				type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+		}
 	}
 
 	//Load canonical
@@ -403,9 +503,88 @@ void RTM::MetaManager::ResolveType(
 		type->GetToken());
 }
 
-RTM::TypeDescriptor* RTM::MetaManager::InstantiateType(AssemblyContext* context, TypeDescriptor* canonical, INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT))
+void RTM::MetaManager::InstantiateType(
+	AssemblyContext* context, 
+	TypeDescriptor* canonical, 
+	TypeDescriptor* type, 
+	MDToken typeDefinition,
+	INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT))
 {
-	return nullptr;
+	auto meta = canonical->mColdMD;
+	//A question here, how should we handle Reflection?
+	type->mColdMD = canonical->mColdMD;
+	type->mContext = context;
+	type->mSelf = typeDefinition;
+
+	//TODO: Instantiation type should have instantiated name
+	type->mTypeName = GetStringFromToken(context, meta->NameToken);
+	type->mFullQualifiedName = GetStringFromToken(context, meta->FullyQualifiedNameToken);
+
+	//Load parent
+	if (meta->ParentTypeRefToken != NullToken)
+	{
+		LOG_DEBUG("{} [{:#010x}] Loading parent", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mParent = GetTypeFromTokenInternal(context, meta->ParentTypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+	}
+
+	//Load implemented interfaces
+	if (meta->InterfaceCount > 0)
+	{
+		LOG_DEBUG("{} [{:#010x}] Loading interfaces", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		if (meta->InterfaceCount == 1)
+		{
+			type->mInterfaceInline = GetTypeFromTokenInternal(context, meta->InterfaceTokens[0], USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+		}
+		else
+		{
+			type->mInterfaces = new (context->Heap) TypeDescriptor * [meta->InterfaceCount];
+			for (Int32 i = 0; i < meta->InterfaceCount; ++i)
+				type->mInterfaces[i] = GetTypeFromTokenInternal(context, meta->InterfaceTokens[i], USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+		}
+	}
+
+	//Load canonical
+	if (meta->CanonicalTypeRefToken != NullToken)
+	{
+		LOG_DEBUG("{} [{:#010x}] Loading canonical type", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mCanonical = GetTypeFromTokenInternal(context, meta->CanonicalTypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+	}
+
+	//Load enclosing
+	if (meta->EnclosingTypeRefToken != NullToken)
+	{
+		LOG_DEBUG("{} [{:#010x}] Loading enclosing type", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mEnclosing = GetTypeFromTokenInternal(context, meta->EnclosingTypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+	}
+	type->Status.store(TypeStatus::Basic, std::memory_order_release);
+
+	{
+		auto&& importer = context->Importer;
+		//For performance, use a session across the whole meta data resolving
+		auto session = importer->NewSession();
+
+		//Loading field table
+		LOG_DEBUG("{} [{:#010x}] Loading fields", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mFieldTable = GenerateFieldTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+
+		//Update to layout done
+		type->Status.store(TypeStatus::LayoutDone, std::memory_order_release);
+
+		//Loading method table
+		LOG_DEBUG("{} [{:#010x}] Loading methods", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mMethTable = GenerateMethodTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+
+		//Update to method table done
+		type->Status.store(TypeStatus::MethodTableDone, std::memory_order_release);
+
+		//Loading(generating) interface table
+		LOG_DEBUG("{} [{:#010x}] Loading interface table", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mInterfaceTable = GenerateInterfaceTable(type, USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+
+		type->Status.store(TypeStatus::InterfaceTableDone, std::memory_order_release);
+
+		importer->ReturnSession(session);
+	}
 }
 
 RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT))
@@ -433,12 +612,10 @@ RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOA
 		field.mName = GetStringFromToken(context, fieldMD->NameToken);
 		field.mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
 	}
-	if (!meta->IsGeneric())
-	{
-		//Compute layout
-		GenerateLayout(fieldTable, context);
-	}
 
+	//Compute layout
+	GenerateLayout(fieldTable, context);
+	
 	return fieldTable;
 }
 
@@ -771,9 +948,20 @@ RTM::Type* RTM::MetaManager::GetTypeFromToken(AssemblyContext* context, MDToken 
 	return GetTypeFromTokenInternal(context, typeReference, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT, true);
 }
 
+RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefinitionToken(AssemblyContext* context, MDToken typeDefinition)
+{
+	VisitSet visited{};
+	WaitingList waitingList{};
+	WaitingList externalWaitingList{};
+	InstantiationMap genericMap{};
+	TypeIdentityReclaimList identityReclaimList{};
+	bool shouldWait = false;
+	return GetTypeFromDefTokenInternal(context, typeDefinition, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT, true);
+}
+
 RTO::StringObject* RTM::MetaManager::GetStringFromToken(AssemblyContext* context, MDToken stringReference)
 {
-	RTME::StringMD stringMD;
+	RTME::StringMD stringMD{};
 	RTO::StringObject* string = nullptr;
 	auto&& importer = context->Importer;
 	importer->UseSession(
@@ -805,6 +993,52 @@ RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* conte
 
 RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreType)
 {
-	//TODO
-	return nullptr;
+	static constexpr std::wstring_view CoreTypeNames[] = {
+		Text("[System]Int8"),
+		Text("[System]Int16"),
+		Text("[System]Int32"),
+		Text("[System]Int64"),
+
+		Text("[System]UInt8"),
+		Text("[System]UInt16"),
+		Text("[System]UInt32"),
+		Text("[System]UInt64"),
+
+		Text("[System]Half"),
+		Text("[System]Float"),
+		Text("[System]Double"),
+
+		Text("[System]Struct"),
+		Text("[System]Reference"),
+		Text("[System]Interior<Canon>"),
+
+		Text("[System]Object"),
+		Text("[System]Array<Canon>"),
+		Text("[System]Array<Canon>"),
+		Text("[System]String"),
+		Text("[System]Delegate")
+	};
+
+	AssemblyContext* coreLibrary = nullptr;
+
+	{
+		//Query or load assembly
+		RTME::GUID guid{};
+		std::memset(&guid, 0, sizeof(RTME::GUID));
+
+		std::unique_lock lock{ mContextLock };
+		auto placeEntry = mContexts.find(guid);
+		if (placeEntry == mContexts.end())
+		{
+			coreLibrary = LoadAssembly(Text("Core"));
+			mContexts.insert(std::make_pair(guid, coreLibrary));
+		}
+		else
+		{
+			coreLibrary = placeEntry->second;
+		}
+	}
+	
+	auto token = coreLibrary->Entries.GetTokenByFQN(CoreTypeNames[coreType]);
+	return GetTypeFromDefinitionToken(coreLibrary, token);
 }

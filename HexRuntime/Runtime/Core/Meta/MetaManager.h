@@ -53,7 +53,7 @@ namespace RTM
 	{
 		USE_LOGGER(MetaManager);
 		std::shared_mutex mContextLock;
-		std::unordered_map<UInt32, AssemblyContext*> mContexts;
+		std::unordered_map<RTME::GUID, AssemblyContext*, RTME::GuidHash, RTME::GuidEqual> mContexts;
 	private:
 		AssemblyContext* TryQueryContextLocked(RTME::AssemblyRefMD* reference);
 		AssemblyContext* TryQueryContext(RTME::AssemblyRefMD* reference);
@@ -70,15 +70,25 @@ namespace RTM
 			Int8 waitStatus = -1,
 			bool allowWait = false);
 
+		TypeDescriptor* GetTypeFromDefTokenInternal(
+			AssemblyContext* context,
+			MDToken typeDefinition,
+			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT),
+			Int8 waitStatus = -1,
+			bool allowWait = false
+		);
+
 		void ResolveType(
 			AssemblyContext* context,
 			TypeDescriptor* type,
 			MDToken typeDefinition,
 			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
-		TypeDescriptor* InstantiateType(
+		void InstantiateType(
 			AssemblyContext* context,
 			TypeDescriptor* canonical,
+			TypeDescriptor* type,
+			MDToken typeDefinition,
 			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
 		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
@@ -110,6 +120,7 @@ namespace RTM
 	public:
 		AssemblyContext* GetAssemblyFromToken(AssemblyContext* context, MDToken assemblyReference);
 		TypeDescriptor* GetTypeFromToken(AssemblyContext* context, MDToken typeReference);
+		TypeDescriptor* GetTypeFromDefinitionToken(AssemblyContext* context, MDToken typeDefinition);
 		RTO::StringObject* GetStringFromToken(AssemblyContext* context, MDToken stringToken);
 		MethodDescriptor* GetMethodFromToken(AssemblyContext* context, MDToken methodReference);
 		FieldDescriptor* GetFieldFromToken(AssemblyContext* context, MDToken fieldReference);

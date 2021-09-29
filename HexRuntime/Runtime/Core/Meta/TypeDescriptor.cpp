@@ -14,12 +14,20 @@ RTO::StringObject* RTM::TypeDescriptor::GetFullQualifiedName() const
 
 RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetInterfaces() const
 {
-	return  { mInterfaces, mColdMD->InterfaceCount };
+	Int32 count = mColdMD->InterfaceCount;
+	if (count == 1)
+		return { &const_cast<TypeDescriptor*>(this)->mInterfaceInline, count };
+	else
+		return { mInterfaces, count };
 }
 
 RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetTypeArguments() const
 {
-	return { mTypeArguments, 0 };
+	Int32 count = mColdMD->GenericParameterCount;
+	if (count == 1)
+		return { &const_cast<TypeDescriptor*>(this)->mTypeArgumentInline, count };
+	else
+		return { mTypeArguments, count };
 }
 
 RT::UInt8 RTM::TypeDescriptor::GetCoreType() const

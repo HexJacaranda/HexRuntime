@@ -20,25 +20,51 @@ namespace RTM
 
 namespace RTM
 {
+	class TypeStatus
+	{
+	public:
+		static constexpr Int8 NotYet = 0;
+		static constexpr Int8 Processing = 1;
+		static constexpr Int8 Basic = 2;
+		//Intermediate status for better performance
+
+		static constexpr Int8 LayoutDone = 3;
+		static constexpr Int8 MethodTableDone = 4;
+		static constexpr Int8 InterfaceTableDone = 5;
+		/// <summary>
+		/// Used for cyclical type loading
+		/// </summary>
+		static constexpr Int8 Almost = 6;
+		static constexpr Int8 Done = 7;
+	};
+
 	class TypeDescriptor :public Descriptor<RTME::TypeMD>
 	{
 		friend class MetaManager;
 		MDToken mSelf;
 
-		RTO::StringObject* mTypeName;
-		RTO::StringObject* mFullQualifiedName;
-		TypeDescriptor* mParent;
-		TypeDescriptor* mEnclosing;
-		TypeDescriptor* mCanonical;
-		TypeDescriptor** mInterfaces;
+		RTO::StringObject* mTypeName = nullptr;
+		RTO::StringObject* mFullQualifiedName = nullptr;
+		TypeDescriptor* mParent = nullptr;
+		TypeDescriptor* mEnclosing = nullptr;
+		TypeDescriptor* mCanonical = nullptr;
 
-		TypeDescriptor** mTypeArguments;
-
-		FieldTable* mFieldTable;
-		MethodTable* mMethTable;
-		InterfaceDispatchTable* mInterfaceTable;
+		//Trick: inline storage
+		union {
+			TypeDescriptor** mInterfaces;
+			TypeDescriptor* mInterfaceInline = nullptr;
+		};
 		
-		AssemblyContext* mContext;
+		union {
+			TypeDescriptor** mTypeArguments;
+			TypeDescriptor* mTypeArgumentInline = nullptr;
+		};
+		
+		FieldTable* mFieldTable = nullptr;
+		MethodTable* mMethTable = nullptr;
+		InterfaceDispatchTable* mInterfaceTable = nullptr;
+		
+		AssemblyContext* mContext = nullptr;
 	public:
 		RTO::StringObject* GetTypeName()const;
 		RTO::StringObject* GetFullQualifiedName()const;
@@ -67,7 +93,7 @@ namespace RTM
 
 		bool IsAssignableFrom(TypeDescriptor* another)const;
 	public:
-		std::atomic<Int8> Status;
+		std::atomic<Int8> Status = TypeStatus::NotYet;
 	};
 
 	using Type = TypeDescriptor;

@@ -76,6 +76,22 @@ namespace RTME
 		}
 	};
 
+	struct GuidHash
+	{
+		inline UInt32 operator()(GUID const& guid)const
+		{
+			return guid.GetHashCode();
+		}
+	};
+
+	struct GuidEqual
+	{
+		inline bool operator()(GUID const& left, GUID const& right)const
+		{
+			return memcmp(&left, &right, sizeof(GUID)) == 0;
+		}
+	};
+
 	struct AssemblyHeaderMD
 	{
 		MDToken NameToken;
@@ -138,7 +154,6 @@ namespace RTME
 		{
 			/// <summary>
 			/// Actually the TypeDefToken is at the same level with GenericInstantiationDefToken.
-			/// They really points to some While GenericParameterDefToken here 
 			/// </summary>
 			MDToken TypeDefToken;
 			MDToken GenericInstantiationDefToken;
