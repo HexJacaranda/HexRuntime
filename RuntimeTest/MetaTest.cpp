@@ -16,7 +16,7 @@ namespace RuntimeTest
 		TEST_METHOD(MetaManagerLoadingTest)
 		{
 			MetaData = new MetaManager();
-			auto context = MetaData->StartUp(Text("HexRT.Core"));
+			auto context = MetaData->StartUp(Text("Core"));
 			auto type = MetaData->GetTypeFromToken(context, 0);
 		}
 	};
