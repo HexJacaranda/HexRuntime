@@ -44,7 +44,7 @@ namespace RTM
 {
 	using VisitSet = std::unordered_set<TypeIdentity, TypeIdentityHash, TypeIdentityEqual>;
 	using WaitingList = std::vector<TypeDescriptor*>;
-	using TypeIdentityReclaimList = std::vector<TypeIdentity>;
+	using TypeIdentityReclaimList = std::vector<std::pair<RTMM::PrivateHeap*, TypeIdentity>>;
 
 	/// <summary>
 	/// Manager that responsible for metadata management
@@ -89,6 +89,7 @@ namespace RTM
 			TypeDescriptor* canonical,
 			TypeDescriptor* type,
 			MDToken typeDefinition,
+			TypeIdentity const& typeIdentity,
 			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
 		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
@@ -112,11 +113,17 @@ namespace RTM
 		/// </summary>
 		/// <param name="context"></param>
 		void UnLoadAssembly(AssemblyContext* context);
-		
+		/// <summary>
+		/// Allocate fixed managed string from wstring_view
+		/// </summary>
+		/// <param name="view"></param>
+		/// <returns></returns>
+		RTO::StringObject* GetStringFromView(AssemblyContext* context, std::wstring_view view);
 	public:
 		MetaManager();
 		AssemblyContext* StartUp(RTString assemblyName);
 		void ShutDown();
+		~MetaManager();
 	public:
 		AssemblyContext* GetAssemblyFromToken(AssemblyContext* context, MDToken assemblyReference);
 		TypeDescriptor* GetTypeFromToken(AssemblyContext* context, MDToken typeReference);

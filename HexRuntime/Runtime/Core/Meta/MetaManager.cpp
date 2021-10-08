@@ -1,9 +1,11 @@
 #include "MetaManager.h"
+#include "TypeStructuredName.h"
 #include "..\Exception\RuntimeException.h"
 #include "..\Memory\PrivateHeap.h"
 #include "..\..\LoggingConfiguration.h"
 #include "..\..\Logging.h"
 #include "CoreTypes.h"
+#include <memory>
 #include <spdlog/async_logger.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -15,6 +17,12 @@ namespace RT
 	{
 		GET_LOGGER_METHOD
 		{
+			{
+				auto logger = spdlog::get("meta-manager");
+				if (logger != nullptr)
+					return std::static_pointer_cast<spdlog::async_logger>(logger);
+			}
+
 			auto logger = std::make_shared<spdlog::async_logger>(
 				"meta-manager",
 				sinks.begin(),
@@ -25,7 +33,6 @@ namespace RT
 			logger->set_level(spdlog::level::debug);
 			logger->set_pattern("[%n(%t)][%l]:%v");
 			spdlog::register_logger(logger);
-
 			return logger;
 		}
 	};
@@ -137,6 +144,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 			* unavoidably introduce load limit of type for recursive
 			* and generative pattern of generics
 		*/
+
 		auto entry = new (typeDefAssembly->Heap) TypeDefEntry();
 		auto instantiationType = new (typeDefAssembly->Heap) TypeDescriptor();
 		entry->Type.store(instantiationType, std::memory_order_release);
@@ -145,14 +153,14 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 		TypeDefEntry* finalValue = nullptr;
 		if (!typeDefAssembly->Entries.DefineGenericInstantiation(identity, entry, finalValue, newDefinitionToken))
 		{
-			::operator delete(instantiationType, typeDefAssembly->Heap);
-			::operator delete(entry, typeDefAssembly->Heap);
+			typeDefAssembly->Heap->Return(instantiationType);
+			typeDefAssembly->Heap->Return(entry);
 			/*
 			* Mark type identity (if there is an allocated array inside) to be freed in heap
 			* held by AssemblyContext to avoid memory leak when the loading is over
 			*/
 			if (identity.ArgumentCount > 1)
-				identityReclaimList.push_back(identity);
+				identityReclaimList.push_back(std::make_pair(typeDefAssembly->Heap, identity));
 		
 			return waitAndGetType(*finalValue, finalValue->Type.load(std::memory_order_acquire));
 		}
@@ -172,7 +180,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 
 			{
 				INSTANTIATION_SESSION(layer);
-				InstantiateType(typeDefAssembly, canonicalType, instantiationType, newDefinitionToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+				InstantiateType(typeDefAssembly, canonicalType, instantiationType, newDefinitionToken, identity, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
 				//Notify waiting threads after instantiation
 				finalValue->Waiter.notify_all();
 			}		
@@ -288,9 +296,8 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefTokenInternal(
 				entry.Waiter.notify_all();
 
 				//Clean up type identity with allocated array to avoid memory leak
-				for (auto&& identity : identityReclaimList)
-					//Delete has nothing to do with origin heap
-					::operator delete(identity.Arguments, (RTMM::PrivateHeap*)nullptr);
+				for (auto&& [heap, identity] : identityReclaimList)
+					heap->Free(identity.Arguments, sizeof(void*) * identity.ArgumentCount);
 			}
 			else
 			{
@@ -306,7 +313,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefTokenInternal(
 		else
 		{
 			//Clean resource
-			::operator delete(newTypeDescriptor, context->Heap);
+			context->Heap->Return(newTypeDescriptor);
 			visited.insert(TypeIdentity{ type });
 		}
 	}
@@ -401,9 +408,17 @@ void RTM::MetaManager::UnLoadAssembly(AssemblyContext* context)
 	//Unload heap content
 	if (context->Heap != nullptr)
 	{
+		context->Heap->Return(context->Importer);
 		delete context->Heap;
 		context->Heap = nullptr;
 	}
+}
+
+RTO::StringObject* RTM::MetaManager::GetStringFromView(AssemblyContext* context, std::wstring_view view)
+{
+	auto string = (RTO::StringObject*)new (context->Heap) UInt8[sizeof(RTO::StringObject) + (view.size() + 1) * sizeof(UInt16)];
+	new (string) RTO::StringObject(view.size(), view.data());
+	return string;
 }
 
 void RTM::MetaManager::ResolveType(
@@ -476,9 +491,12 @@ void RTM::MetaManager::ResolveType(
 	}
 	type->Status.store(TypeStatus::Basic, std::memory_order_release);
 
-	//Loading field table
-	LOG_DEBUG("{} [{:#010x}] Loading fields", type->GetFullQualifiedName()->GetContent(), type->GetToken());
-	type->mFieldTable = GenerateFieldTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+	if (!CoreTypes::IsPrimitive(meta->CoreType))
+	{
+		//Loading field table
+		LOG_DEBUG("{} [{:#010x}] Loading fields", type->GetFullQualifiedName()->GetContent(), type->GetToken());
+		type->mFieldTable = GenerateFieldTable(USE_IMPORT_CONTEXT, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+	}
 
 	//Update to layout done
 	type->Status.store(TypeStatus::LayoutDone, std::memory_order_release);
@@ -508,6 +526,7 @@ void RTM::MetaManager::InstantiateType(
 	TypeDescriptor* canonical, 
 	TypeDescriptor* type, 
 	MDToken typeDefinition,
+	TypeIdentity const& typeIdentity,
 	INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT))
 {
 	auto meta = canonical->mColdMD;
@@ -516,9 +535,57 @@ void RTM::MetaManager::InstantiateType(
 	type->mContext = context;
 	type->mSelf = typeDefinition;
 
-	//TODO: Instantiation type should have instantiated name
-	type->mTypeName = GetStringFromToken(context, meta->NameToken);
-	type->mFullQualifiedName = GetStringFromToken(context, meta->FullyQualifiedNameToken);
+	//Instantiation type should have instantiated name
+	{
+		auto fqn = GetStringFromToken(context, meta->FullyQualifiedNameToken);
+		std::wstring_view fqnView{ fqn->GetContent(), fqn->GetCount() };
+		TypeStructuredName canonicalTSN = TypeStructuredName::From(fqnView);
+
+		//Construct instantiation array
+		//May store the type name with assembly reference
+		std::vector<std::wstring> withAssemblyReference(typeIdentity.ArgumentCount);
+		std::vector<std::wstring_view> instantiationNameList(typeIdentity.ArgumentCount);
+
+		auto appendFor = [&](Int32 index, TypeDescriptor* type) {
+			auto name = type->GetFullQualifiedName();
+
+			auto argumentAssembly = type->GetAssembly();
+			if (argumentAssembly != context)
+			{
+				//Not the same context, need to add reference assembly
+				withAssemblyReference[index] = std::move(std::wstring{ name->GetContent(), name->GetCount() });
+				auto assemblyName = GetStringFromToken(argumentAssembly, argumentAssembly->Header.NameToken);
+
+				//Make a [Name] in the front
+				withAssemblyReference[index].insert(0, L"]");
+				withAssemblyReference[index].insert(0, assemblyName->GetContent(), assemblyName->GetCount());
+				withAssemblyReference[index].insert(0, L"[");
+
+				//Give it a reference to modified name
+				instantiationNameList[index] = withAssemblyReference[index];
+			}
+			else
+			{
+				//Direct reference
+				instantiationNameList[index] = std::wstring_view{ name->GetContent(), name->GetCount() };
+			}
+		};
+
+		if (typeIdentity.ArgumentCount > 1)
+		{
+			for (Int32 i = 0; i < typeIdentity.ArgumentCount; ++i)
+				appendFor(i, typeIdentity.Arguments[i]);
+		}
+		else
+		{
+			appendFor(0, typeIdentity.SingleArgument);
+		}
+
+		//Construct instantiated type name
+		TypeStructuredName instantiatedTSN = canonicalTSN.InstantiateWith(instantiationNameList);
+		type->mTypeName = GetStringFromView(context, instantiatedTSN.GetShortTypeName());
+		type->mFullQualifiedName = GetStringFromView(context, instantiatedTSN.GetFullyQualifiedNameWithoutAssembly());
+	}
 
 	//Load parent
 	if (meta->ParentTypeRefToken != NullToken)
@@ -910,6 +977,12 @@ void RTM::MetaManager::ShutDown()
 	std::unique_lock lock{ mContextLock };
 	for (auto&& each : mContexts)
 		UnLoadAssembly(each.second);
+	mContexts.clear();
+}
+
+RTM::MetaManager::~MetaManager()
+{
+	ShutDown();
 }
 
 RTM::AssemblyContext* RTM::MetaManager::GetAssemblyFromToken(AssemblyContext* context, MDToken assemblyReference)
@@ -1011,6 +1084,9 @@ RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreTy
 		Text("[System]Struct"),
 		Text("[System]Reference"),
 		Text("[System]Interior<Canon>"),
+
+		Text("Invalid Core Type"),
+		Text("Invalid Core Type"),
 
 		Text("[System]Object"),
 		Text("[System]Array<Canon>"),

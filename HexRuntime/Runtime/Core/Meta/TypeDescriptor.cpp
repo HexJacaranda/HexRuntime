@@ -77,6 +77,8 @@ RTM::AssemblyContext* RTM::TypeDescriptor::GetAssembly() const
 
 RT::Int32 RTM::TypeDescriptor::GetSize() const
 {
+	if (CoreTypes::IsPrimitive(GetCoreType()))
+		return CoreTypes::SizeOfCoreType[GetCoreType()];
 	return mFieldTable->GetLayout()->Size;
 }
 
