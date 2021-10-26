@@ -73,6 +73,7 @@
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
+    <ClInclude Include="Runtime\Range.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
     <ClInclude Include="Runtime\Utility.h" />
   </ItemGroup>
@@ -115,6 +116,7 @@
     <ClCompile Include="Runtime\Core\Object\ObjectStorage.cpp" />
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
     <ClCompile Include="Runtime\Logging.cpp" />
+    <ClCompile Include="Runtime\Range.cpp" />
     <ClCompile Include="Runtime\RuntimeAlias.cpp" />
   </ItemGroup>
   <ItemGroup>

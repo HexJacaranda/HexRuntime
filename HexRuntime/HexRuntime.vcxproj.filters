@@ -261,6 +261,9 @@
     <ClInclude Include="Runtime\Core\Meta\TypeStructuredName.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Range.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -378,6 +381,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\TypeStructuredName.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Range.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

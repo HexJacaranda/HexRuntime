@@ -92,6 +92,31 @@ namespace RT
 		}
 	};
 
+	template<class T>
+	concept ContainerT = requires(T value, Int32 index) 
+	{ 
+		value.size(); 
+		value[index]; 
+	};
+
+	class Enumerable
+	{
+	public:
+
+		template<ContainerT Container, class BodyFn, class ConnectionFn>
+		static void ContractIterate(Container&& container, BodyFn&& bodyFn, ConnectionFn&& connectionFn)
+		{
+			Int32 size = container.size();
+			Int32 i = 0;
+			for (; i < size - 1; ++i)
+			{
+				std::forward<BodyFn>(bodyFn)(container[i]);
+				std::forward<ConnectionFn>(connectionFn)(container[i]);
+			}
+			std::forward<BodyFn>(bodyFn)(container[i]);
+		}
+	};
+
 #define UNDERLYING_TYPE(TYPE) using EnumType = TYPE
 
 #define VALUE(NAME) static constexpr EnumType NAME

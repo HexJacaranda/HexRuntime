@@ -538,37 +538,16 @@ void RTM::MetaManager::InstantiateType(
 	//Instantiation type should have instantiated name
 	{
 		auto fqn = GetStringFromToken(context, meta->FullyQualifiedNameToken);
-		std::wstring_view fqnView{ fqn->GetContent(), fqn->GetCount() };
-		TypeStructuredName canonicalTSN = TypeStructuredName::From(fqnView);
+		std::wstring_view fqnView{ fqn->GetContent(),  (std::size_t)fqn->GetCount() };
+		auto canonicalTSN = TypeNameParser(fqnView).Parse(true);
 
 		//Construct instantiation array
-		//May store the type name with assembly reference
-		std::vector<std::wstring> withAssemblyReference(typeIdentity.ArgumentCount);
 		std::vector<std::wstring_view> instantiationNameList(typeIdentity.ArgumentCount);
 
 		auto appendFor = [&](Int32 index, TypeDescriptor* type) {
 			auto name = type->GetFullQualifiedName();
-
-			auto argumentAssembly = type->GetAssembly();
-			if (argumentAssembly != context)
-			{
-				//Not the same context, need to add reference assembly
-				withAssemblyReference[index] = std::move(std::wstring{ name->GetContent(), name->GetCount() });
-				auto assemblyName = GetStringFromToken(argumentAssembly, argumentAssembly->Header.NameToken);
-
-				//Make a [Name] in the front
-				withAssemblyReference[index].insert(0, L"]");
-				withAssemblyReference[index].insert(0, assemblyName->GetContent(), assemblyName->GetCount());
-				withAssemblyReference[index].insert(0, L"[");
-
-				//Give it a reference to modified name
-				instantiationNameList[index] = withAssemblyReference[index];
-			}
-			else
-			{
-				//Direct reference
-				instantiationNameList[index] = std::wstring_view{ name->GetContent(), name->GetCount() };
-			}
+			//Direct reference
+			instantiationNameList[index] = std::wstring_view{ name->GetContent(), (std::size_t)name->GetCount() };
 		};
 
 		if (typeIdentity.ArgumentCount > 1)
@@ -582,9 +561,9 @@ void RTM::MetaManager::InstantiateType(
 		}
 
 		//Construct instantiated type name
-		TypeStructuredName instantiatedTSN = canonicalTSN.InstantiateWith(instantiationNameList);
-		type->mTypeName = GetStringFromView(context, instantiatedTSN.GetShortTypeName());
-		type->mFullQualifiedName = GetStringFromView(context, instantiatedTSN.GetFullyQualifiedNameWithoutAssembly());
+		auto instantiatedTSN = canonicalTSN->InstantiateWith(instantiationNameList);
+		type->mTypeName = GetStringFromView(context, instantiatedTSN->GetShortTypeName());
+		type->mFullQualifiedName = GetStringFromView(context, instantiatedTSN->GetFullyQualifiedName());
 	}
 
 	//Load parent
@@ -1067,32 +1046,32 @@ RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* conte
 RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreType)
 {
 	static constexpr std::wstring_view CoreTypeNames[] = {
-		Text("[System]Int8"),
-		Text("[System]Int16"),
-		Text("[System]Int32"),
-		Text("[System]Int64"),
+		Text("[Core][global]Int8"),
+		Text("[Core][global]Int16"),
+		Text("[Core][global]Int32"),
+		Text("[Core][global]Int64"),
 
-		Text("[System]UInt8"),
-		Text("[System]UInt16"),
-		Text("[System]UInt32"),
-		Text("[System]UInt64"),
+		Text("[Core][global]UInt8"),
+		Text("[Core][global]UInt16"),
+		Text("[Core][global]UInt32"),
+		Text("[Core][global]UInt64"),
 
-		Text("[System]Half"),
-		Text("[System]Float"),
-		Text("[System]Double"),
+		Text("[Core][global]Half"),
+		Text("[Core][global]Float"),
+		Text("[Core][global]Double"),
 
-		Text("[System]Struct"),
-		Text("[System]Reference"),
-		Text("[System]Interior<Canon>"),
+		Text("[Core][global]Struct"),
+		Text("[Core][global]Reference"),
+		Text("[Core][global]Interior<Canon>"),
 
 		Text("Invalid Core Type"),
 		Text("Invalid Core Type"),
 
-		Text("[System]Object"),
-		Text("[System]Array<Canon>"),
-		Text("[System]Array<Canon>"),
-		Text("[System]String"),
-		Text("[System]Delegate")
+		Text("[Core][global]Object"),
+		Text("[Core][global]Array<Canon>"),
+		Text("[Core][global]Array<Canon>"),
+		Text("[Core][global]String"),
+		Text("[Core][global]Delegate")
 	};
 
 	AssemblyContext* coreLibrary = nullptr;
