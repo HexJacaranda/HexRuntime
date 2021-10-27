@@ -1,24 +1,33 @@
 #include "TypeDescriptor.h"
 #include "CoreTypes.h"
+#include "..\Exception\RuntimeException.h"
 
 RTO::StringObject* RTM::TypeDescriptor::GetTypeName() const
 {
 	return mTypeName;
 }
 
-RTO::StringObject* RTM::TypeDescriptor::GetNamespace() const
+RTO::StringObject* RTM::TypeDescriptor::GetFullQualifiedName() const
 {
-	return mNamespace;
+	return mFullQualifiedName;
 }
 
 RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetInterfaces() const
 {
-	return  { mInterfaces, mColdMD->InterfaceCount };
+	Int32 count = mColdMD->InterfaceCount;
+	if (count == 1)
+		return { &const_cast<TypeDescriptor*>(this)->mInterfaceInline, count };
+	else
+		return { mInterfaces, count };
 }
 
 RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetTypeArguments() const
 {
-	return { mTypeArguments, 0 };
+	Int32 count = mColdMD->GenericParameterCount;
+	if (count == 1)
+		return { &const_cast<TypeDescriptor*>(this)->mTypeArgumentInline, count };
+	else
+		return { mTypeArguments, count };
 }
 
 RT::UInt8 RTM::TypeDescriptor::GetCoreType() const
@@ -68,6 +77,8 @@ RTM::AssemblyContext* RTM::TypeDescriptor::GetAssembly() const
 
 RT::Int32 RTM::TypeDescriptor::GetSize() const
 {
+	if (CoreTypes::IsPrimitive(GetCoreType()))
+		return CoreTypes::SizeOfCoreType[GetCoreType()];
 	return mFieldTable->GetLayout()->Size;
 }
 
@@ -109,4 +120,23 @@ bool RTM::TypeDescriptor::IsAttribute() const
 bool RTM::TypeDescriptor::IsGeneric() const
 {
 	return mColdMD->IsGeneric();
+}
+
+bool RTM::TypeDescriptor::IsAssignableFrom(TypeDescriptor* another) const
+{
+	if (another == nullptr)
+		THROW("Invalid type descriptor");
+
+	auto parentChain = another;
+	while (parentChain != nullptr && this != parentChain)
+		parentChain = parentChain->GetParentType();
+	if (parentChain != nullptr)
+		return true;
+
+	//TODO: Loop unrolling to improve perf
+	for (auto&& interface : another->GetInterfaces())
+		if (interface == this)
+			return true;
+
+	return false;
 }

@@ -39,6 +39,7 @@ namespace RTM
 		MethodArgumentDescriptor* mArguments;
 	public:
 		ObservableArray<MethodArgumentDescriptor> GetArguments()const;
+		TypeDescriptor* GetReturnType()const;
 	};
 
 	/// <summary>

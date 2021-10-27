@@ -54,6 +54,7 @@
     <ClInclude Include="Runtime\Core\Meta\FieldTable.h" />
     <ClInclude Include="Runtime\Core\Meta\IImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h" />
+    <ClInclude Include="Runtime\Core\Meta\InstantiationMap.h" />
     <ClInclude Include="Runtime\Core\Meta\InterfaceDispatchTable.h" />
     <ClInclude Include="Runtime\Core\Meta\MappedImportSession.h" />
     <ClInclude Include="Runtime\Core\Meta\MDImporter.h" />
@@ -62,14 +63,17 @@
     <ClInclude Include="Runtime\Core\Meta\MethodDescriptor.h" />
     <ClInclude Include="Runtime\Core\Meta\MethodTable.h" />
     <ClInclude Include="Runtime\Core\Meta\TypeDescriptor.h" />
-    <ClInclude Include="Runtime\Core\Meta\TypeRepresentation.h" />
+    <ClInclude Include="Runtime\Core\Meta\TypeIdentity.h" />
+    <ClInclude Include="Runtime\Core\Meta\TypeStructuredName.h" />
     <ClInclude Include="Runtime\Core\Object\ArrayObject.h" />
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
+    <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
+    <ClInclude Include="Runtime\Range.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
     <ClInclude Include="Runtime\Utility.h" />
   </ItemGroup>
@@ -84,6 +88,7 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp" />
@@ -97,6 +102,7 @@
     <ClCompile Include="Runtime\Core\Meta\FieldTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\IImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\InstantiationMap.cpp" />
     <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MappedImportSession.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp" />
@@ -104,11 +110,13 @@
     <ClCompile Include="Runtime\Core\Meta\MethodDescriptor.cpp" />
     <ClCompile Include="Runtime\Core\Meta\MethodTable.cpp" />
     <ClCompile Include="Runtime\Core\Meta\TypeDescriptor.cpp" />
+    <ClCompile Include="Runtime\Core\Meta\TypeStructuredName.cpp" />
     <ClCompile Include="Runtime\Core\Object\ArrayObject.cpp" />
     <ClCompile Include="Runtime\Core\Object\Object.cpp" />
     <ClCompile Include="Runtime\Core\Object\ObjectStorage.cpp" />
     <ClCompile Include="Runtime\Core\Object\StringObject.cpp" />
     <ClCompile Include="Runtime\Logging.cpp" />
+    <ClCompile Include="Runtime\Range.cpp" />
     <ClCompile Include="Runtime\RuntimeAlias.cpp" />
   </ItemGroup>
   <ItemGroup>

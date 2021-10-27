@@ -74,3 +74,8 @@ RT::ObservableArray<RTM::MethodArgumentDescriptor> RTM::MethodSignatureDescripto
 {
 	return { mArguments, mColdMD->ArgumentCount };
 }
+
+RTM::TypeDescriptor* RTM::MethodSignatureDescriptor::GetReturnType() const
+{
+	return mReturnType;
+}

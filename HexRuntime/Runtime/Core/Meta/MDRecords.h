@@ -13,12 +13,13 @@ namespace RTME
 		it refers to generic parameter.
 	*/
 
-	enum class MDRecordKinds
+	enum class MDRecordKinds: Int16
 	{
 		String,
 		Argument,
 		GenericParameter,
 		TypeDef,
+		GenericInstantiationDef,
 		AttributeDef,
 		MethodDef,
 		FieldDef,
@@ -48,6 +49,20 @@ namespace RTME
 		return (_Val);
 	}
 
+	static UInt32 ComputeHashCode(const void* value, UInt32 size) {
+		const UInt8* _First = (const UInt8*)value;
+
+		const UInt32 _FNV_offset_basis = 2166136261U;
+		const UInt32 _FNV_prime = 16777619U;
+		UInt32 _Val = _FNV_offset_basis;
+		for (UInt32 _Next = 0; _Next < size; ++_Next)
+		{
+			_Val ^= (UInt32)_First[_Next];
+			_Val *= _FNV_prime;
+		}
+		return (_Val);
+	}
+
 	struct GUID
 	{
 		Int32 X;
@@ -58,6 +73,22 @@ namespace RTME
 		UInt32 GetHashCode()const
 		{
 			return ComputeHashCode(*this);
+		}
+	};
+
+	struct GuidHash
+	{
+		inline UInt32 operator()(GUID const& guid)const
+		{
+			return guid.GetHashCode();
+		}
+	};
+
+	struct GuidEqual
+	{
+		inline bool operator()(GUID const& left, GUID const& right)const
+		{
+			return memcmp(&left, &right, sizeof(GUID)) == 0;
 		}
 	};
 
@@ -73,7 +104,7 @@ namespace RTME
 			sizeof(AssemblyHeaderMD::NameToken) +
 			sizeof(AssemblyHeaderMD::MajorVersion) +
 			sizeof(AssemblyHeaderMD::MinorVersion) +
-			sizeof(AssemblyHeaderMD::GroupNameToken)+
+			sizeof(AssemblyHeaderMD::GroupNameToken) +
 			sizeof(AssemblyHeaderMD::GUID);
 	};
 
@@ -115,7 +146,22 @@ namespace RTME
 	struct TypeRefMD
 	{
 		MDToken AssemblyToken;
-		MDToken TypeDefToken;
+		/// <summary>
+		/// Only GenericInstantiationDef, GenericParamter and TypeDef are allowed
+		/// </summary>
+		MDRecordKinds DefKind;
+		union 
+		{
+			/// <summary>
+			/// Actually the TypeDefToken is at the same level with GenericInstantiationDefToken.
+			/// </summary>
+			MDToken TypeDefToken;
+			MDToken GenericInstantiationDefToken;
+			/// <summary>
+			/// Use the generic parameter from outer context
+			/// </summary>
+			MDToken GenericParameterDefToken;
+		};		
 	};
 
 	/// <summary>
@@ -124,8 +170,22 @@ namespace RTME
 	struct MemberRefMD
 	{
 		MDToken TypeRefToken;
+		/// <summary>
+		/// Highest bit to indicate whether it's a generic instantiation
+		/// </summary>
 		MDRecordKinds MemberDefKind;
-		MDToken MemberDefToken;
+		union
+		{
+			MDToken MemberDefToken;
+			//Only available when it's a method 
+			MDToken GenericInstantiationDefToken;
+		};		
+		MDRecordKinds GetMemberDefKind()const { 
+			return (MDRecordKinds)((Int32)MemberDefKind & ~0x80000000); 
+		};
+		bool IsGenericInstantiation()const { 
+			return !!((Int32)MemberDefKind & 0x80000000);
+		}
 	};
 
 	struct AssemblyRefMD
@@ -166,6 +226,7 @@ namespace RTME
 		MDToken ParentTypeRefToken;
 		MDToken TypeRefToken;
 		MDToken NameToken;
+		MDToken FullyQualifiedNameToken;
 		UInt8 Accessibility;
 
 		BEGIN_FLAGS(UInt16)
@@ -258,10 +319,17 @@ namespace RTME
 		};
 	};
 
+	struct GenericInstantiationMD
+	{
+		MDToken CanonicalTypeRefToken;
+		TOKEN_SERIES(TypeParameter);
+	};
+
 	struct MethodMD
 	{
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
+		MDToken FullyQualifiedNameToken;
 		UInt8 Accessibility;
 
 		BEGIN_FLAGS(UInt16)
@@ -279,6 +347,7 @@ namespace RTME
 		Int32 NativeLinkCount;
 		NativeLinkMD* NativeLinks;
 
+		TOKEN_SERIES(GenericParameter);
 		TOKEN_SERIES(Attribute);
 	};
 
@@ -287,9 +356,9 @@ namespace RTME
 		MDToken ParentAssemblyToken;
 		MDToken ParentTypeRefToken;
 		MDToken NameToken;
+		MDToken FullyQualifiedNameToken;
 		MDToken EnclosingTypeRefToken;
 		MDToken CanonicalTypeRefToken;
-		MDToken NamespaceToken;
 		UInt8 CoreType;
 		UInt8 Accessibility;
 

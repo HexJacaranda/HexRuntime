@@ -21,6 +21,11 @@ namespace Runtime
 	{
 		GET_LOGGER_METHOD
 		{
+			{
+				auto logger = spdlog::get("hex-runtime");
+				if (logger != nullptr)
+					return std::static_pointer_cast<spdlog::async_logger>(logger);
+			}
 			auto logger = std::make_shared<spdlog::async_logger>("hex-runtime",
 				sinks.begin(),
 				sinks.end(),

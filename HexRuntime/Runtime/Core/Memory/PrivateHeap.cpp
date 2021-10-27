@@ -1,50 +1,35 @@
 #include "PrivateHeap.h"
 
-void RTMM::PrivateHeap::HangHeap(RawHeap heap)
-{
-	auto link = new HeapLink{ heap, nullptr };
-	link->Previous = mCurrent.load(std::memory_order::relaxed);
-
-	while (!mCurrent.compare_exchange_weak(link->Previous, link, std::memory_order::release, std::memory_order::relaxed));
-}
-
-RTMM::RawHeap RTMM::PrivateHeap::GetCurrentRawHeap()
-{
-	thread_local static RawHeap heap;
-	if (heap == nullptr)
-	{
-		heap = mi_heap_new();
-		HangHeap(heap);
-	}
-	return heap;
-}
-
 RTMM::PrivateHeap::~PrivateHeap()
 {
-	HeapLink* next = nullptr;
-	HeapLink* iterator = mCurrent;
-	while (iterator != nullptr)
-	{
-		next = iterator->Previous;
-		mi_heap_destroy(iterator->Heap);
-		delete iterator;
-		iterator = next;
-	}
+
+}
+
+RTMM::PrivateHeap::PrivateHeap()
+{
+	mResource = std::make_unique<std::pmr::synchronized_pool_resource>();
+	mAllocator = std::make_unique<std::pmr::polymorphic_allocator<std::byte>>(mResource.get());
 }
 
 void* RTMM::PrivateHeap::Allocate(Int32 size)
 {
-	return mi_heap_malloc(GetCurrentRawHeap(), size);
+	return mAllocator->allocate_bytes(size);
 }
 
 void* RTMM::PrivateHeap::Allocate(Int32 size, Int32 align)
 {
-	return mi_heap_malloc_aligned(GetCurrentRawHeap(), size, align);
+	return mAllocator->allocate_bytes(size, align);
 }
 
-void RTMM::PrivateHeap::Free(void* target)
+void RTMM::PrivateHeap::Free(void* target, Int32 size)
 {
-	mi_free(target);
+	return mAllocator->deallocate_bytes(target, size);
+}
+
+void RTMM::PrivateHeap::FreeTracked(void* target)
+{
+	Int32* origin = (Int32*)target - 1;
+	mAllocator->deallocate_bytes(origin, *origin);
 }
 
 void* operator new(size_t size, RTMM::PrivateHeap* allocator)
@@ -52,17 +37,21 @@ void* operator new(size_t size, RTMM::PrivateHeap* allocator)
 	return allocator->Allocate(size);
 }
 
+void* operator new(size_t size, RTMM::PrivateHeap* allocator, RTMM::TrackTagT)
+{
+	void* memory = allocator->Allocate(size + sizeof(RT::Int32));
+	*((RT::Int32*)memory) = size + sizeof(RT::Int32);
+	return (RT::Int32*)memory + 1;
+}
+
 void* operator new[](size_t size, RTMM::PrivateHeap* allocator)
 {
 	return allocator->Allocate(size);
 }
 
-void operator delete(void* target, RTMM::PrivateHeap* allocator)
+void* operator new[](size_t size, RTMM::PrivateHeap* allocator, RTMM::TrackTagT)
 {
-	allocator->Free(target);
-}
-
-void operator delete[](void* target, RTMM::PrivateHeap* allocator)
-{
-	allocator->Free(target);
+	void* memory = allocator->Allocate(size + sizeof(RT::Int32));
+	*((RT::Int32*)memory) = size + sizeof(RT::Int32);
+	return (RT::Int32*)memory + 1;
 }

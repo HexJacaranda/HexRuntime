@@ -11,9 +11,6 @@ namespace RTJ
 //Define extended il instruction with 0x00 leading byte (ext)
 #define IL_EX(Name, Value, BaeValue) static constexpr UInt8 Name = Value; \
 							 static constexpr UInt8 Name##Bae = BaeValue
-	//Opcodes with BAE encoding
-	//[Opcodes(8 bit)][Extended(8 bit optional with leading 0x00)][Consumed Items(4 bit)][Produced Items(4 bit)]
-	//[CI extended(16 bit with leading 0xF)][PI extended(16 bit with leading 0xF)]
 
 	/// <summary>
 	/// Number of opcodes may increases with time. Currently we support up to 255 different opcodes(8 bit).
