@@ -74,6 +74,9 @@ namespace RTJ::Hex
 		BinaryArithmeticNode* GenerateBinaryArithmetic(UInt8 opcode);
 		UnaryArithmeticNode* GenerateUnaryArtithmetic(UInt8 opcode);
 		ConvertNode* GenerateConvert();
+		CastNode* GenerateCast();
+		UnBoxNode* GenerateUnBox();
+		BoxNode* GenerateBox();
 
 		void GenerateJccPP(BasicBlockPartitionPoint*& partitions);
 		void GenerateJmpPP(BasicBlockPartitionPoint*& partitions);

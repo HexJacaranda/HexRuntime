@@ -259,6 +259,26 @@ namespace RTJ
 		/// </summary>
 		IL(NewArr, 0x61, 0xF1);
 
+	public:
+		//--------------------------------------------------
+		//Cast instructions, 0x70 ~ 0x7F space reserved
+		//--------------------------------------------------
+
+		/// <summary>
+		/// Cast check for object
+		/// </summary>
+		IL(Cast, 0x70, 0x11);
+
+		/// <summary>
+		/// Box value type to object
+		/// </summary>
+		IL(Box, 0x71, 0x11);
+
+		/// <summary>
+		/// Unbox object to value type
+		/// </summary>
+		IL(UnBox, 0x72, 0x11);
+
 		//-----------------------------------------------------
 		//Other instructions, 0xF0 ~ 0xFE space reserved
 		//-----------------------------------------------------	

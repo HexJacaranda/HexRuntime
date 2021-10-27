@@ -272,9 +272,10 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 {
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
-	auto node = new(POOL) BinaryArithmeticNode(left, right, opcode);
 	if (left->TypeInfo != right->TypeInfo)
 		THROW("Unconsistency of binary operators");
+
+	auto node = new(POOL) BinaryArithmeticNode(left, right, opcode);
 	node->TypeInfo = left->TypeInfo;
 	return node;
 }
@@ -292,6 +293,44 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 	auto value = mEvalStack.Pop();
 	UInt8 to = ReadAs<UInt8>();
 	return new(POOL) ConvertNode(value, to);
+}
+
+RTJ::Hex::CastNode* RTJ::Hex::ILTransformer::GenerateCast()
+{
+	auto value = mEvalStack.Pop();
+	MDToken typeRef = ReadAs<MDToken>();
+	auto type = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
+
+	if (type->IsStruct())
+		THROW("Invalid type of cast");
+
+	auto node = new(POOL) CastNode(value);
+	node->TypeInfo = type;
+	return node;
+}
+
+RTJ::Hex::UnBoxNode* RTJ::Hex::ILTransformer::GenerateUnBox()
+{
+	auto value = mEvalStack.Pop();
+	MDToken typeRef = ReadAs<MDToken>();
+	auto targetType = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
+
+	if (!targetType->IsStruct())
+		THROW("Invalid type of unbox");
+
+	auto node = new(POOL) UnBoxNode(value);
+	node->TypeInfo = targetType;
+	return node;
+}
+
+RTJ::Hex::BoxNode* RTJ::Hex::ILTransformer::GenerateBox()
+{
+	auto value = mEvalStack.Pop();
+	auto objectType = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Object);
+
+	auto node = new(POOL) BoxNode(value);
+	node->TypeInfo = objectType;
+	return node;
 }
 
 void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
@@ -501,6 +540,22 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 
 		case OpCodes::Conv:
 			mEvalStack.Push(GenerateConvert());
+			break;
+
+		//---------------------------------------------------
+		//Cast instruction
+		//---------------------------------------------------
+
+		case OpCodes::Cast:
+			mEvalStack.Push(GenerateCast());
+			break;
+
+		case OpCodes::Box:
+			mEvalStack.Push(GenerateBox());
+			break;
+
+		case OpCodes::UnBox:
+			mEvalStack.Push(GenerateUnBox());
 			break;
 
 		//------------------------------------------------------

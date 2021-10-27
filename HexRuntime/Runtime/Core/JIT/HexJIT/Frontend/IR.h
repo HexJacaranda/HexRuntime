@@ -26,6 +26,9 @@ namespace RTJ::Hex
 		StaticField,
 		InstanceField,
 		Convert,
+		Cast,
+		Box,
+		UnBox,
 		Compare,
 		Duplicate,
 		New,
@@ -279,6 +282,33 @@ namespace RTJ::Hex
 		UInt8 To;
 	};
 
+	struct CastNode : UnaryNode
+	{
+		CastNode(
+			TreeNode* value)
+			: UnaryNode(NodeKinds::Cast),
+			Value(value){}
+		TreeNode* Value;
+	};
+
+	struct BoxNode : UnaryNode
+	{
+		BoxNode(
+			TreeNode* value)
+			: UnaryNode(NodeKinds::Box),
+			Value(value){}
+		TreeNode* Value;
+	};
+
+	struct UnBoxNode : UnaryNode
+	{
+		UnBoxNode(
+			TreeNode* value)
+			: UnaryNode(NodeKinds::UnBox),
+			Value(value) {}
+		TreeNode* Value;
+	};
+
 	struct NullNode : TreeNode
 	{
 		NullNode(): TreeNode(NodeKinds::Null) {}
@@ -383,6 +413,9 @@ namespace RTJ::Hex
 			}
 			//Unary access
 			case NodeKinds::Convert:
+			case NodeKinds::Cast:
+			case NodeKinds::Box:
+			case NodeKinds::UnBox:
 			case NodeKinds::InstanceField:
 			case NodeKinds::UnaryArithmetic:
 			case NodeKinds::Duplicate:
@@ -440,6 +473,9 @@ namespace RTJ::Hex
 			}
 			//Unary access
 			case NodeKinds::Convert:
+			case NodeKinds::Cast:
+			case NodeKinds::Box:
+			case NodeKinds::UnBox:
 			case NodeKinds::InstanceField:
 			case NodeKinds::UnaryArithmetic:
 			case NodeKinds::Duplicate:
