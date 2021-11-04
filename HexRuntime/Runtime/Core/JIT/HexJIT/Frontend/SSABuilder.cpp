@@ -150,7 +150,7 @@ RTJ::Hex::SSABuilder::SSABuilder(HexJITContext* jitContext) :
 
 }
 
-RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::Build()
+RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 {
 	//Initialize
 	DecideSSATrackability();

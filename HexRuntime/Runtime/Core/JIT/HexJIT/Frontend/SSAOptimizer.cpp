@@ -243,7 +243,7 @@ void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
 	}
 }
 
-RTJ::Hex::BasicBlock* RTJ::Hex::SSAOptimizer::Optimize()
+RTJ::Hex::BasicBlock* RTJ::Hex::SSAOptimizer::PassThrough()
 {
 	auto bbHead = mJITContext->BBs[0];
 

@@ -780,7 +780,7 @@ RTJ::Hex::ILTransformer::ILTransformer(HexJITContext* context) :
 	mCodePtrBound = mCodePtr + mILMD->CodeLength;
 }
 
-RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::TransformILFrom()
+RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PassThrough()
 {
 	BasicBlockPartitionPoint* partitions = nullptr;
 	Statement* stmts = TransformToUnpartitionedStatements(partitions);

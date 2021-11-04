@@ -2,6 +2,7 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\Meta\MDRecords.h"
 #include "..\HexJITContext.h"
+#include "..\JITFlow.h"
 #include "IR.h"
 #include "EvaluationStack.h"
 
@@ -10,7 +11,7 @@ namespace RTJ::Hex
 	/// <summary>
 	/// Transform the opcode to basic block expression tree.
 	/// </summary>
-	class ILTransformer
+	class ILTransformer :public IHexJITFlow
 	{
 		HexJITContext* mJITContext;
 		RTME::ILMD* mILMD;
@@ -70,7 +71,7 @@ namespace RTJ::Hex
 		NewArrayNode* GenerateNewArray();
 		CompareNode* GenerateCompare();
 		TreeNode* GenerateDuplicate();
-		
+
 		BinaryArithmeticNode* GenerateBinaryArithmetic(UInt8 opcode);
 		UnaryArithmeticNode* GenerateUnaryArtithmetic(UInt8 opcode);
 		ConvertNode* GenerateConvert();
@@ -89,7 +90,7 @@ namespace RTJ::Hex
 		/// <param name="value"></param>
 		/// <param name="isBalancedCritical"></param>
 		/// <returns></returns>
-		Statement* TryGenerateStatement(TreeNode* value, Int32 beginOffset ,bool isBalancedCritical = false);
+		Statement* TryGenerateStatement(TreeNode* value, Int32 beginOffset, bool isBalancedCritical = false);
 		/// <summary>
 		/// Firstly translate IL to a single basic block then partition it according to the
 		/// information we collected
@@ -105,6 +106,6 @@ namespace RTJ::Hex
 		BasicBlock* PartitionToBB(Statement* unpartitionedStmt, BasicBlockPartitionPoint* partitions);
 	public:
 		ILTransformer(HexJITContext* context);
-		BasicBlock* TransformILFrom();
+		virtual BasicBlock* PassThrough() final;
 	};
 }

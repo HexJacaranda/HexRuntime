@@ -2,11 +2,12 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\Memory\SegmentMemory.h"
 #include "..\HexJITContext.h"
+#include "..\JITFlow.h"
 
 
 namespace RTJ::Hex
 {
-	class SSAOptimizer
+	class SSAOptimizer : public IHexJITFlow
 	{
 		RTMM::SegmentMemory* mMemory;
 		HexJITContext* mJITContext;	
@@ -22,6 +23,6 @@ namespace RTJ::Hex
 		void PruneFlowGraph(BasicBlock* basicBlock);
 	public:
 		SSAOptimizer(HexJITContext* context);
-		BasicBlock* Optimize();
+		virtual BasicBlock* PassThrough() final;
 	};
 }

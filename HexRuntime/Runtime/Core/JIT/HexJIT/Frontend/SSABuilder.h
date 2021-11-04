@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\HexJITContext.h"
+#include "..\JITFlow.h"
 #include "IR.h"
 #include <vector>
 #include <unordered_map>
@@ -10,7 +11,7 @@ namespace RTJ::Hex
 	/// <summary>
 	/// Build the SSA form of FIR
 	/// </summary>
-	class SSABuilder
+	class SSABuilder : public IHexJITFlow
 	{
 		BasicBlock* mTarget = nullptr;
 		HexJITContext* mJITContext;
@@ -33,6 +34,6 @@ namespace RTJ::Hex
 		TreeNode* TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode);
 	public:
 		SSABuilder(HexJITContext* jitContext);
-		BasicBlock* Build();
+		virtual BasicBlock* PassThrough() final;
 	};
 }

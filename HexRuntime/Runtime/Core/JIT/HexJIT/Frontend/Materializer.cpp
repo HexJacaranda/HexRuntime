@@ -65,7 +65,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node)
 	return node;
 }
 
-RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::Materialize()
+RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::PassThrough()
 {
 	auto bbHead = mJITContext->BBs[0];
 
@@ -77,6 +77,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::Materialize()
 
 		for (mCurrentStmt = bbIterator->Now;
 			mCurrentStmt != nullptr && mCurrentStmt->Now != nullptr;
+			mPreviousStmt = mCurrentStmt,
 			mCurrentStmt = mCurrentStmt->Next)
 		{
 			TraverseTreeBottomUp(

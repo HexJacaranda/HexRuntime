@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\HexJITContext.h"
+#include "..\JITFlow.h"
 #include "IR.h"
 
 namespace RTJ::Hex
@@ -8,7 +9,7 @@ namespace RTJ::Hex
 	/// <summary>
 	/// Responsible for replacing high-level nodes with primitive low-level nodes
 	/// </summary>
-	class Materializer
+	class Materializer : public IHexJITFlow
 	{
 		Statement* mStmtHead = nullptr;
 		Statement* mCurrentStmt = nullptr;
@@ -24,6 +25,6 @@ namespace RTJ::Hex
 		TreeNode* MorphStore(TreeNode* node);
 		TreeNode* MorphLoad(TreeNode* node);
 	public:
-		BasicBlock* Materialize();
+		BasicBlock* PassThrough();
 	};
 }

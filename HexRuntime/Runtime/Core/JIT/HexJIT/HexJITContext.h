@@ -14,6 +14,7 @@ namespace RTJ::Hex
 	public:
 		UNDERLYING_TYPE(UInt32);
 		VALUE(Trackable) = 0x00000001;
+		VALUE(JITGenerated) = 0x00000002;
 	};
 
 	template<class T>
@@ -31,12 +32,15 @@ namespace RTJ::Hex
 		bool IsTrackable()const { 
 			return Flags & LocalAttachedFlags::Trackable; 
 		};
+		bool IsJITGenerated()const {
+			return Flags & LocalAttachedFlags::JITGenerated;
+		}
 	};
 
 	using LocalAttached = LocalVariableAttached<RTME::LocalVariableMD>;
 	using ArgumentAttached = LocalVariableAttached<RTME::ArgumentMD>;
 
-	struct HexJITContext
+	struct HexJITContext 
 	{
 		/// <summary>
 		/// Allocator

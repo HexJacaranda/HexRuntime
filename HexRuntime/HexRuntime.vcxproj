@@ -39,6 +39,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITFlow.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITHelper.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
@@ -70,6 +71,7 @@
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
+    <ClInclude Include="Runtime\LinkList.h" />
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
@@ -87,6 +89,7 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
