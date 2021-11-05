@@ -25,6 +25,27 @@ namespace RT
 		}
 
 		template<class NodeT>
+		static void AppendRangeTwoWay(NodeT*& head, NodeT*& previous, NodeT* targetHead, NodeT* targetTail)
+		{
+			if (head == nullptr)
+			{
+				head = targetHead;
+				previous = targetTail;
+			}
+			else
+			{
+				NodeT* next = previous->Next;
+				previous->Next = targetHead;
+				targetHead->Prev = previous;
+				if (next != nullptr)
+				{
+					tail->Next = next;
+					next->Prev = tail;
+				}
+			}
+		}
+
+		template<class NodeT>
 		static void InsertBefore(NodeT*& head, NodeT*& previous, NodeT* toInsert)
 		{
 			if (previous == nullptr)

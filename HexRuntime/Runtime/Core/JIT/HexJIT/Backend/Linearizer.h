@@ -20,10 +20,12 @@ namespace RTJ::Hex
 		Linearizer(HexJITContext* context);
 		virtual BasicBlock* PassThrough()final;
 	private:
-		DoubleLinkList<Statement> LayDown(TreeNode* node, bool requestJITVariable, TreeNode*& generatedLocal);
-		DoubleLinkList<Statement> LayDownCall(TreeNode* node, bool requestJITVariable, TreeNode*& generatedLocal);
-		DoubleLinkList<Statement> LayDownUnaryOperation(TreeNode* node, bool requestJITVariable, TreeNode*& generatedLocal);
-		DoubleLinkList<Statement> LayDownBinaryOperation(TreeNode* node, bool requestJITVariable, TreeNode*& generatedLocal);
+		DoubleLinkList<Statement> LayDown(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> LayDownLoad(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> LayDownStore(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> LayDownSingle(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> LayDownDouble(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> LayDownMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
 		Int32 RequestJITVariable();
 	};
 }

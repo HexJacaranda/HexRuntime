@@ -255,9 +255,9 @@ void RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitio
 	auto returnType = GetRawContext()->MethDescriptor->GetSignature()->GetReturnType();
 	if (returnType != nullptr)
 	{
-		if (!returnType->IsAssignableFrom(ret->TypeInfo))
-			THROW("Incompatible conversion when returning");
 		ret = mEvalStack.Pop();
+		if (!returnType->IsAssignableFrom(ret->TypeInfo))
+			THROW("Incompatible conversion when returning");	
 	}
 	auto currentPoint = new(POOL) BasicBlockPartitionPoint(PPKind::Ret, GetOffset(), ret);
 	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
