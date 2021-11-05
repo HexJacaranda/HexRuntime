@@ -91,6 +91,9 @@
     <Filter Include="DebugVisual">
       <UniqueIdentifier>{fd3daf33-4161-4eb1-bb47-a1c2352b1f7e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\ExecutionEngine">
+      <UniqueIdentifier>{8ce9b860-a6c4-48d6-ae7b-9dd6fd4ca34d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -263,6 +266,9 @@
     </ClInclude>
     <ClInclude Include="Runtime\Range.h">
       <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\ExecutionEngine\StackCrawling.h">
+      <Filter>头文件\Runtime\Core\ExecutionEngine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
