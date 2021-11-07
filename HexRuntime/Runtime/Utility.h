@@ -39,8 +39,8 @@ namespace RT
 				targetHead->Prev = previous;
 				if (next != nullptr)
 				{
-					tail->Next = next;
-					next->Prev = tail;
+					targetTail->Next = next;
+					next->Prev = targetTail;
 				}
 			}
 		}

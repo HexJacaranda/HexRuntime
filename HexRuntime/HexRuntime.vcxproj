@@ -30,7 +30,7 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Linearizer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\IR.h" />
@@ -89,9 +89,9 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp" />

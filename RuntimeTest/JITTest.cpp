@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "CppUnitTest.h"
+#include "../HexRuntime/Runtime/Core/Meta/MetaManager.h"
 #include "../HexRuntime/Runtime/RuntimeAlias.h"
 #include "../HexRuntime/Runtime/Core/JIT/ILEmitter.h"
 #include "../HexRuntime/Runtime/Core/JIT/OpCodes.h"
@@ -13,94 +14,86 @@
 using namespace RTJ;
 using namespace RTC;
 using namespace RT;
+using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace RuntimeTest
 {
 	TEST_CLASS(JITTest)
 	{
+		Hex::HexJITContext* context = nullptr;
+		static RTM::AssemblyContext* assembly;
 	public:
-		void PrepareIL(ILEmitter& il)
+		void SetUpMethod(std::wstring_view name)
 		{
-			/*LdC 2
-			* StLoc 0
-			* LdC 3
-			* StLoc 1
-			* LdLoc 0
-			* LdLoc 1
-			* Cmp EQ
-			* Jcc label
-			* LdLoc 0
-			* Ret
-			* .label:
-			* LdLoc 1
-			* Ret
-			*/
+			auto type = Meta::MetaData->GetTypeFromDefinitionToken(assembly, 0u);
+			auto table = type->GetMethodTable();
+			for (auto&& method : table->GetMethods())
+			{
+				auto methodName = method->GetName();
+				if (name == methodName->GetContent())
+				{
+					context->Context->MethDescriptor = method;
+					context->Context->Assembly = assembly;
+					break;
+				}
+			}
 
-			il.EmitLdC(CoreTypes::I4, 2);
-			il.EmitStore(OpCodes::StLoc, 0);
-			il.EmitLdC(CoreTypes::I4, 3);
-			il.EmitStore(OpCodes::StLoc, 1);
-
-			il.EmitLoad(OpCodes::LdLoc, 0);
-			il.EmitLoad(OpCodes::LdLoc, 1);
-			il.EmitCompare(CmpCondition::EQ);
-
-			auto entry = il.EmitJcc(0);
-			il.EmitLoad(OpCodes::LdLoc, 0);
-			il.EmitRet(0x10);
-
-			auto update = il.GetOffset();
-			il.UpdateEntry(entry, update);
-
-			il.EmitLoad(OpCodes::LdLoc, 1);
-			il.EmitRet(0x10);
+			Assert::IsNotNull(context->Context->MethDescriptor, L"Method not found");
+		}
+		
+		TEST_CLASS_INITIALIZE(InitializeMetaManager)
+		{
+			Meta::MetaData = new Meta::MetaManager();
+			assembly = Meta::MetaData->StartUp(Text("..\\..\\RuntimeTest\\TestIL\\JIT"));
 		}
 
-		void PrepareBackIL(ILEmitter& il)
+		TEST_CLASS_CLEANUP(CleanUpMetaManager)
 		{
-			il.EmitLdC(CoreTypes::I4, 2);
-			il.EmitStore(OpCodes::StLoc, 0);
-
-			auto offset = il.GetLength();
-
-			il.EmitLdC(CoreTypes::I4, 3);
-			il.EmitStore(OpCodes::StLoc, 1);
-
-			il.EmitLoad(OpCodes::LdLoc, 0);
-			il.EmitLoad(OpCodes::LdLoc, 1);
-			il.EmitCompare(CmpCondition::EQ);
-			il.EmitJcc(offset);
-			il.EmitRet(0x00);
+			Meta::MetaData->ShutDown();
+			delete Meta::MetaData;
 		}
 
-		void SSABuildAndOptimize(ILEmitter const& il)
+		TEST_METHOD_INITIALIZE(InitializeContext)
 		{
-			JITContext context{};
+			context = new Hex::HexJITContext();
+			context->Context = new JITContext();
+			context->Memory = new Memory::SegmentMemory();
 
-			Memory::SegmentMemory hexMemory;
-
-			Hex::HexJITContext hexContext;
-			hexContext.Context = &context;
-			hexContext.Memory = &hexMemory;
-
-			hexContext.Traversal.Count = 4096;
-			hexContext.Traversal.Space = (Int8*)hexMemory.Allocate(sizeof(void*) * hexContext.Traversal.Count);
-
-			Hex::ILTransformer transformer{ &hexContext };
-			auto bb = transformer.TransformILFrom();
-
-			Hex::SSABuilder ssaBuilder{ &hexContext };
-			bb = ssaBuilder.Build();
-
-			Hex::SSAOptimizer ssaOptimizer{ &hexContext };
-			bb = ssaOptimizer.Optimize();
+			context->Traversal.Count = 4096;
+			context->Traversal.Space = (Int8*)context->Memory->Allocate(sizeof(void*) * context->Traversal.Count);
 		}
 
-		TEST_METHOD(FrontendOptimizeTest)
+		TEST_METHOD_CLEANUP(CleanUpContext)
 		{
-			ILEmitter il;
-			PrepareBackIL(il);
-			SSABuildAndOptimize(il);
+			delete context->Memory;
+			delete context;
+		}
+
+		TEST_METHOD(ILTransformingTest)
+		{
+			SetUpMethod(L"PreTest");
+			Hex::ILTransformer flow{ context };
+			auto bb = flow.PassThrough();
+
+			Assert::IsNotNull(bb, L"Basic block is null");
+			Assert::IsNotNull(bb->BranchConditionValue, L"Basic block condition value is null");
+		}
+
+		TEST_METHOD(LinearizingTest)
+		{
+
+		}
+
+		TEST_METHOD(SSABuildingTest)
+		{
+
+		}
+
+		TEST_METHOD(SSAOptimizingTest)
+		{
+
 		}
 	};
+
+	RTM::AssemblyContext* JITTest::assembly = nullptr;
 }

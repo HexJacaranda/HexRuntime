@@ -80,7 +80,7 @@ namespace RTC
 		static constexpr UInt8 Delegate = 0x14;
 	public:
 		inline static bool IsPrimitive(UInt8 coreType) {
-			return coreType < Struct;
+			return 0 < coreType && coreType < Struct;
 		}
 	};
 }

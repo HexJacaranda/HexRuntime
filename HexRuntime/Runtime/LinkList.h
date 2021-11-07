@@ -37,7 +37,7 @@ namespace RT
 			{
 				mTail->Next = another.mHead;
 				another.mHead->Prev = mTail;
-				mTail = another->mTail;
+				mTail = another.mTail;
 			}
 		}
 	};

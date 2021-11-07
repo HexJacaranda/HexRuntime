@@ -3,13 +3,15 @@
 
 #define POOL (mJITContext->Memory)
 #define LAY_DOWN_TO(ORIGIN_SEQ, REPLACE , EXPR) \
-	auto _statements = EXPR; \
-	if (!_statements.IsEmpty()) \
-	{ \
-		ORIGIN_SEQ.Append(_statements); \
-		auto loadNode = new (POOL) LoadNode(SLMode::Direct, localNode); \
-		REPLACE = loadNode; \
-	} \
+		{ \
+			auto _statements = EXPR; \
+			if (!_statements.IsEmpty()) \
+			{ \
+				ORIGIN_SEQ.Append(_statements); \
+				auto loadNode = new (POOL) LoadNode(SLMode::Direct, localNode); \
+				REPLACE = loadNode; \
+			} \
+		}
 
 RTJ::Hex::Linearizer::Linearizer(HexJITContext* context) : mJITContext(context)
 {
@@ -192,11 +194,15 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownMultiple(Tr
 		case NodeKinds::Call:
 		case NodeKinds::New:
 		case NodeKinds::NewArray:
+		{
 			LAY_DOWN_TO(methodSequence, argument, LayDownMultiple(argument, localNode));
 			break;
+		}
 		default:
+		{
 			LAY_DOWN_TO(computationSequence, argument, LayDown(argument, localNode));
 			break;
+		}
 		}
 	}
 

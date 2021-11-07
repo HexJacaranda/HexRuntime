@@ -59,6 +59,7 @@ namespace RTM
 		ObservableArray<MethodLocalVariableDescriptor> GetLocalVariables()const;
 		RTME::ILMD* GetIL()const;
 		MDToken GetDefToken()const;
+		RTO::StringObject* GetName()const;
 		bool IsStatic()const;
 		bool IsVirtual()const;
 		bool IsOverride()const;

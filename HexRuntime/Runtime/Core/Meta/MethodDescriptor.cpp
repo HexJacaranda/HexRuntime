@@ -25,6 +25,11 @@ RT::MDToken RTM::MethodDescriptor::GetDefToken() const
 	return mSelf;
 }
 
+RTO::StringObject* RTM::MethodDescriptor::GetName() const
+{
+	return mManagedName;
+}
+
 bool RTM::MethodDescriptor::IsStatic() const
 {
 	return mColdMD->IsStatic();

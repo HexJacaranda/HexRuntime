@@ -34,7 +34,7 @@ ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
 	mPreviousCodePtr = mCodePtr;
 	opcode = *mCodePtr;
 	mCodePtr++;
-	if (mCodePtr >= mCodePtrBound)
+	if (mCodePtr > mCodePtrBound)
 		THROW("Malformed IL");
 }
 
