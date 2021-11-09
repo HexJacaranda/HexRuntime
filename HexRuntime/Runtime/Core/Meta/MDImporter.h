@@ -6,7 +6,7 @@
 #include "IImportSession.h"
 #include <type_traits>
 
-#define IF_FAIL_RET(EXPR) if (!(EXPR)) return false;
+#define IF_FAIL_RET(EXPR) if (!(EXPR)) return false
 
 using namespace RTI;
 namespace RTME

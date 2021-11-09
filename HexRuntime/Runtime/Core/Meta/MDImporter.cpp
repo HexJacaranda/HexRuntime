@@ -7,8 +7,9 @@
 //Locate session
 #define LOCATE(KIND) LocateSession(session, MDRecordKinds::KIND, token)
 
-#define IMPORT_NESTED_SERIES(COUNT_MEMBER, SERIES_MEMBER, IMPORT_METHOD) \
+#define IMPORT_NESTED_SERIES(COUNT_MEMBER, SERIES_MEMBER, SERIES_TYPE, IMPORT_METHOD) \
 		IF_SESSION_FAIL_RET(ReadInto(COUNT_MEMBER)); \
+		SERIES_MEMBER = new (mHeap) SERIES_TYPE[COUNT_MEMBER]; \
 		for (Int32 i = 0; i < COUNT_MEMBER; ++i) \
 			IF_FAIL_RET(IMPORT_METHOD(session, &SERIES_MEMBER[i]))
 
@@ -89,7 +90,7 @@ RTME::MDImporter::~MDImporter()
 
 bool RTME::MDImporter::ImportIL(IImportSession* session, ILMD* ilMD)
 {
-	IMPORT_NESTED_SERIES(ilMD->LocalVariableCount, ilMD->LocalVariables, ImportLocalVariable);
+	IMPORT_NESTED_SERIES(ilMD->LocalVariableCount, ilMD->LocalVariables, LocalVariableMD, ImportLocalVariable);
 	IF_FAIL_RET(ReadCode(session, ilMD->CodeLength, ilMD->IL));
 	return true;
 }
@@ -162,11 +163,11 @@ bool RTME::MDImporter::ImportMethod(IImportSession* session, MDToken token, Meth
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Accessibility));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->Flags));
 
-	ImportMethodSignature(session, &methodMD->Signature);
+	IF_FAIL_RET(ImportMethodSignature(session, &methodMD->Signature));
 	IF_SESSION_FAIL_RET(ReadInto(methodMD->OverridesMethodRef));
-	ImportIL(session, &methodMD->ILCodeMD);
+	IF_FAIL_RET(ImportIL(session, &methodMD->ILCodeMD));
 	
-	IMPORT_NESTED_SERIES(methodMD->NativeLinkCount, methodMD->NativeLinks, ImportNativeLink);
+	IMPORT_NESTED_SERIES(methodMD->NativeLinkCount, methodMD->NativeLinks, NativeLinkMD, ImportNativeLink);
 	IF_SESSION_FAIL_RET(ReadIntoSeries(methodMD->AttributeCount, methodMD->AttributeTokens));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(methodMD->GenericParameterCount, methodMD->GenericParameterTokens));
 	return true;

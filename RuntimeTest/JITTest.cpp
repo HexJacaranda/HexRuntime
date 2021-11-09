@@ -10,6 +10,7 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Linearizer.h"
 
 using namespace RTJ;
 using namespace RTC;
@@ -23,6 +24,17 @@ namespace RuntimeTest
 		Hex::HexJITContext* context = nullptr;
 		static RTM::AssemblyContext* assembly;
 	public:
+		template<class FlowT, class...FlowTs>
+		Hex::BasicBlock* PassThrough()
+		{
+			FlowT flow{ context };
+			auto bb =flow.PassThrough();
+			if constexpr (sizeof...(FlowTs) == 0)
+				return bb;
+			else
+				return PassThrough<FlowTs...>();
+		}
+
 		void SetUpMethod(std::wstring_view name)
 		{
 			auto type = Meta::MetaData->GetTypeFromDefinitionToken(assembly, 0u);
@@ -81,7 +93,11 @@ namespace RuntimeTest
 
 		TEST_METHOD(LinearizingTest)
 		{
+			SetUpMethod(L"LinearizeTest");
 
+			auto bb = PassThrough<Hex::ILTransformer, Hex::Linearizer>();
+
+			Assert::IsTrue(true, L"");
 		}
 
 		TEST_METHOD(SSABuildingTest)

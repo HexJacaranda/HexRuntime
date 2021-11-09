@@ -790,6 +790,22 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		return signature;
 	};
 
+	auto generateLocals = [&](RTME::MethodMD& md)
+	{
+		auto localCount = md.ILCodeMD.LocalVariableCount;
+		auto locals = new (context->Heap) MethodLocalVariableDescriptor[localCount];
+		for (Int32 i = 0; i < localCount; ++i)
+		{
+			auto&& local = locals[i];
+			auto&& localMD = md.ILCodeMD.LocalVariables[i];
+
+			local.mType = GetTypeFromTokenInternal(context, localMD.TypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+			local.mManagedName = GetStringFromToken(context, localMD.NameToken);
+		}
+
+		return locals;
+	};
+
 	auto tryOverrideMethodSlot = [&](RTME::MethodMD& md, MethodDescriptor* descriptor) {
 		if (md.OverridesMethodRef == NullToken)
 		{
@@ -815,7 +831,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 	for (Int32 i = 0; i < meta->MethodCount; ++i)
 	{
 		auto&& methodMD = methodMDs[i];
-
+		
 		if (!importer->ImportMethod(session, meta->MethodTokens[i], &methodMD))
 		{
 			importer->ReturnSession(session);
@@ -828,6 +844,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		descriptor->mColdMD = &methodMD;
 		descriptor->mManagedName = GetStringFromToken(context, methodMD.NameToken);
 		descriptor->mSignature = generateSignature(methodMD.Signature);
+		descriptor->mLocals = generateLocals(methodMD);
 		descriptor->mSelf = meta->MethodTokens[i];
 
 		if (methodMD.IsVirtual())

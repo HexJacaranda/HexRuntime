@@ -71,6 +71,7 @@
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
+    <ClInclude Include="Runtime\Endianness.h" />
     <ClInclude Include="Runtime\LinkList.h" />
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
