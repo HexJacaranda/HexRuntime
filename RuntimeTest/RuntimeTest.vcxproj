@@ -178,6 +178,12 @@
       <Project>{0c0589f1-9236-4540-88e5-acfb26be8ae7}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="TestIL\Core" />
+    <None Include="TestIL\JIT" />
+    <None Include="TestIL\JIT.il" />
+    <None Include="TestIL\JIT.json" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

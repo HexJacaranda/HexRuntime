@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Resource Files\LibraryBinary">
+      <UniqueIdentifier>{fe3c6ac5-97c8-4880-bc8f-8fa140fa10d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\BuildSource">
+      <UniqueIdentifier>{c57132e2-7e04-48d4-a601-b5a7516e7ea6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MetaTest.cpp">
@@ -32,5 +38,19 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TestIL\JIT">
+      <Filter>Resource Files\LibraryBinary</Filter>
+    </None>
+    <None Include="TestIL\Core">
+      <Filter>Resource Files\LibraryBinary</Filter>
+    </None>
+    <None Include="TestIL\JIT.json">
+      <Filter>Resource Files\BuildSource</Filter>
+    </None>
+    <None Include="TestIL\JIT.il">
+      <Filter>Resource Files\BuildSource</Filter>
+    </None>
   </ItemGroup>
 </Project>
