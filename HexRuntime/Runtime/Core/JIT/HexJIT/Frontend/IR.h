@@ -39,6 +39,7 @@ namespace RTJ::Hex
 		//SSA introduced
 
 		Phi,
+		Use,
 		//Morph
 
 		MorphedCall
@@ -372,136 +373,6 @@ namespace RTJ::Hex
 		JITNativeSignature* Signature;	
 	};
 
-	template<class Fn>
-	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
-	{
-		using NodeReference = TreeNode**;
-		NodeReference* stack = (NodeReference*)stackSpace;
-
-		Int32 index = 0;
-
-		auto pushStack = [&](NodeReference value) {
-			if (index < upperBound)
-				stack[index++] = value;
-		};
-
-		auto popStack = [&]() -> NodeReference {
-			return stack[--index];
-		};
-
-		//Push stack first
-		pushStack(&source);
-
-		while (index > 0)
-		{
-			auto&& current = *popStack();
-			//Do custom action
-			std::forward<Fn>(action)(current);
-			switch (current->Kind)
-			{
-			//Binary access
-			case NodeKinds::Store:
-			case NodeKinds::Array:
-			case NodeKinds::Compare:
-			case NodeKinds::BinaryArithmetic:
-
-			{
-				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
-				pushStack(&proxy->First);
-				pushStack(&proxy->Second);
-				break;
-			}
-			//Unary access
-			case NodeKinds::Convert:
-			case NodeKinds::Cast:
-			case NodeKinds::Box:
-			case NodeKinds::UnBox:
-			case NodeKinds::InstanceField:
-			case NodeKinds::UnaryArithmetic:
-			case NodeKinds::Duplicate:
-			case NodeKinds::Phi:
-			{
-				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
-				pushStack(&proxy->Value);
-				break;
-			}
-			//Multiple access 
-			case NodeKinds::Call:
-			case NodeKinds::New:
-			case NodeKinds::NewArray:
-			{
-				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
-				for (Int32 i = 0; i < proxy->Count; ++i)
-					pushStack(&proxy->Values[i]);
-				break;
-			}
-			}
-		}
-	}
-
-	template<class Fn>
-	static void TraverseTreeBottomUp(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
-	{
-		using NodeReference = TreeNode**;
-		NodeReference* stack = (NodeReference*)stackSpace;
-
-		Int32 index = 0;
-
-		auto pushStack = [&](NodeReference value) {
-			if (index < upperBound)
-				stack[index++] = value;
-		};
-		
-		pushStack(&source);
-		//Push them all to stack 
-		for (Int32 i = 0; i < index; ++i)
-		{
-			auto&& current = *stack[i];
-			switch (current->Kind)
-			{
-				//Binary access
-			case NodeKinds::Store:
-			case NodeKinds::Array:
-			case NodeKinds::Compare:
-			case NodeKinds::BinaryArithmetic:
-
-			{
-				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
-				pushStack(&proxy->First);
-				pushStack(&proxy->Second);
-				break;
-			}
-			//Unary access
-			case NodeKinds::Convert:
-			case NodeKinds::Cast:
-			case NodeKinds::Box:
-			case NodeKinds::UnBox:
-			case NodeKinds::InstanceField:
-			case NodeKinds::UnaryArithmetic:
-			case NodeKinds::Duplicate:
-			case NodeKinds::Phi:
-			{
-				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
-				pushStack(&proxy->Value);
-				break;
-			}
-			//Multiple access 
-			case NodeKinds::Call:
-			case NodeKinds::New:
-			case NodeKinds::NewArray:
-			{
-				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
-				for (Int32 i = 0; i < proxy->Count; ++i)
-					pushStack(&proxy->Values[i]);
-				break;
-			}
-			}
-		}
-
-		while (--index >= 0)
-			std::forward<Fn>(action)(*stack[index]);
-	}
-
 	struct Statement
 	{
 		Statement(TreeNode* target, Int32 offset, Int32 endOffset)
@@ -590,6 +461,17 @@ namespace RTJ::Hex
 	namespace SSA
 	{
 		/// <summary>
+		/// Use node
+		/// </summary>
+		struct Use : UnaryNode
+		{
+			TreeNode* Value;
+			Use* Prev = nullptr;
+		public:
+			Use(TreeNode* value) : UnaryNode(NodeKinds::Use), Value(value) {}
+		};
+
+		/// <summary>
 		/// Phi node to choose branch
 		/// </summary>
 		struct PhiNode : TreeNode
@@ -627,5 +509,139 @@ namespace RTJ::Hex
 				return CollapsedValue != nullptr;
 			}
 		};
+	}
+
+	template<class Fn>
+	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
+	{
+		using NodeReference = TreeNode**;
+		NodeReference* stack = (NodeReference*)stackSpace;
+
+		Int32 index = 0;
+
+		auto pushStack = [&](NodeReference value) {
+			if (index < upperBound)
+				stack[index++] = value;
+		};
+
+		auto popStack = [&]() -> NodeReference {
+			return stack[--index];
+		};
+
+		//Push stack first
+		pushStack(&source);
+
+		while (index > 0)
+		{
+			auto&& current = *popStack();
+			//Do custom action
+			std::forward<Fn>(action)(current);
+			switch (current->Kind)
+			{
+			//Binary access
+			case NodeKinds::Store:
+			case NodeKinds::Array:
+			case NodeKinds::Compare:
+			case NodeKinds::BinaryArithmetic:
+
+			{
+				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
+				pushStack(&proxy->First);
+				pushStack(&proxy->Second);
+				break;
+			}
+			//Unary access
+			case NodeKinds::Use:
+			case NodeKinds::Convert:
+			case NodeKinds::Cast:
+			case NodeKinds::Box:
+			case NodeKinds::UnBox:
+			case NodeKinds::InstanceField:
+			case NodeKinds::UnaryArithmetic:
+			case NodeKinds::Duplicate:
+			case NodeKinds::Phi:
+			{
+				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
+				pushStack(&proxy->Value);
+				break;
+			}
+			//Multiple access 
+			case NodeKinds::MorphedCall:
+			case NodeKinds::Call:
+			case NodeKinds::New:
+			case NodeKinds::NewArray:
+			{
+				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
+				for (Int32 i = 0; i < proxy->Count; ++i)
+					pushStack(&proxy->Values[i]);
+				break;
+			}
+			}
+		}
+	}
+
+	template<class Fn>
+	static void TraverseTreeBottomUp(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
+	{
+		using NodeReference = TreeNode**;
+		NodeReference* stack = (NodeReference*)stackSpace;
+
+		Int32 index = 0;
+
+		auto pushStack = [&](NodeReference value) {
+			if (index < upperBound)
+				stack[index++] = value;
+		};
+
+		pushStack(&source);
+		//Push them all to stack 
+		for (Int32 i = 0; i < index; ++i)
+		{
+			auto&& current = *stack[i];
+			switch (current->Kind)
+			{
+				//Binary access
+			case NodeKinds::Store:
+			case NodeKinds::Array:
+			case NodeKinds::Compare:
+			case NodeKinds::BinaryArithmetic:
+
+			{
+				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
+				pushStack(&proxy->First);
+				pushStack(&proxy->Second);
+				break;
+			}
+			//Unary access
+			case NodeKinds::Use:
+			case NodeKinds::Convert:
+			case NodeKinds::Cast:
+			case NodeKinds::Box:
+			case NodeKinds::UnBox:
+			case NodeKinds::InstanceField:
+			case NodeKinds::UnaryArithmetic:
+			case NodeKinds::Duplicate:
+			case NodeKinds::Phi:
+			{
+				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
+				pushStack(&proxy->Value);
+				break;
+			}
+			//Multiple access 
+			case NodeKinds::MorphedCall:
+			case NodeKinds::Call:
+			case NodeKinds::New:
+			case NodeKinds::NewArray:
+			{
+				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
+				for (Int32 i = 0; i < proxy->Count; ++i)
+					pushStack(&proxy->Values[i]);
+				break;
+			}
+			}
+		}
+
+		while (--index >= 0)
+			std::forward<Fn>(action)(*stack[index]);
 	}
 }

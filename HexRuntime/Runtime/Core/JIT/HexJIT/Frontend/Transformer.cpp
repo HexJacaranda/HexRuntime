@@ -686,8 +686,14 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		if (ppOfSameOffset != nullptr)
 			ilOffset = ppOfSameOffset->ILOffset;
 		
-		//Should not be target PP
-		while (ppOfSameOffset != nullptr &&
+		/* For this variable, simply imagine the boundary of two BBs. (Control Flow PP as 'A') -> | -> (Target PP as 'B') 
+		* the existence of boundary should satisfy that 
+		* 1. there should be at least one PP.
+		* 2. if there are two, they should share the same offset as the start offset of next BB
+		*/ 
+		Int32 nextBBStartOffset = -1;
+		//Should not be target PP (Only one ending flow)		
+		if (ppOfSameOffset != nullptr &&
 			ppOfSameOffset->ILOffset == ilOffset &&
 			ppOfSameOffset->Kind != PPKind::Target)
 		{
@@ -719,7 +725,8 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 			default:
 				THROW("Unknown PP kind");
 			}
-
+			//Record the next bb start offset
+			nextBBStartOffset = ppOfSameOffset->ILOffset;
 			ppOfSameOffset = ppOfSameOffset->Next;
 		}
 
@@ -732,11 +739,18 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		}
 		else
 		{
+			if (nextBBStartOffset == -1)
+			{
+				if (ppOfSameOffset->Kind != PPKind::Target)
+					THROW("Illegal PP sequence");
+				nextBBStartOffset = ppOfSameOffset->ILOffset;
+			}
+
 			auto iteratorOfStmt = beginOfStmts->Next;
 			auto previousOfIterator = beginOfStmts;
 			//Traverse until we meet the next stmt belonging to another basic block.
 			while (iteratorOfStmt != nullptr &&
-				iteratorOfStmt->ILOffset < partitionPoint->ILOffset)
+				iteratorOfStmt->ILOffset < nextBBStartOffset)
 			{
 				previousOfIterator = iteratorOfStmt;
 				iteratorOfStmt = iteratorOfStmt->Next;

@@ -91,8 +91,7 @@ namespace RuntimeTest
 		TEST_METHOD(ILTransformingTest)
 		{
 			SetUpMethod(L"PreTest");
-			Hex::ILTransformer flow{ context };
-			auto bb = flow.PassThrough();
+			auto bb = PassThrough<Hex::ILTransformer>();
 
 			Assert::IsNotNull(bb, L"Basic block is null");
 			Assert::IsNotNull(bb->BranchConditionValue, L"Basic block condition value is null");
@@ -107,6 +106,8 @@ namespace RuntimeTest
 
 		TEST_METHOD(SSABuildingTest)
 		{
+			SetUpMethod(L"SSABuildTest");
+			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder>();
 
 		}
 

@@ -19,6 +19,7 @@ namespace RTJ::Hex
 		using DefinitionMap = std::vector<std::unordered_map<Int16, TreeNode*>>;
 		DefinitionMap mLocalDefinition;
 		DefinitionMap mArgumentDefinition;
+		std::unordered_map<SSA::PhiNode*, SSA::Use*> mPhiUsage;
 	private:
 		/// <summary>
 		/// Decide which variables should be tracked by SSA. And this affects our node generation
@@ -27,6 +28,8 @@ namespace RTJ::Hex
 		void DecideSSATrackability();
 		bool IsVariableTrackable(LocalVariableNode* local);
 		void WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value);
+		TreeNode* TrackPhiUsage(TreeNode* phi);
+		void UpdatePhiUsage(SSA::PhiNode* origin, TreeNode* target);
 		TreeNode* ReadVariable(LocalVariableNode* local, Int32 blockIndex);
 		TreeNode* ReadVariableLookUp(LocalVariableNode* local, Int32 blockIndex);
 		TreeNode* AddPhiOperands(LocalVariableNode* local, Int32 blockIndex, SSA::PhiNode* phiNode);

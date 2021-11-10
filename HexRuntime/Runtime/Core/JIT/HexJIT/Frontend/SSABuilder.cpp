@@ -51,6 +51,42 @@ void RTJ::Hex::SSABuilder::WriteVariable(LocalVariableNode* local, Int32 blockIn
 		mArgumentDefinition[variableIndex][blockIndex] = value;
 }
 
+RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TrackPhiUsage(TreeNode* value)
+{
+	if (!value->Is(NodeKinds::Phi))
+		return value;
+
+	auto phiNode = value->As<SSA::PhiNode>();
+	auto position = mPhiUsage.find(phiNode);
+	auto newNode = mJITContext->Memory->New<SSA::Use>(value);
+	if (position == mPhiUsage.end())
+		mPhiUsage[phiNode] = newNode;
+	else
+	{
+		newNode->Prev = position->second;
+		position->second = newNode;
+	}
+
+	return newNode;
+}
+
+void RTJ::Hex::SSABuilder::UpdatePhiUsage(SSA::PhiNode* origin, TreeNode* target)
+{
+	auto iterator = mPhiUsage.find(origin);
+	if (iterator == mPhiUsage.end())
+		return;
+
+	auto usage = iterator->second;
+	while (usage != nullptr)
+	{
+		usage->Value = target;
+		usage = usage->Prev;
+	}
+
+	//Erase
+	iterator->second = nullptr;
+}
+
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(LocalVariableNode* local, Int32 blockIndex)
 {
 	IMPORT_LOCAL(local, variableIndex, kind);
@@ -60,9 +96,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(LocalVariableNode* local,
 	else
 		ret = mArgumentDefinition[variableIndex][blockIndex];
 
-	if (ret != nullptr)
-		return ret;
-	return ReadVariableLookUp(local, blockIndex);
+	if (ret == nullptr)
+		ret = ReadVariableLookUp(local, blockIndex);
+
+	return TrackPhiUsage(ret);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(LocalVariableNode* local, Int32 blockIndex)
@@ -108,7 +145,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::AddPhiOperands(LocalVariableNode* loca
 	{
 		auto choice = TrySimplifyChoice(phiNode, ReadVariable(local, predecessor->Index));
 		if (choice != nullptr)
+		{
 			phiNode->Choices.push_back(choice);
+			TrackPhiUsage(choice);
+		}
 	}
 		
 	return TryRemoveRedundantPhiNode(phiNode);
@@ -116,21 +156,16 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::AddPhiOperands(LocalVariableNode* loca
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode* phiNode)
 {
-	//May be directly collapsed
-	if (phiNode->Choices.size() == 1)
-		return (phiNode->CollapsedValue = phiNode->Choices[0]);
-
 	//Deal with duplicated case
 	TreeNode* sameNode = nullptr;
 	for (auto&& choice : phiNode->Choices)
 	{
-		if (choice == sameNode)
+		if (choice == sameNode || choice == phiNode)
 			continue;
 		if (sameNode != nullptr)
 		{
 			//Non-trivial case, merged two or more values that may not collapse
-			sameNode = nullptr;
-			break;
+			return phiNode;
 		}
 		sameNode = choice;
 	}
@@ -138,9 +173,11 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode
 	//If this collapsed
 	if (phiNode->Choices.size() == 1 || sameNode != nullptr)
 		return (phiNode->CollapsedValue = sameNode);
+	
+	//Update
+	UpdatePhiUsage(phiNode, sameNode);
 
-	//Still not trivial
-	return phiNode;
+	return sameNode;
 }
 
 RTJ::Hex::SSABuilder::SSABuilder(HexJITContext* jitContext) :
@@ -176,7 +213,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 				WriteVariable(local, bbIndex, store->Source);
 		}
 
-		TraverseTree(
+		TraverseTreeBottomUp(
 			mJITContext->Traversal.Space,
 			mJITContext->Traversal.Count,
 			node, 
