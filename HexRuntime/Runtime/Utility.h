@@ -34,14 +34,24 @@ namespace RT
 			}
 			else
 			{
-				NodeT* next = previous->Next;
-				previous->Next = targetHead;
-				targetHead->Prev = previous;
-				if (next != nullptr)
+				if (previous == nullptr)
 				{
-					targetTail->Next = next;
-					next->Prev = targetTail;
+					targetTail->Next = head;
+					head->Prev = targetTail;
+					head = targetHead;
 				}
+				else
+				{
+					NodeT* next = previous->Next;
+					previous->Next = targetHead;
+					targetHead->Prev = previous;
+					if (next != nullptr)
+					{
+						targetTail->Next = next;
+						next->Prev = targetTail;
+					}
+				}
+
 			}
 		}
 

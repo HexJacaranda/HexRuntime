@@ -799,6 +799,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 			auto&& local = locals[i];
 			auto&& localMD = md.ILCodeMD.LocalVariables[i];
 
+			local.mColdMD = &localMD;
 			local.mType = GetTypeFromTokenInternal(context, localMD.TypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
 			local.mManagedName = GetStringFromToken(context, localMD.NameToken);
 		}

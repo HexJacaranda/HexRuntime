@@ -26,6 +26,6 @@ namespace RTJ::Hex
 		DoubleLinkList<Statement> LayDownSingle(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
 		DoubleLinkList<Statement> LayDownDouble(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
 		DoubleLinkList<Statement> LayDownMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
-		Int32 RequestJITVariable();
+		Int32 RequestJITVariable(RTM::Type* type);
 	};
 }

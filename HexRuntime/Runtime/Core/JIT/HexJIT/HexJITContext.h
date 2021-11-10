@@ -2,6 +2,9 @@
 #include "..\..\..\RuntimeAlias.h"
 #include "..\..\..\Utility.h"
 #include "..\..\Memory\SegmentMemory.h"
+#include "..\..\Meta\TypeDescriptor.h"
+#include "..\..\Meta\AssemblyContext.h"
+#include "..\..\Meta\MetaManager.h"
 #include "..\JITContext.h"
 #include "Frontend\IR.h"
 #include <vector>
@@ -26,14 +29,32 @@ namespace RTJ::Hex
 	template<LocalOrArgument T>
 	struct LocalVariableAttached
 	{
-		T* Origin;
-		UInt32 Flags;
+		union 
+		{
+			T* Origin = nullptr;
+			RTM::Type* JITVariableType;
+		};
+		
+		UInt32 Flags = 0;
+		Int32 UseCount = 0;
 	public:
+		LocalVariableAttached(RTM::Type* type, UInt32 flags)
+			:JITVariableType(type), Flags(flags) {}
+
+		LocalVariableAttached(T* origin, UInt32 flags)
+			:Origin(origin), Flags(flags) {}
+
 		bool IsTrackable()const { 
 			return Flags & LocalAttachedFlags::Trackable; 
 		};
 		bool IsJITGenerated()const {
 			return Flags & LocalAttachedFlags::JITGenerated;
+		}
+		RTM::Type* GetType(RTM::AssemblyContext* context)const {
+			if (IsJITGenerated())
+				return JITVariableType;
+			else
+				return Meta::MetaData->GetTypeFromToken(context, Origin->TypeRefToken);
 		}
 	};
 

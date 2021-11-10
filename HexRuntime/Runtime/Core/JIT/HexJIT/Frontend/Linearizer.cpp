@@ -20,6 +20,12 @@ RTJ::Hex::Linearizer::Linearizer(HexJITContext* context) : mJITContext(context)
 RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 {
 	auto&& bbHead = mJITContext->BBs[0];
+	auto layDown = [&](TreeNode*& root) {
+		TreeNode* _ = nullptr;
+		auto stmts = LayDown(root, _, false);
+		if (!stmts.IsEmpty())
+			LinkedList::AppendRangeTwoWay(mStmtHead, mPreviousStmt, stmts.GetHead(), stmts.GetTail());
+	};
 
 	for (BasicBlock* bbIterator = bbHead;
 		bbIterator != nullptr;
@@ -32,11 +38,10 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 			mPreviousStmt = mCurrentStmt,
 			mCurrentStmt = mCurrentStmt->Next)
 		{
-			TreeNode* _ = nullptr;
-			auto stmts = LayDown(mCurrentStmt->Now, _, false);
-			if (!stmts.IsEmpty())
-				LinkedList::AppendRangeTwoWay(mStmtHead, mPreviousStmt, stmts.GetHead(), stmts.GetTail());
+			layDown(mCurrentStmt->Now);
 		}
+		if (bbIterator->BranchConditionValue != nullptr)
+			layDown(bbIterator->BranchConditionValue);
 	}
 	return bbHead;
 }
@@ -144,7 +149,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownSingle(Tree
 	{
 		if (single->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable());
+		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(single->TypeInfo));
 		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
 	}
 
@@ -164,7 +169,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownDouble(Tree
 	{
 		if (single->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable());
+		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(single->TypeInfo));
 		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
 	}
 
@@ -213,7 +218,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownMultiple(Tr
 	{
 		if (call->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable());
+		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(call->TypeInfo));
 
 		//Append itself
 		methodSequence.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
@@ -222,10 +227,10 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownMultiple(Tr
 	return methodSequence;
 }
 
-RT::Int32 RTJ::Hex::Linearizer::RequestJITVariable()
+RT::Int32 RTJ::Hex::Linearizer::RequestJITVariable(RTM::Type* type)
 {
-	Int32 index = mJITContext->ArgumentAttaches.size();
-	mJITContext->ArgumentAttaches.push_back({ nullptr, LocalAttachedFlags::JITGenerated });
+	Int32 index = mJITContext->LocalAttaches.size();
+	mJITContext->LocalAttaches.push_back({ type, LocalAttachedFlags::JITGenerated });
 	return index;
 }
 

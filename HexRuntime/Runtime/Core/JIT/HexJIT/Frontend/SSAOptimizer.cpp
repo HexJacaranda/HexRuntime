@@ -234,6 +234,8 @@ void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
 			{
 				target = basicBlock->BranchedBB;
 				basicBlock->BranchKind = PPKind::Unconditional;
+				//Set branch bb
+				basicBlock->BranchedBB = basicBlock->Next;
 			}
 			//Remove BBIn from target BB
 			auto me = std::find(target->BBIn.begin(), target->BBIn.end(), basicBlock);

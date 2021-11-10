@@ -50,6 +50,13 @@ namespace RuntimeTest
 				}
 			}
 
+			auto method = context->Context->MethDescriptor;
+			for (auto&& local : method->GetLocalVariables())
+				context->LocalAttaches.push_back({ local.GetMetadata(), 0 });
+
+			for (auto&& argument : method->GetSignature()->GetArguments())
+				context->ArgumentAttaches.push_back({ argument.GetMetadata(), 0 });
+
 			Assert::IsNotNull(context->Context->MethDescriptor, L"Method not found");
 		}
 		
@@ -94,10 +101,8 @@ namespace RuntimeTest
 		TEST_METHOD(LinearizingTest)
 		{
 			SetUpMethod(L"LinearizeTest");
-
 			auto bb = PassThrough<Hex::ILTransformer, Hex::Linearizer>();
-
-			Assert::IsTrue(true, L"");
+			Assert::AreEqual(2, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
 		}
 
 		TEST_METHOD(SSABuildingTest)

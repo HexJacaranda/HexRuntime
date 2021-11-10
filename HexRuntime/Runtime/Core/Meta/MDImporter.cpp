@@ -148,6 +148,7 @@ bool RTME::MDImporter::ImportArgument(IImportSession* session, MDToken token, Ar
 	LOCATE(Argument);
 
 	IF_SESSION_FAIL_RET(ReadInto(argumentMD->TypeRefToken));
+	IF_SESSION_FAIL_RET(ReadInto(argumentMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(argumentMD->DefaultValue));
 	IF_SESSION_FAIL_RET(ReadIntoSeries(argumentMD->AttributeCount, argumentMD->AttributeTokens));
 
