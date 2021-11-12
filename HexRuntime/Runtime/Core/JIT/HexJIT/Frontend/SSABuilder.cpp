@@ -7,6 +7,9 @@
 	auto INDEX = LOCAL->LocalIndex; \
 	auto KIND = LOCAL->Kind
 
+#define NEW(TYPE) mJITContext->Memory->New<TYPE>
+#define POOL mJITContext->Memory
+
 void RTJ::Hex::SSABuilder::DecideSSATrackability()
 {
 	/*
@@ -33,6 +36,40 @@ void RTJ::Hex::SSABuilder::DecideSSATrackability()
 		mJITContext->ArgumentAttaches[i].Flags |= trackableSign(arguments[i].GetType()->GetCoreType());
 }
 
+void RTJ::Hex::SSABuilder::InitializeLocalsAndArguments()
+{
+	mArgumentDefinition = std::move(DefinitionMap(mJITContext->ArgumentAttaches.size()));
+	mLocalDefinition = std::move(DefinitionMap(mJITContext->LocalAttaches.size()));
+
+	/* Currently we don't support skipping initialization of locals (maybe later)
+	* So UndefinedValue won't occur in local loading
+	*/
+	constexpr Int32 basicBlockIndex = 0;
+	for (auto&& map : mArgumentDefinition)
+		map[basicBlockIndex] = new (POOL) SSA::Use(&SSA::UndefinedValueNode::Instance());
+
+	//Method to get default value node
+	auto getDefaultValue = [&](Int32 index) -> TreeNode* {
+		auto type = mJITContext->LocalAttaches[index].GetType();
+		auto coreType = type->GetCoreType();
+		if (CoreTypes::IsPrimitive(coreType))
+		{
+			auto node = new (POOL) ConstantNode(coreType);
+			node->I8 = 0ll;
+			return node;
+		}
+
+		if (CoreTypes::IsRef(coreType))
+			return &NullNode::Instance();
+
+		//TODO: How about struct?
+		return &NullNode::Instance();
+	};
+
+	for (Int32 i = 0; i < mLocalDefinition.size(); ++i)
+		mLocalDefinition[i][basicBlockIndex] = new (POOL) SSA::Use(getDefaultValue(i));
+}
+
 bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)
 {
 	IMPORT_LOCAL(local, index, kind);
@@ -45,10 +82,25 @@ bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)
 void RTJ::Hex::SSABuilder::WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value)
 {
 	IMPORT_LOCAL(local, variableIndex, kind);
-	if (kind == NodeKinds::LocalVariable)
-		mLocalDefinition[variableIndex][blockIndex] = value;
-	else
-		mArgumentDefinition[variableIndex][blockIndex] = value;
+	auto use = NEW(SSA::Use)(value);
+	auto&& current = (kind == NodeKinds::LocalVariable) ? 
+		mLocalDefinition[variableIndex][blockIndex] : 
+		mArgumentDefinition[variableIndex][blockIndex];
+
+	//Generate new tail
+	use->Prev = current;
+	current = use;
+}
+
+bool RTJ::Hex::SSABuilder::IsUseUndefined(TreeNode* node)
+{
+	if (node->Is(NodeKinds::Use))
+	{
+		auto use = node->As<SSA::Use>();
+		if (use->Value->Is(NodeKinds::UndefinedValue))
+			return true;
+	}
+	return false;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TrackPhiUsage(TreeNode* value)
@@ -58,7 +110,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TrackPhiUsage(TreeNode* value)
 
 	auto phiNode = value->As<SSA::PhiNode>();
 	auto position = mPhiUsage.find(phiNode);
-	auto newNode = mJITContext->Memory->New<SSA::Use>(value);
+	auto newNode = new (POOL) SSA::Use(value);
 	if (position == mPhiUsage.end())
 		mPhiUsage[phiNode] = newNode;
 	else
@@ -87,6 +139,15 @@ void RTJ::Hex::SSABuilder::UpdatePhiUsage(SSA::PhiNode* origin, TreeNode* target
 	iterator->second = nullptr;
 }
 
+void RTJ::Hex::SSABuilder::CountUse(TreeNode* node)
+{
+	if (node->Is(NodeKinds::Use))
+	{
+		auto use = node->As<SSA::Use>();
+		use->Count++;
+	}
+}
+
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(LocalVariableNode* local, Int32 blockIndex)
 {
 	IMPORT_LOCAL(local, variableIndex, kind);
@@ -96,7 +157,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(LocalVariableNode* local,
 	else
 		ret = mArgumentDefinition[variableIndex][blockIndex];
 
-	if (ret == nullptr)
+	if (ret != nullptr)
+		CountUse(ret);
+	else
 		ret = ReadVariableLookUp(local, blockIndex);
 
 	return TrackPhiUsage(ret);
@@ -191,8 +254,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 {
 	//Initialize
 	DecideSSATrackability();
-	mArgumentDefinition = std::move(DefinitionMap(mJITContext->ArgumentAttaches.size()));
-	mLocalDefinition = std::move(DefinitionMap(mJITContext->LocalAttaches.size()));
+	InitializeLocalsAndArguments();
 
 	auto readWrite = [&](TreeNode*& node, Int32 bbIndex) {
 		//The store node is always a stmt
@@ -233,7 +295,14 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 				}
 
 				if (index != -1 && IsVariableTrackable(local))
-					value = ReadVariable(local, bbIndex);
+				{
+					auto readValue = ReadVariable(local, bbIndex);
+					if (IsUseUndefined(readValue))
+						//Use origin node
+						value = local;
+					else
+						value = readValue;
+				}
 			});
 	};
 

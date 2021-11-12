@@ -12,10 +12,42 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Linearizer.h"
 
+#include <format>
+
 using namespace RTJ;
 using namespace RTC;
 using namespace RT;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
+
+namespace Microsoft::VisualStudio::CppUnitTestFramework
+{
+	template<> inline std::wstring ToString<Hex::PPKind>(const Hex::PPKind& t) 
+	{ 
+		switch (t)
+		{
+		case Hex::PPKind::Conditional:
+			return L"Conditional";
+		case Hex::PPKind::Unconditional:
+			return L"Unconditional";
+		case Hex::PPKind::Target:
+			return L"Target";
+		case Hex::PPKind::Sequential:
+			return L"Sequential";
+		case Hex::PPKind::Ret:
+			return L"Ret";
+		default:
+			return L"Unknown";
+		}
+	}
+
+	template<> inline std::wstring ToString<Hex::BasicBlock>(Hex::BasicBlock* t)
+	{
+		if (t == nullptr)
+			return L"null";
+		return std::format(L"Basic Block - Index: {}", t->Index);
+	}
+}
+
 
 namespace RuntimeTest
 {
@@ -52,10 +84,10 @@ namespace RuntimeTest
 
 			auto method = context->Context->MethDescriptor;
 			for (auto&& local : method->GetLocalVariables())
-				context->LocalAttaches.push_back({ local.GetMetadata(), 0 });
+				context->LocalAttaches.push_back({ &local, 0 });
 
 			for (auto&& argument : method->GetSignature()->GetArguments())
-				context->ArgumentAttaches.push_back({ argument.GetMetadata(), 0 });
+				context->ArgumentAttaches.push_back({ &argument, 0 });
 
 			Assert::IsNotNull(context->Context->MethDescriptor, L"Method not found");
 		}
@@ -108,12 +140,15 @@ namespace RuntimeTest
 		{
 			SetUpMethod(L"SSABuildTest");
 			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder>();
-
 		}
 
 		TEST_METHOD(SSAOptimizingTest)
 		{
+			SetUpMethod(L"SSAOptimizationTest");
+			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAOptimizer>();
 
+			Assert::AreEqual(Hex::PPKind::Unconditional, bb->BranchKind, L"First bb should be unconditional");
+			Assert::AreEqual(bb->BranchedBB, bb->Next, L"Branch should be next BB");
 		}
 	};
 

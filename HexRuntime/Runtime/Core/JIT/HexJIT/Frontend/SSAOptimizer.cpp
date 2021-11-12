@@ -185,30 +185,36 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldCompareConstant(CompareNode* nod
 #undef COMPARE_OP
 }
 
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUse(SSA::Use* node)
+{
+	auto value = node->Value;
+	//Decrement the count
+	if (value->Is(NodeKinds::Constant))
+		node->Count--;
+	return value;
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(TreeNode* node)
+{
+	switch (node->Kind)
+	{
+	case NodeKinds::BinaryArithmetic:
+		return FoldBinaryOpConstant(node->As<BinaryArithmeticNode>());
+	case NodeKinds::UnaryArithmetic:
+		return FoldUnaryOpConstant(node->As<UnaryArithmeticNode>());
+	case NodeKinds::Compare:
+		return FoldCompareConstant(node->As<CompareNode>());
+	case NodeKinds::Use:
+		return FoldUse(node->As<SSA::Use>());
+	default:
+		return node;
+	}
+}
+
 void RTJ::Hex::SSAOptimizer::FoldConstant(TreeNode*& stmtRoot)
 {
 	TraverseTreeBottomUp(mJITContext->Traversal.Space, mJITContext->Traversal.Count, stmtRoot,
-		[&](TreeNode*& node) 
-		{
-			switch (node->Kind)
-			{
-			case NodeKinds::BinaryArithmetic:
-			{
-				node = FoldBinaryOpConstant(node->As<BinaryArithmeticNode>());
-				break;
-			}
-			case NodeKinds::UnaryArithmetic:
-			{
-				node = FoldUnaryOpConstant(node->As<UnaryArithmeticNode>());
-				break;
-			}
-			case NodeKinds::Compare:
-			{
-				node = FoldCompareConstant(node->As<CompareNode>());
-				break;
-			}
-			}
-		});
+		[&](TreeNode*& node) { node = Fold(node); });
 }
 
 void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)

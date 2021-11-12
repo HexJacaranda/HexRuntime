@@ -18,12 +18,13 @@ namespace RTJ::Hex
 		UNDERLYING_TYPE(UInt32);
 		VALUE(Trackable) = 0x00000001;
 		VALUE(JITGenerated) = 0x00000002;
+		VALUE(Unused) = 0x80000000;
 	};
 
 	template<class T>
 	concept LocalOrArgument = requires 
-	{ 
-		std::is_same_v<T, RTME::ArgumentMD> || std::is_same_v<T, RTME::LocalVariableMD>;
+	{
+		std::is_same_v<RTM::MethodArgumentDescriptor, T> || std::is_same_v<RTM::MethodLocalVariableDescriptor, T>;
 	};
 
 	template<LocalOrArgument T>
@@ -50,16 +51,16 @@ namespace RTJ::Hex
 		bool IsJITGenerated()const {
 			return Flags & LocalAttachedFlags::JITGenerated;
 		}
-		RTM::Type* GetType(RTM::AssemblyContext* context)const {
+		RTM::Type* GetType()const {
 			if (IsJITGenerated())
 				return JITVariableType;
 			else
-				return Meta::MetaData->GetTypeFromToken(context, Origin->TypeRefToken);
+				return Origin->GetType();
 		}
 	};
 
-	using LocalAttached = LocalVariableAttached<RTME::LocalVariableMD>;
-	using ArgumentAttached = LocalVariableAttached<RTME::ArgumentMD>;
+	using LocalAttached = LocalVariableAttached<RTM::MethodLocalVariableDescriptor>;
+	using ArgumentAttached = LocalVariableAttached<RTM::MethodArgumentDescriptor>;
 
 	struct HexJITContext 
 	{

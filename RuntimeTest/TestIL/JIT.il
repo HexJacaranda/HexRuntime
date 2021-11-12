@@ -81,4 +81,36 @@
             .ret
         }
     }
+
+    .method public instance int32 SSAOptimizationTest(int32 x, int32 y) managed
+    {
+        .local
+        {
+            int32 a
+            int32 b
+        }
+        .code
+        {
+            .ldc int32 1
+            .stloc a
+            .ldc int32 1
+            .stloc b
+
+            .ldc int32 2
+            .stloc a
+
+            .ldloc a
+            .ldloc b
+            .cmp .eq
+            .jcc TRUE_BR
+
+            .ldarg x
+            .ret
+
+            .label TRUE_BR
+
+            .ldarg y
+            .ret
+        }
+    }
 }

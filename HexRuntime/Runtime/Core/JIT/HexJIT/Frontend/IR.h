@@ -40,6 +40,7 @@ namespace RTJ::Hex
 
 		Phi,
 		Use,
+		UndefinedValue,
 		//Morph
 
 		MorphedCall
@@ -466,9 +467,21 @@ namespace RTJ::Hex
 		struct Use : UnaryNode
 		{
 			TreeNode* Value;
+			Int32 Count = 0;
 			Use* Prev = nullptr;
 		public:
 			Use(TreeNode* value) : UnaryNode(NodeKinds::Use), Value(value) {}
+		};
+
+		struct UndefinedValueNode : TreeNode
+		{
+		public:
+			UndefinedValueNode() : TreeNode(NodeKinds::UndefinedValue) {}
+			static UndefinedValueNode& Instance()
+			{
+				static UndefinedValueNode node;
+				return node;
+			}
 		};
 
 		/// <summary>
@@ -511,6 +524,30 @@ namespace RTJ::Hex
 		};
 	}
 
+#define CASE_UNARY \
+			case NodeKinds::Load: \
+			case NodeKinds::Use: \
+			case NodeKinds::Convert: \
+			case NodeKinds::Cast: \
+			case NodeKinds::Box: \
+			case NodeKinds::UnBox: \
+			case NodeKinds::InstanceField: \
+			case NodeKinds::UnaryArithmetic: \
+			case NodeKinds::Duplicate: \
+			case NodeKinds::Phi:
+
+#define CASE_BINARY \
+			case NodeKinds::Store: \
+			case NodeKinds::Array: \
+			case NodeKinds::Compare: \
+			case NodeKinds::BinaryArithmetic:
+
+#define CASE_MULTIPLE \
+			case NodeKinds::MorphedCall: \
+			case NodeKinds::Call: \
+			case NodeKinds::New: \
+			case NodeKinds::NewArray:
+
 	template<class Fn>
 	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
@@ -539,11 +576,7 @@ namespace RTJ::Hex
 			switch (current->Kind)
 			{
 			//Binary access
-			case NodeKinds::Store:
-			case NodeKinds::Array:
-			case NodeKinds::Compare:
-			case NodeKinds::BinaryArithmetic:
-
+			CASE_BINARY
 			{
 				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
 				pushStack(&proxy->First);
@@ -551,25 +584,14 @@ namespace RTJ::Hex
 				break;
 			}
 			//Unary access
-			case NodeKinds::Use:
-			case NodeKinds::Convert:
-			case NodeKinds::Cast:
-			case NodeKinds::Box:
-			case NodeKinds::UnBox:
-			case NodeKinds::InstanceField:
-			case NodeKinds::UnaryArithmetic:
-			case NodeKinds::Duplicate:
-			case NodeKinds::Phi:
+			CASE_UNARY
 			{
 				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
 				pushStack(&proxy->Value);
 				break;
 			}
 			//Multiple access 
-			case NodeKinds::MorphedCall:
-			case NodeKinds::Call:
-			case NodeKinds::New:
-			case NodeKinds::NewArray:
+			CASE_MULTIPLE
 			{
 				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
 				for (Int32 i = 0; i < proxy->Count; ++i)
@@ -601,11 +623,7 @@ namespace RTJ::Hex
 			switch (current->Kind)
 			{
 				//Binary access
-			case NodeKinds::Store:
-			case NodeKinds::Array:
-			case NodeKinds::Compare:
-			case NodeKinds::BinaryArithmetic:
-
+			CASE_BINARY
 			{
 				BinaryNodeAccessProxy* proxy = (BinaryNodeAccessProxy*)current;
 				pushStack(&proxy->First);
@@ -613,25 +631,14 @@ namespace RTJ::Hex
 				break;
 			}
 			//Unary access
-			case NodeKinds::Use:
-			case NodeKinds::Convert:
-			case NodeKinds::Cast:
-			case NodeKinds::Box:
-			case NodeKinds::UnBox:
-			case NodeKinds::InstanceField:
-			case NodeKinds::UnaryArithmetic:
-			case NodeKinds::Duplicate:
-			case NodeKinds::Phi:
+			CASE_UNARY
 			{
 				UnaryNodeAccessProxy* proxy = (UnaryNodeAccessProxy*)current;
 				pushStack(&proxy->Value);
 				break;
 			}
 			//Multiple access 
-			case NodeKinds::MorphedCall:
-			case NodeKinds::Call:
-			case NodeKinds::New:
-			case NodeKinds::NewArray:
+			CASE_MULTIPLE
 			{
 				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
 				for (Int32 i = 0; i < proxy->Count; ++i)

@@ -73,7 +73,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
-	auto local = new(POOL) LocalVariableNode(localIndex);
+	auto local = new(POOL) ArgumentNode(localIndex);
 	auto&& locals = GetRawContext()->MethDescriptor->GetSignature()->GetArguments();
 
 	if (localIndex >= locals.Count)

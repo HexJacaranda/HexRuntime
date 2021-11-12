@@ -17,6 +17,9 @@ namespace RTJ::Hex
 		TreeNode* FoldUnaryOpConstant(UnaryArithmeticNode* node);
 		//Fold comapre constant
 		TreeNode* FoldCompareConstant(CompareNode* node);
+		//Fold use
+		TreeNode* FoldUse(SSA::Use* node);
+		TreeNode* Fold(TreeNode* node);
 		//Call for each root node of stmt
 		void FoldConstant(TreeNode*& stmtRoot);
 		//Prune the unnecessary BBIns to possibly eliminate dead code

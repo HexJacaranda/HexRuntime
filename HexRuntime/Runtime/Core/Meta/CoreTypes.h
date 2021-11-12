@@ -82,5 +82,8 @@ namespace RTC
 		inline static bool IsPrimitive(UInt8 coreType) {
 			return coreType < Struct;
 		}
+		inline static bool IsRef(UInt8 coreType) {
+			return coreType > Struct;
+		}
 	};
 }
