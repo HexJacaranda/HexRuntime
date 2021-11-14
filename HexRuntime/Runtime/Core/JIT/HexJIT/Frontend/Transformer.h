@@ -3,7 +3,7 @@
 #include "..\..\..\Meta\MDRecords.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
-#include "IR.h"
+#include "..\IR.h"
 #include "EvaluationStack.h"
 
 namespace RTJ::Hex

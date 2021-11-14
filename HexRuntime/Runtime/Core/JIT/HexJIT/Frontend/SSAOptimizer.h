@@ -3,6 +3,7 @@
 #include "..\..\..\Memory\SegmentMemory.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
+#include "..\IR.h"
 
 
 namespace RTJ::Hex
@@ -17,8 +18,11 @@ namespace RTJ::Hex
 		TreeNode* FoldUnaryOpConstant(UnaryArithmeticNode* node);
 		//Fold comapre constant
 		TreeNode* FoldCompareConstant(CompareNode* node);
-		//Fold use
-		TreeNode* FoldUse(SSA::Use* node);
+		//Fold value use
+		TreeNode* FoldValueUse(SSA::ValueUse* use);
+		//Fold value def
+		TreeNode* FoldValueDef(SSA::ValueDef* def);
+		//Generic fold
 		TreeNode* Fold(TreeNode* node);
 		//Call for each root node of stmt
 		void FoldConstant(TreeNode*& stmtRoot);

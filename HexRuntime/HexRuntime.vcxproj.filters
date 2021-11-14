@@ -117,9 +117,6 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\IR.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
     </ClInclude>
@@ -273,6 +270,12 @@
     <ClInclude Include="Runtime\Endianness.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\IR.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -383,9 +386,6 @@
     <ClCompile Include="Runtime\Core\Meta\InterfaceDispatchTable.cpp">
       <Filter>源文件\Tables</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\IR.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\InstantiationMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -396,6 +396,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Linearizer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\IR.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

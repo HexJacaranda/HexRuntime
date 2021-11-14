@@ -1,8 +1,8 @@
 #pragma once
-#include "..\..\..\..\RuntimeAlias.h"
-#include "..\..\..\..\Utility.h"
-#include "..\JITNativeSignature.h"
-#include "..\..\..\Meta\CoreTypes.h"
+#include "..\..\..\RuntimeAlias.h"
+#include "..\..\..\Utility.h"
+#include "JITNativeSignature.h"
+#include "..\..\Meta\CoreTypes.h"
 #include <vector>
 
 namespace RTM
@@ -40,6 +40,8 @@ namespace RTJ::Hex
 
 		Phi,
 		Use,
+		ValueDef,
+		ValueUse,
 		UndefinedValue,
 		//Morph
 
@@ -53,11 +55,9 @@ namespace RTJ::Hex
 		/// </summary>
 		RTM::TypeDescriptor* TypeInfo = nullptr;
 		/// <summary>
-		/// For linearization
+		/// Node kind
 		/// </summary>
-		TreeNode* LinearNext = nullptr;
 		NodeKinds Kind;
-
 	public:
 		TreeNode(NodeKinds kind) :Kind(kind) {}
 
@@ -467,10 +467,37 @@ namespace RTJ::Hex
 		struct Use : UnaryNode
 		{
 			TreeNode* Value;
-			Int32 Count = 0;
 			Use* Prev = nullptr;
 		public:
 			Use(TreeNode* value) : UnaryNode(NodeKinds::Use), Value(value) {}
+		};
+
+		/// <summary>
+		/// Predeclaration
+		/// </summary>
+		struct ValueUse;
+
+		struct ValueDef : UnaryNode
+		{
+			TreeNode* Value;
+			TreeNode* Origin;
+			ValueUse* UseChain;
+			Int32 Count = 0;
+		public:
+			ValueDef(TreeNode* value, TreeNode* origin) :
+				UnaryNode(NodeKinds::ValueDef),
+				Value(value),
+				Origin(origin) {}
+		};
+
+		struct ValueUse : UnaryNode
+		{
+			ValueDef* Def;
+			ValueUse* Prev = nullptr;
+		public:
+			ValueUse(ValueDef* def) :
+				UnaryNode(NodeKinds::ValueUse),
+				Def(def) {}
 		};
 
 		struct UndefinedValueNode : TreeNode
@@ -527,6 +554,7 @@ namespace RTJ::Hex
 #define CASE_UNARY \
 			case NodeKinds::Load: \
 			case NodeKinds::Use: \
+			case NodeKinds::ValueDef: \
 			case NodeKinds::Convert: \
 			case NodeKinds::Cast: \
 			case NodeKinds::Box: \

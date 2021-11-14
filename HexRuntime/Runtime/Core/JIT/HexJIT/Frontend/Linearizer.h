@@ -3,6 +3,7 @@
 #include "..\..\..\..\LinkList.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
+#include "..\IR.h"
 
 namespace RTJ::Hex
 {

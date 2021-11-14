@@ -2,7 +2,7 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
-#include "IR.h"
+#include "..\IR.h"
 #include <vector>
 #include <unordered_map>
 
@@ -16,7 +16,7 @@ namespace RTJ::Hex
 		BasicBlock* mTarget = nullptr;
 		HexJITContext* mJITContext;
 
-		using DefinitionMap = std::vector<std::unordered_map<Int16, SSA::Use*>>;
+		using DefinitionMap = std::vector<std::unordered_map<Int16, SSA::ValueDef*>>;
 		DefinitionMap mLocalDefinition;
 		DefinitionMap mArgumentDefinition;
 		std::unordered_map<SSA::PhiNode*, SSA::Use*> mPhiUsage;
@@ -33,10 +33,10 @@ namespace RTJ::Hex
 		void InitializeLocalsAndArguments();
 		bool IsVariableTrackable(LocalVariableNode* local);
 		/// <summary>
-		/// Increment use count if it's a use node
+		/// Generate ValueUse from ValueDef
 		/// </summary>
 		/// <param name="node"></param>
-		void CountUse(TreeNode* node);
+		SSA::ValueUse* UseDef(SSA::ValueDef* def);
 
 		/// <summary>
 		/// Checke whether it's a Use node with UndefinedValue (Now only argument reading)

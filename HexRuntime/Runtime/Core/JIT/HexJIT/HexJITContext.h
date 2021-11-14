@@ -6,7 +6,7 @@
 #include "..\..\Meta\AssemblyContext.h"
 #include "..\..\Meta\MetaManager.h"
 #include "..\JITContext.h"
-#include "Frontend\IR.h"
+#include "..\IR.h"
 #include <vector>
 #include <type_traits>
 

@@ -1,6 +1,6 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
-#include "IR.h"
+#include "..\IR.h"
 
 namespace RTJ::Hex
 {

@@ -1,5 +1,5 @@
 #include "IR.h"
-#include "..\..\..\Meta\TypeDescriptor.h"
+#include "..\..\Meta\TypeDescriptor.h"
 
 bool RTJ::Hex::TreeNode::CheckEquivalentWith(TreeNode* target) const
 {

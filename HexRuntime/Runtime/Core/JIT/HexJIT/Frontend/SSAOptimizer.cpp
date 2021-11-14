@@ -185,13 +185,21 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldCompareConstant(CompareNode* nod
 #undef COMPARE_OP
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUse(SSA::Use* node)
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldValueUse(SSA::ValueUse* node)
 {
-	auto value = node->Value;
+	auto value = node->Def->Value;
 	//Decrement the count
 	if (value->Is(NodeKinds::Constant))
-		node->Count--;
+		node->Def->Count--;
 	return value;
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldValueDef(SSA::ValueDef* def)
+{
+	if (def->Value->Is(NodeKinds::Constant))
+		return def->Value;
+	else
+		return def;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(TreeNode* node)
@@ -204,8 +212,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(TreeNode* node)
 		return FoldUnaryOpConstant(node->As<UnaryArithmeticNode>());
 	case NodeKinds::Compare:
 		return FoldCompareConstant(node->As<CompareNode>());
-	case NodeKinds::Use:
-		return FoldUse(node->As<SSA::Use>());
+	case NodeKinds::ValueDef:
+		return FoldValueDef(node->As<SSA::ValueDef>());
+	case NodeKinds::ValueUse:
+		return FoldValueUse(node->As<SSA::ValueUse>());
 	default:
 		return node;
 	}
