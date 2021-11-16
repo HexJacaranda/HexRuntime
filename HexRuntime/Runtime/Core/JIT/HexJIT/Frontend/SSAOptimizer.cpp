@@ -10,7 +10,7 @@ RTJ::Hex::SSAOptimizer::SSAOptimizer(HexJITContext* context) :
 
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticNode* node)
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(UnaryArithmeticNode* node)
 {
 #define EVAL_NEG_CASE(CORE_TYPE) case CoreTypes::CORE_TYPE: \
 	evaluatedNode->CORE_TYPE = -constant->CORE_TYPE; \
@@ -55,7 +55,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldUnaryOpConstant(UnaryArithmeticN
 #undef EVAL_CASE
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeticNode* node)
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(BinaryArithmeticNode* node)
 {
 	auto integerEval = [](auto left, auto right, UInt8 opcode)
 	{
@@ -137,7 +137,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldBinaryOpConstant(BinaryArithmeti
 #undef EVAL_FLOAT_CASE
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldCompareConstant(CompareNode* node) {
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(CompareNode* node) {
 
 #define COMPARE_OP_IN_CORE_TYPE(CORE_TYPE, OP) \
 	case CoreTypes::CORE_TYPE: \
@@ -185,7 +185,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldCompareConstant(CompareNode* nod
 #undef COMPARE_OP
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldValueUse(SSA::ValueUse* node)
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(SSA::ValueUse* node)
 {
 	auto value = node->Def->Value;
 	//Decrement the count
@@ -194,7 +194,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldValueUse(SSA::ValueUse* node)
 	return value;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::FoldValueDef(SSA::ValueDef* def)
+RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(SSA::ValueDef* def)
 {
 	if (def->Value->Is(NodeKinds::Constant))
 		return def->Value;
@@ -207,15 +207,15 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSAOptimizer::Fold(TreeNode* node)
 	switch (node->Kind)
 	{
 	case NodeKinds::BinaryArithmetic:
-		return FoldBinaryOpConstant(node->As<BinaryArithmeticNode>());
+		return Fold(node->As<BinaryArithmeticNode>());
 	case NodeKinds::UnaryArithmetic:
-		return FoldUnaryOpConstant(node->As<UnaryArithmeticNode>());
+		return Fold(node->As<UnaryArithmeticNode>());
 	case NodeKinds::Compare:
-		return FoldCompareConstant(node->As<CompareNode>());
+		return Fold(node->As<CompareNode>());
 	case NodeKinds::ValueDef:
-		return FoldValueDef(node->As<SSA::ValueDef>());
+		return Fold(node->As<SSA::ValueDef>());
 	case NodeKinds::ValueUse:
-		return FoldValueUse(node->As<SSA::ValueUse>());
+		return Fold(node->As<SSA::ValueUse>());
 	default:
 		return node;
 	}

@@ -11,7 +11,15 @@ namespace RTJ::Hex
 	/// </summary>
 	class SSAReducer : public IHexJITFlow
 	{
+		HexJITContext* mContext;
+	private:
+		TreeNode* Reduce(SSA::ValueUse* use);
+		TreeNode* Reduce(SSA::ValueDef* def);
+		TreeNode* Reduce(SSA::PhiNode* phi);
+		TreeNode* Reduce(SSA::Use* use);
+		TreeNode* Reduce(TreeNode* node);
 	public:
+		SSAReducer(HexJITContext* context);
 		virtual BasicBlock* PassThrough() final;
 	};
 }

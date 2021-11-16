@@ -10,6 +10,7 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/SSAReducer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Linearizer.h"
 
 #include <format>
@@ -149,6 +150,38 @@ namespace RuntimeTest
 
 			Assert::AreEqual(Hex::PPKind::Unconditional, bb->BranchKind, L"First bb should be unconditional");
 			Assert::AreEqual(bb->BranchedBB, bb->Next, L"Branch should be next BB");
+		}
+
+		TEST_METHOD(SSAReducingTest)
+		{
+			SetUpMethod(L"SSAOptimizationTest");
+			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAOptimizer, Hex::SSAReducer>();
+
+			for (Hex::BasicBlock* bbIterator = bb;
+				bbIterator != nullptr;
+				bbIterator = bbIterator->Next)
+			{
+				for (Hex::Statement* stmtIterator = bbIterator->Now;
+					stmtIterator != nullptr && stmtIterator->Now != nullptr;
+					stmtIterator = stmtIterator->Next)
+				{
+					Hex::TraverseTree(
+						context->Traversal.Space,
+						context->Traversal.Count,
+						stmtIterator->Now,
+						[](Hex::TreeNode*& node) 
+						{
+							switch (node->Kind)
+							{
+							case Hex::NodeKinds::Use:
+							case Hex::NodeKinds::ValueDef:
+							case Hex::NodeKinds::ValueUse:
+							case Hex::NodeKinds::Phi:
+								Assert::Fail(L"SSA node should not exist");
+							}
+						});
+				}
+			}
 		}
 	};
 

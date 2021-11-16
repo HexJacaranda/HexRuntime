@@ -195,9 +195,6 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TrySimplifyChoice(SSA::PhiNode* origin
 		auto phiChoice = node->As<SSA::PhiNode>();
 		if (phiChoice->IsEmpty() || phiChoice->IsRemoved())
 			return nullptr;
-		if (phiChoice->IsCollapsed())
-			//Replace with collapsed value
-			return phiChoice->CollapsedValue;
 	}
 	//Non-trival case
 	return node;
@@ -235,20 +232,15 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode
 		}
 		sameNode = choice;
 	}
-
-	//If this collapsed
-	if (phiNode->Choices.size() == 1 || sameNode != nullptr)
-		return (phiNode->CollapsedValue = sameNode);
 	
 	//Update
 	UpdatePhiUsage(phiNode, sameNode);
-
 	return sameNode;
 }
 
 RTJ::Hex::SSABuilder::SSABuilder(HexJITContext* jitContext) :
 	mJITContext(jitContext),
-	mTarget(jitContext->BBs[0]) 
+	mTarget(jitContext->BBs.front()) 
 {
 
 }

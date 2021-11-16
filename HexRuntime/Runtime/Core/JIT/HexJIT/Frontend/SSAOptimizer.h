@@ -13,15 +13,15 @@ namespace RTJ::Hex
 		RTMM::SegmentMemory* mMemory;
 		HexJITContext* mJITContext;	
 		//Fold binary
-		TreeNode* FoldBinaryOpConstant(BinaryArithmeticNode* node);
+		TreeNode* Fold(BinaryArithmeticNode* node);
 		//Fold unary
-		TreeNode* FoldUnaryOpConstant(UnaryArithmeticNode* node);
+		TreeNode* Fold(UnaryArithmeticNode* node);
 		//Fold comapre constant
-		TreeNode* FoldCompareConstant(CompareNode* node);
+		TreeNode* Fold(CompareNode* node);
 		//Fold value use
-		TreeNode* FoldValueUse(SSA::ValueUse* use);
+		TreeNode* Fold(SSA::ValueUse* use);
 		//Fold value def
-		TreeNode* FoldValueDef(SSA::ValueDef* def);
+		TreeNode* Fold(SSA::ValueDef* def);
 		//Generic fold
 		TreeNode* Fold(TreeNode* node);
 		//Call for each root node of stmt
