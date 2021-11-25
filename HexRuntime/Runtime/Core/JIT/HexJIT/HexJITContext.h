@@ -18,6 +18,7 @@ namespace RTJ::Hex
 		UNDERLYING_TYPE(UInt32);
 		VALUE(Trackable) = 0x00000001;
 		VALUE(JITGenerated) = 0x00000002;
+		VALUE(AddressTaken) = 0x00000004;
 		VALUE(Unused) = 0x80000000;
 	};
 

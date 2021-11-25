@@ -91,6 +91,9 @@
     <Filter Include="DebugVisual">
       <UniqueIdentifier>{fd3daf33-4161-4eb1-bb47-a1c2352b1f7e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\JIT">
+      <UniqueIdentifier>{0ce7aca9-a7f4-4a23-bf90-05ae7e70e804}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -264,9 +267,6 @@
     <ClInclude Include="Runtime\LinkList.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Linearizer.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Frontend</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Endianness.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
@@ -279,15 +279,21 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecialization.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MetaManager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp">
@@ -311,19 +317,7 @@
     <ClCompile Include="Runtime\Core\GC\GCInterface.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\ILEmitter.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MDImporter.cpp">
@@ -340,9 +334,6 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\ImportSession.cpp">
       <Filter>源文件\ImportSession</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp">
-      <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\Meta\MethodTable.cpp">
       <Filter>源文件\Tables</Filter>
@@ -398,14 +389,35 @@
     <ClCompile Include="Runtime\Range.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Linearizer.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp">
+      <Filter>源文件\JIT</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\IR.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp">
+      <Filter>源文件\JIT</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp">
+      <Filter>源文件\JIT</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
