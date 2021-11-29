@@ -81,6 +81,7 @@ namespace RTM
 		AssemblyContext* GetAssembly()const;
 
 		Int32 GetSize()const;
+		Int32 GetLayoutSize()const;
 
 		bool IsArray()const;
 		bool IsString()const;

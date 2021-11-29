@@ -1,7 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\..\LinkList.h"
-#include "PlatformSpecialization.h"
+#include "..\..\..\Platform\Platform.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
 #include "..\IR.h"

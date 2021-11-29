@@ -1,71 +1,109 @@
 #include "Materializer.h"
 #include "..\JITHelper.h"
 #include "..\..\..\Meta\MetaManager.h"
+#include <ranges>
 
 #define POOL (mJITContext->Memory)
 
-RTJ::Hex::Materializer::Materializer(HexJITContext* context) :
+RTJ::Hex::Morpher::Morpher(HexJITContext* context) :
 	mJITContext(context)
 {
 }
 
-void RTJ::Hex::Materializer::InsertCall(MorphedCallNode* node)
+void RTJ::Hex::Morpher::InsertCall(MorphedCallNode* node)
 {
 	auto stmt = new(POOL) Statement(node, mCurrentStmt->ILOffset, mCurrentStmt->ILOffset);
 	//Insert call
 	LinkedList::InsertBefore(mStmtHead, mPreviousStmt, stmt);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphCall(TreeNode* node)
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 {
-	return new(POOL) MorphedCallNode(node, &JITCall::ManagedCallSignature);
-}
+	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
+	methodConstant->Pointer = node->Method;
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNew(TreeNode* node)
-{
-	return new(POOL) MorphedCallNode(node, &JITCall::NewObjectSignature);
-}
-
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphNewArray(TreeNode* node)
-{
-	auto newNode = node->As<NewArrayNode>();
-	auto ret = new(POOL) MorphedCallNode(newNode, nullptr);
-	if (newNode->DimensionCount == 1)
+	auto managedMethod = node->Method;
+	void* nativeMethod = nullptr;
+	Platform::PlatformCallingConvention* callingConv = nullptr;
+	if (managedMethod->IsStatic() || managedMethod->IsFinal())
 	{
-		//SZArray case
-		ret->Signature = &JITCall::NewSZArraySignature;
+		nativeMethod = &JITCall::ManagedDirectCall;
+		callingConv = CALLING_CONV_OF(ManagedDirectCall);
+	}
+	else if (managedMethod->IsVirtual())
+	{
+		nativeMethod = &JITCall::ManagedVirtualCall;
+		callingConv = CALLING_CONV_OF(ManagedVirtualCall);
+	}
+
+	return new (POOL) MorphedCallNode(node, nativeMethod, callingConv, methodConstant);
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
+{
+	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
+	methodConstant->Pointer = node->Method;
+
+	return new (POOL) MorphedCallNode(node, &JITCall::NewObject, CALLING_CONV_OF(NewObject), methodConstant);
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
+{
+	if (node->DimensionCount == 1)
+	{
+		//Single-dimensional
+		auto arguments = new (POOL) TreeNode * [2]
+		{ 
+			new (POOL) ConstantNode(node->ElementType), 
+			node->Dimension 
+		};
+		return new (POOL) MorphedCallNode(node, &JITCall::NewSZArray, CALLING_CONV_OF(NewSZArray), arguments, 2);
 	}
 	else
 	{
-		ret->Signature = &JITCall::NewArraySignature;
 		//Multi-dimensional
+		//Maybe we should generate scoped stack allocation for the third arguments
+		auto arguments = new (POOL) TreeNode * [3]
+		{
+			new (POOL) ConstantNode(node->ElementType),
+			new (POOL) ConstantNode(node->DimensionCount),
+			nullptr
+		};
+
+		return new (POOL) MorphedCallNode(node, &JITCall::NewArrayFast, CALLING_CONV_OF(NewArray), arguments, 2);
 	}
-	return ret;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphStore(TreeNode* node)
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 {
-	auto storeNode = node->As<StoreNode>();
-	if (storeNode->Destination->Is(NodeKinds::InstanceField))
+	if (node->Destination->Is(NodeKinds::InstanceField))
 	{
-		auto writeBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::WriteBarrierForRefSignature);
+		//A trick that utilizes the sequential layout of StoreNode
+		auto arguments = &node->Destination;
+			
+	   /* new (POOL) TreeNode* [2]
+		{
+			node->Destination,
+			node->Source
+		};*/
+
+		auto writeBarrierNode = new (POOL) MorphedCallNode(node, &JITCall::WriteBarrierForRef, CALLING_CONV_OF(WriteBarrierForRef), arguments, 2);
 		InsertCall(writeBarrierNode);
 	}
 	return node;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::Materializer::MorphLoad(TreeNode* node)
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 {
-	auto storeNode = node->As<LoadNode>();
-	if (storeNode->Source->Is(NodeKinds::InstanceField))
+	if (node->Source->Is(NodeKinds::InstanceField))
 	{
-		auto readBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::ReadBarrierForRefSignature);
+		auto readBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::ReadBarrierForRef, CALLING_CONV_OF(ReadBarrierForRef), node);
 		InsertCall(readBarrierNode);
 	}
 	return node;
 }
 
-RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::PassThrough()
+RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
 {
 	auto bbHead = mJITContext->BBs[0];
 
@@ -88,19 +126,19 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Materializer::PassThrough()
 					switch (node->Kind)
 					{
 					case NodeKinds::Call:
-						node = MorphCall(node);
+						node = Morph(node->As<CallNode>());
 						break;
 					case NodeKinds::New:
-						node = MorphNew(node);
+						node = Morph(node->As<NewNode>());
 						break;
 					case NodeKinds::NewArray:
-						node = MorphNewArray(node);
+						node = Morph(node->As<NewArrayNode>());
 						break;
 					case NodeKinds::Load:
-						node = MorphLoad(node);
+						node = Morph(node->As<LoadNode>());
 						break;
 					case NodeKinds::Store:
-						node = MorphStore(node);
+						node = Morph(node->As<StoreNode>());
 						break;
 					}
 				});

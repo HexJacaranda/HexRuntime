@@ -82,6 +82,20 @@ RT::Int32 RTM::TypeDescriptor::GetSize() const
 	return mFieldTable->GetLayout()->Size;
 }
 
+RT::Int32 RTM::TypeDescriptor::GetLayoutSize() const
+{
+	UInt8 coreType = GetCoreType();
+	if (CoreTypes::IsPrimitive(coreType) ||
+		coreType == CoreTypes::InteriorRef ||
+		coreType == CoreTypes::Ref)
+		return CoreTypes::SizeOfCoreType[coreType];
+	
+	if (coreType != CoreTypes::Struct)
+		return mFieldTable->GetLayout()->Size;
+
+	return CoreTypes::SizeOfCoreType[CoreTypes::Ref];
+}
+
 bool RTM::TypeDescriptor::IsArray() const
 {
 	return GetCoreType() == CoreTypes::Array;

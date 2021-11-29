@@ -50,7 +50,19 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 {
 	auto update = [&](Int16 index, NodeKinds kind) {
+		Int32 mapIndex = kind == NodeKinds::LocalVariable ? 0 : 1;
+		auto&& livenessList = mLiveness[mapIndex][index];
 
+		if (livenessList.size() == 0)
+			livenessList.push_back({ mLivenessIndex, mLivenessIndex + 1 });
+		else
+		{
+			auto&& previous = livenessList.back();
+			if (previous.To == mLivenessIndex)
+				previous.To++;
+			else
+				livenessList.push_back({ mLivenessIndex, mLivenessIndex + 1 });
+		}
 	};
 
 	switch (node->Kind)
@@ -66,6 +78,10 @@ void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 		if (auto variable = GuardedSourceExtract(node->As<LoadNode>()))
 			update(variable->LocalIndex, variable->Kind);
 		break;
+	}
+	case NodeKinds::MorphedCall:
+	{
+
 	}
 	default:
 		break;

@@ -11,7 +11,7 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/SSAReducer.h"
-#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Linearizer.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/Linearizer.h"
 
 #include <format>
 

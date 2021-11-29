@@ -9,21 +9,21 @@ namespace RTJ::Hex
 	/// <summary>
 	/// Responsible for replacing high-level nodes with primitive low-level nodes
 	/// </summary>
-	class Materializer : public IHexJITFlow
+	class Morpher : public IHexJITFlow
 	{
 		Statement* mStmtHead = nullptr;
 		Statement* mCurrentStmt = nullptr;
 		Statement* mPreviousStmt = nullptr;
 		HexJITContext* mJITContext;
 	public:
-		Materializer(HexJITContext* context);
+		Morpher(HexJITContext* context);
 	private:
 		void InsertCall(MorphedCallNode* node);
-		TreeNode* MorphCall(TreeNode* node);
-		TreeNode* MorphNew(TreeNode* node);
-		TreeNode* MorphNewArray(TreeNode* node);
-		TreeNode* MorphStore(TreeNode* node);
-		TreeNode* MorphLoad(TreeNode* node);
+		TreeNode* Morph(CallNode* node);
+		TreeNode* Morph(NewNode* node);
+		TreeNode* Morph(NewArrayNode* node);
+		TreeNode* Morph(StoreNode* node);
+		TreeNode* Morph(LoadNode* node);
 	public:
 		BasicBlock* PassThrough();
 	};

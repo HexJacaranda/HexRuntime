@@ -20,8 +20,8 @@ namespace RTO
 	public:
 		ForcedInline UInt32 GetCount()const;
 		ForcedInline Int8* GetElementAddress()const;
-		inline RTM::Type* GetElementType()const;
-		inline bool IsMultiDimensionalArray()const;
-		inline bool IsSZArray()const;
+		RTM::Type* GetElementType()const;
+		bool IsMultiDimensionalArray()const;
+		bool IsSZArray()const;
 	};
 }

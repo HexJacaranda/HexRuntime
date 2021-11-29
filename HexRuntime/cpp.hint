@@ -5,3 +5,4 @@
 #define BEGIN_FLAGS(UNDERLYING_TYPE)
 #define FLAG_GET(NAME, BIT) bool NAME()const { return !!(Flags & (1 << BIT)); }
 #define ForcedInline
+#define JIT_CALLING_CONV_IMPL(NAME) Platform::PlatformCallingArgument NAME##CCArgs[]

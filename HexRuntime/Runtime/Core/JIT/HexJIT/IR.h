@@ -1,8 +1,11 @@
 #pragma once
+//Union initialization
+#pragma warning(disable:26495)
+
 #include "..\..\..\RuntimeAlias.h"
 #include "..\..\..\Utility.h"
-#include "JITNativeSignature.h"
 #include "..\..\Meta\CoreTypes.h"
+#include "..\..\Platform\PlatformSpecialization.h"
 #include <vector>
 
 namespace RTM
@@ -89,9 +92,39 @@ namespace RTJ::Hex
 
 	struct ConstantNode : TreeNode
 	{
-		ConstantNode(UInt8 coreType)
-			:TreeNode(NodeKinds::Constant),
+		ConstantNode(UInt8 coreType) :
+			TreeNode(NodeKinds::Constant),
 			CoreType(coreType) {}
+
+		ConstantNode(Boolean value) :
+			TreeNode(NodeKinds::Constant),
+			Bool(value),
+			CoreType(CoreTypes::I1) {}
+
+		ConstantNode(Int8 value) :
+			TreeNode(NodeKinds::Constant),
+			I1(value),
+			CoreType(CoreTypes::I1) {}
+
+		ConstantNode(Int16 value) :
+			TreeNode(NodeKinds::Constant),
+			I2(value),
+			CoreType(CoreTypes::I2) {}
+
+		ConstantNode(Int32 value) :
+			TreeNode(NodeKinds::Constant),
+			I4(value),
+			CoreType(CoreTypes::I4) {}
+
+		ConstantNode(Int64 value) :
+			TreeNode(NodeKinds::Constant),
+			I8(value),
+			CoreType(CoreTypes::I8) {}
+
+		ConstantNode(void* value) :
+			TreeNode(NodeKinds::Constant),
+			Pointer(value),
+			CoreType(CoreTypes::Ref) {}
 
 		UInt8 CoreType = 0;
 		union
@@ -100,10 +133,15 @@ namespace RTJ::Hex
 			Int8 I1;
 			Int16 I2;
 			Int32 I4;
-			Int64 I8 = 0;
+			Int64 I8;
+			UInt8 U1;
+			UInt16 U2;
+			UInt32 U4;
+			UInt64 U8;
 			Float R4;
 			Double R8;
 			UInt32 StringToken;
+			void* Pointer;
 		};
 	};
 
@@ -136,8 +174,21 @@ namespace RTJ::Hex
 			Method(method),
 			Arguments(arugments),
 			ArgumentCount(argumentCount) {}
+
+		CallNode(
+			RTM::MethodDescriptor* method,
+			TreeNode* arugment)
+			:TreeNode(NodeKinds::Call),
+			Method(method),
+			Argument(arugment),
+			ArgumentCount(1) {}
+
 		Int32 ArgumentCount;
-		TreeNode** Arguments;
+		union
+		{
+			TreeNode** Arguments;
+			TreeNode* Argument;
+		};
 		RTM::MethodDescriptor* Method;
 	};
 
@@ -210,11 +261,28 @@ namespace RTJ::Hex
 
 	struct NewNode : TreeNode
 	{
-		NewNode(RTM::MethodDescriptor* ctor)
+		NewNode(
+			RTM::MethodDescriptor* method,
+			TreeNode** arugments,
+			Int32 argumentCount)
 			:TreeNode(NodeKinds::New),
-			Method(ctor) {}
+			Method(method),
+			Arguments(arugments),
+			ArgumentCount(argumentCount) {}
+
+		NewNode(
+			RTM::MethodDescriptor* method,
+			TreeNode* arugment)
+			:TreeNode(NodeKinds::New),
+			Method(method),
+			Argument(arugment),
+			ArgumentCount(1) {}
 		Int32 ArgumentCount = 0;
-		TreeNode** Arguments = nullptr;
+		union
+		{
+			TreeNode** Arguments = nullptr;
+			TreeNode* Argument;
+		};
 		RTM::MethodDescriptor* Method;
 	};
 
@@ -225,8 +293,19 @@ namespace RTJ::Hex
 			ElementType(elementType),
 			Dimensions(dimensions),
 			DimensionCount(dimensionCount) {}
+
+		NewArrayNode(RTM::TypeDescriptor* elementType, TreeNode* dimension)
+			:TreeNode(NodeKinds::NewArray),
+			ElementType(elementType),
+			Dimension(dimension),
+			DimensionCount(1) {}
+
 		Int32 DimensionCount;
-		TreeNode** Dimensions;	
+		union
+		{
+			TreeNode** Dimensions;
+			TreeNode* Dimension;
+		};
 		RTM::TypeDescriptor* ElementType;
 	};
 
@@ -347,31 +426,48 @@ namespace RTJ::Hex
 	{
 		MultipleNodeAccessProxy() : TreeNode(NodeKinds::Call) {}
 		Int32 Count = 0;
-		TreeNode** Values = nullptr;
+		union 
+		{
+			TreeNode** Values = nullptr;
+			TreeNode* Value;
+		};	
 	};
 
 	/*--------------------------------Morphed Section--------------------------------*/
 
-	struct MorphedNativeArgument
-	{
-		union
-		{
-			void* NativePtr;
-			TreeNode* ManagedValue;
-		};
-	};
-
+	/// <summary>
+	/// MorphedCallNode often represents a pure native call to JIT runtime method.
+	/// But there may be a origin managed call accompanied.
+	/// </summary>
 	struct MorphedCallNode : TreeNode
 	{
-		MorphedCallNode(TreeNode* value, JITNativeSignature* signature) :
+		MorphedCallNode(TreeNode* origin, void* nativeEntry, RTP::PlatformCallingConvention* callingConv, TreeNode** arguments, Int32 count) :
 			TreeNode(NodeKinds::MorphedCall),
-			OriginNode(value),
-			Signature(signature)
+			Arguments(arguments),
+			ArgumentCount(count),
+			Origin(origin),
+			NativeEntry(nativeEntry),
+			CallingConvention(callingConv)		
 		{}
+
+		MorphedCallNode(TreeNode* origin, void* nativeEntry, RTP::PlatformCallingConvention* callingConv, TreeNode* argument) :
+			TreeNode(NodeKinds::MorphedCall),
+			Argument(argument),
+			ArgumentCount(1),
+			Origin(origin),
+			NativeEntry(nativeEntry),
+			CallingConvention(callingConv)
+		{}
+
 		Int32 ArgumentCount = 0;
-		MorphedNativeArgument* Arguments = nullptr;
-		TreeNode* OriginNode;
-		JITNativeSignature* Signature;	
+		union 
+		{
+			TreeNode* Argument;
+			TreeNode** Arguments = nullptr;
+		};		
+		RTP::PlatformCallingConvention* CallingConvention = nullptr;
+		void* NativeEntry;
+		TreeNode* Origin;	
 	};
 
 	struct Statement
@@ -481,7 +577,7 @@ namespace RTJ::Hex
 		{
 			TreeNode* Value;
 			TreeNode* Origin;
-			ValueUse* UseChain;
+			ValueUse* UseChain = nullptr;
 			Int32 Count = 0;
 		public:
 			ValueDef(TreeNode* value, TreeNode* origin) :

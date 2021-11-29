@@ -1,9 +1,10 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "..\Platform\Platform.h"
 
 namespace RTME
 {
-#define BEGIN_FLAGS(UNDERLYING_TYPE) UNDERLYING_TYPE Flags;
+#define BEGIN_FLAGS(TYPE) TYPE Flags;
 
 #define FLAG_GET(NAME, BIT) bool NAME()const { return !!(Flags & (1 << BIT)); } 
 
@@ -314,9 +315,9 @@ namespace RTME
 
 	struct NativeLinkMD
 	{
-		struct {
-
-		};
+		UInt32 Platform;
+		RTP::CallingConventions Convention;
+		MDToken EntryName;
 	};
 
 	struct GenericInstantiationMD

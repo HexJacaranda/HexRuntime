@@ -94,6 +94,12 @@
     <Filter Include="源文件\JIT">
       <UniqueIdentifier>{0ce7aca9-a7f4-4a23-bf90-05ae7e70e804}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\Platform">
+      <UniqueIdentifier>{9cc5d47f-ac20-4799-934c-9870b92a6f61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Runtime\Core\Platform\CallingConventionProviders">
+      <UniqueIdentifier>{8e426cdf-3a07-42eb-b256-9ac560247b61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -195,9 +201,6 @@
     <ClInclude Include="Runtime\Core\Meta\ImportSession.h">
       <Filter>头文件\Runtime\Core\Meta\ImportSession</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Utility.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
@@ -285,8 +288,14 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecialization.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    <ClInclude Include="Runtime\Core\Platform\Platform.h">
+      <Filter>头文件\Runtime\Core\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Platform\PlatformSpecialization.h">
+      <Filter>头文件\Runtime\Core\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h">
+      <Filter>头文件\Runtime\Core\Platform\CallingConventionProviders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

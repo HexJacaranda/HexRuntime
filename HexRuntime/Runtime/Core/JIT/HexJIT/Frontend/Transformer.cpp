@@ -43,15 +43,22 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 	//Read method reference tokenas
 	auto methodRef = ReadAs<MDToken>();
 	auto method = Meta::MetaData->GetMethodFromToken(GetAssembly(), methodRef);
+
 	auto argumentsCount = method->GetSignature()->GetArguments().Count;
-	TreeNode** arguments = nullptr;
-	if (argumentsCount > 0)
-		arguments = new(POOL) TreeNode * [argumentsCount];
+	if (argumentsCount <= 1)
+	{
+		if (argumentsCount == 0)
+			return new (POOL) CallNode(method, nullptr, argumentsCount);
+		return new (POOL) CallNode(method, mEvalStack.Pop());
+	}
+	else
+	{
+		TreeNode** arguments = new(POOL) TreeNode * [argumentsCount];
+		for (int i = 0; i < argumentsCount; ++i)
+			arguments[i] = mEvalStack.Pop();
 
-	for (int i = 0; i < argumentsCount; ++i)
-		arguments[i] = mEvalStack.Pop();
-
-	return new(POOL) CallNode(method, arguments, argumentsCount);
+		return new (POOL) CallNode(method, arguments, argumentsCount);
+	}
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
@@ -214,23 +221,47 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreToAddress()
 
 RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
 {
-	auto ctorToken = ReadAs<MDToken>();
-	auto ctor = Meta::MetaData->GetMethodFromToken(GetAssembly(), ctorToken);
-	
-	return new(POOL) NewNode(ctor);
+	//Read method reference tokenas
+	auto methodRef = ReadAs<MDToken>();
+	auto method = Meta::MetaData->GetMethodFromToken(GetAssembly(), methodRef);
+
+	auto argumentsCount = method->GetSignature()->GetArguments().Count;
+	if (argumentsCount <= 1)
+	{
+		if (argumentsCount == 0)
+			return new (POOL) NewNode(method, nullptr, argumentsCount);
+		return new (POOL) NewNode(method, mEvalStack.Pop());
+	}
+	else
+	{
+		TreeNode** arguments = new(POOL) TreeNode * [argumentsCount];
+		for (int i = 0; i < argumentsCount; ++i)
+			arguments[i] = mEvalStack.Pop();
+
+		return new (POOL) NewNode(method, arguments, argumentsCount);
+	}
 }
 
 RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 {
 	Int32 dimensionCount = ReadAs<Int32>();
-	TreeNode** dimensions = new(POOL) TreeNode * [dimensionCount];
-	for (int i = 0; i < dimensionCount; ++i)
-		dimensions[i] = mEvalStack.Pop();
-
 	//Read type reference token
 	auto typeRef = ReadAs<MDToken>();
 	auto elementType = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
-	return new(POOL) NewArrayNode(elementType, dimensions, dimensionCount);
+
+	if (dimensionCount == 1)
+	{
+		return new (POOL) NewArrayNode(elementType, mEvalStack.Pop());
+	}
+	else
+	{
+		TreeNode** dimensions = new(POOL) TreeNode * [dimensionCount];
+		for (int i = 0; i < dimensionCount; ++i)
+			dimensions[i] = mEvalStack.Pop();
+		return new (POOL) NewArrayNode(elementType, dimensions, dimensionCount);
+	}
+
+	
 }
 
 RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()

@@ -32,7 +32,6 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecialization.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.h" />
@@ -45,7 +44,6 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\IR.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITFlow.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITHelper.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITNativeSignature.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
     <ClInclude Include="Runtime\Core\JIT\JIT.h" />
     <ClInclude Include="Runtime\Core\JIT\JITContext.h" />
@@ -74,6 +72,9 @@
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
+    <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h" />
+    <ClInclude Include="Runtime\Core\Platform\Platform.h" />
+    <ClInclude Include="Runtime\Core\Platform\PlatformSpecialization.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Endianness.h" />
     <ClInclude Include="Runtime\LinkList.h" />

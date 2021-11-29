@@ -50,6 +50,7 @@ namespace Runtime
 
 #define RTE Runtime::Exception
 #define RTGC Runtime::Core::GC
+#define RTP Runtime::Core::Platform
 #define RTJ Runtime::Core::JIT
 #define RTJE Runtime::Core::JIT::Emit
 #define RTIOS2EE Runtime::Core::Interfaces::OSToEE
