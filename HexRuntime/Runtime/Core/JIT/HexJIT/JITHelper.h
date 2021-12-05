@@ -1,10 +1,10 @@
 #pragma once
 #include "..\..\..\RuntimeAlias.h"
 #include "..\..\Object\Object.h"
-#include "..\..\Object\ArrayObject.h"
 #include "..\..\InteriorPointer.h"
 #include "..\..\Meta\MethodDescriptor.h"
 #include "..\..\Meta\TypeDescriptor.h"
+#include "..\..\Object\ArrayObject.h"
 #include "..\..\Platform\PlatformSpecialization.h"
 
 namespace RTJ::Hex::JITCall

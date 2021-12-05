@@ -5,7 +5,7 @@
 
 namespace RTO
 {
-	class ArrayObject :public Object
+	class ArrayObject : public Object
 	{
 	private:
 		UInt32 mCount;
@@ -18,8 +18,8 @@ namespace RTO
 			UInt32 mSingleUpperBound;
 		};	
 	public:
-		ForcedInline UInt32 GetCount()const;
-		ForcedInline Int8* GetElementAddress()const;
+		UInt32 GetCount()const;
+		Int8* GetElementAddress()const;
 		RTM::Type* GetElementType()const;
 		bool IsMultiDimensionalArray()const;
 		bool IsSZArray()const;

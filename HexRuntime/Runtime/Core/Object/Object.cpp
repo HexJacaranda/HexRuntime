@@ -2,12 +2,12 @@
 #include "ArrayObject.h"
 #include "ObjectStorage.h"
 
-inline RTM::Type* RTO::Object::GetType()const
+RTM::Type* RTO::Object::GetType()const
 {
     return mType;
 }
 
-inline RT::UInt32 RTO::Object::GetObjectSize() const
+RT::UInt32 RTO::Object::GetObjectSize() const
 {
     if (mType->IsArray())
     {
@@ -17,7 +17,7 @@ inline RT::UInt32 RTO::Object::GetObjectSize() const
     return GetType()->GetSize();
 }
 
-inline RTO::ObjectStorage* RTO::Object::GetStorage() const
+RTO::ObjectStorage* RTO::Object::GetStorage() const
 {
     return (RTO::ObjectStorage*)this - 1;
 }

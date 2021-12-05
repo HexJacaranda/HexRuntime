@@ -21,9 +21,9 @@ namespace RTO
 	private:
 		RTM::TypeDescriptor* mType;
 	public:
-		inline RTM::TypeDescriptor* GetType()const;
-		inline UInt32 GetObjectSize()const;
-		inline ObjectStorage* GetStorage()const;
+		RTM::TypeDescriptor* GetType()const;
+		UInt32 GetObjectSize()const;
+		ObjectStorage* GetStorage()const;
 	};
 	using ObjectRef = Object*;
 }

@@ -25,17 +25,17 @@ namespace RTJ::Hex::JITCall
 	JIT_CALLING_CONV_IMPL(ReadBarrierForInteriorRef) = { JIT_NO_RET, JIT_ARG_P };
 }
 
-RTO::Object* __stdcall RTJ::Hex::JITCall::NewObject(Type* type)
+RTO::Object* JIT_NATIVE RTJ::Hex::JITCall::NewObject(Type* type)
 {
 	return nullptr;
 }
 
-RTO::ArrayObject* __stdcall RTJ::Hex::JITCall::NewSZArray(Type* elementType, Int32 count)
+RTO::ArrayObject* JIT_NATIVE RTJ::Hex::JITCall::NewSZArray(Type* elementType, Int32 count)
 {
 	return nullptr;
 }
 
-RTO::ArrayObject* __stdcall RTJ::Hex::JITCall::NewArray(Type* elementType, RTO::ArrayObject* dimensions)
+RTO::ArrayObject* JIT_NATIVE RTJ::Hex::JITCall::NewArray(Type* elementType, RTO::ArrayObject* dimensions)
 {
 	if (!dimensions->IsSZArray())
 	{
@@ -44,32 +44,32 @@ RTO::ArrayObject* __stdcall RTJ::Hex::JITCall::NewArray(Type* elementType, RTO::
 	return nullptr;
 }
 
-void __stdcall RTJ::Hex::JITCall::ManagedDirectCall(RTM::MethodDescriptor* methodDescriptor)
+void JIT_NATIVE RTJ::Hex::JITCall::ManagedDirectCall(RTM::MethodDescriptor* methodDescriptor)
 {
 }
 
-void __stdcall RTJ::Hex::JITCall::ManagedVirtualCall(RTM::MethodDescriptor* methodDescriptor)
+void JIT_NATIVE RTJ::Hex::JITCall::ManagedVirtualCall(RTM::MethodDescriptor* methodDescriptor)
 {
 }
 
-void __stdcall RTJ::Hex::JITCall::ManagedInterfaceCall(RTM::MethodDescriptor* methodDescriptor)
+void JIT_NATIVE RTJ::Hex::JITCall::ManagedInterfaceCall(RTM::MethodDescriptor* methodDescriptor)
 {
 }
 
-void __stdcall RTJ::Hex::JITCall::WriteBarrierForRef(RTO::ObjectRef* field, RTO::Object* fieldValue)
+void JIT_NATIVE RTJ::Hex::JITCall::WriteBarrierForRef(RTO::ObjectRef* field, RTO::Object* fieldValue)
 {
 }
 
-void __stdcall RTJ::Hex::JITCall::WriteBarrierForInteriorRef(InteriorPointer* source, InteriorPointer interiorPtr)
+void JIT_NATIVE RTJ::Hex::JITCall::WriteBarrierForInteriorRef(InteriorPointer* source, InteriorPointer interiorPtr)
 {
 }
 
-RTO::ObjectRef __stdcall RTJ::Hex::JITCall::ReadBarrierForRef(RTO::ObjectRef* field)
+RTO::ObjectRef JIT_NATIVE RTJ::Hex::JITCall::ReadBarrierForRef(RTO::ObjectRef* field)
 {
 	return RTO::ObjectRef();
 }
 
-RTC::InteriorPointer __stdcall RTJ::Hex::JITCall::ReadBarrierForInteriorRef(InteriorPointer* source)
+RTC::InteriorPointer JIT_NATIVE RTJ::Hex::JITCall::ReadBarrierForInteriorRef(InteriorPointer* source)
 {
 	return InteriorPointer();
 }
