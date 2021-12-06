@@ -96,6 +96,7 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\CodeSequence.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />

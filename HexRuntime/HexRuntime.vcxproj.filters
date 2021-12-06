@@ -431,6 +431,9 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\CodeSequence.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
