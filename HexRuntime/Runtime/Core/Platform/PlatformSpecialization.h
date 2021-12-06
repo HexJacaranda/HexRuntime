@@ -25,42 +25,41 @@ namespace RTP
 		VALUE(Width256) = 0x0080;
 		VALUE(Width512) = 0x0100;
 
-		static constexpr Int32 UnboundRegister = 0x80000000;
-
 		UInt16 Flags;
-		Int32 Value;
+		UInt64 RegisterAvaliableMask;
 	};
 
 #define REG AddressConstraint::Register
 #define MEM AddressConstraint::Memory
 #define IMM AddressConstraint::Immediate
 
-#define UNB(REG) REG | AddressConstraint::UnboundRegister
-
-#define ADR(RM, WIDTH, REGISTER) AddressConstraint { RM | AddressConstraint::Width##WIDTH, REGISTER  }
+#define ADR(RM, WIDTH, REGISTER_MASK) AddressConstraint { RM | AddressConstraint::Width##WIDTH, REGISTER_MASK  }
 
 	/// <summary>
-	/// Now we can only support opcode of addresses up to 4.
+	/// Now we can only support opcode of addresses up to 3.
+	/// The flag which is zero will be the end if there're less than 3 oprands
 	/// </summary>
 	struct PlatformInstructionConstraint
 	{
-		Int8 AddressCount;
-		std::array<AddressConstraint, 4> AddressConstraints;
+		std::array<AddressConstraint, 3> AddressConstraints;
 	};
 
 #define INS_CNS(COUNT ,...) PlatformInstructionConstraint { COUNT , { __VA_ARGS__ } }
 
 	struct PlatformInstruction
 	{
-		Int8 Length;
-		PlatformInstructionConstraint* Constraint;
-		UInt8* GetOpCodeSequence()const {
-			return (UInt8*)(this + 1);
-		}
+		PlatformInstructionConstraint Constraint;
+		/// <summary>
+		/// Currently up to 4 bytes opcode
+		/// </summary>
+		std::array<UInt8, 4> Opcodes;
+		UInt8 Length;
 	};
 
+	int x = sizeof(PlatformInstruction);
+
 	struct PlatformCallingConvention
-	{
+	{ 
 		Int32 ArgumentCount;
 		/* For address constraint here, theoretically only REG and MEM can be supported by common platforms. 
 		* Specially, REG | MEM indicates that it's placed on stack and address passed in register (See some 

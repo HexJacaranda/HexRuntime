@@ -660,12 +660,12 @@ RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOA
 	}
 
 	//Compute layout
-	GenerateLayout(fieldTable, context);
+	fieldTable->mLayout = GenerateLayout(fieldTable, context);
 	
 	return fieldTable;
 }
 
-void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* context)
+RTM::FieldsLayout* RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* context)
 {
 	auto fieldLayout = new (context->Heap) FieldsLayout();
 	fieldLayout->Align = sizeof(IntPtr);
@@ -680,7 +680,7 @@ void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* contex
 		if (CoreTypes::IsPrimitive(coreType) ||
 			coreType == CoreTypes::InteriorRef ||
 			coreType == CoreTypes::Ref)
-			fieldSize = CoreTypes::SizeOfCoreType[coreType];
+			fieldSize = CoreTypes::GetCoreTypeSize(coreType);
 		else if (coreType == CoreTypes::Struct)
 		{
 			//Should be very short
@@ -733,7 +733,7 @@ void RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* contex
 	if (leftToBoundary != sizeof(IntPtr))
 		fieldLayout->Size += leftToBoundary;
 
-	table->mLayout = fieldLayout;
+	return fieldLayout;
 }
 
 RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT))
@@ -1063,35 +1063,6 @@ RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* conte
 
 RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreType)
 {
-	static constexpr std::wstring_view CoreTypeNames[] = {
-		Text("[Core][global]Int8"),
-		Text("[Core][global]Int16"),
-		Text("[Core][global]Int32"),
-		Text("[Core][global]Int64"),
-
-		Text("[Core][global]UInt8"),
-		Text("[Core][global]UInt16"),
-		Text("[Core][global]UInt32"),
-		Text("[Core][global]UInt64"),
-
-		Text("[Core][global]Half"),
-		Text("[Core][global]Float"),
-		Text("[Core][global]Double"),
-
-		Text("[Core][global]Struct"),
-		Text("[Core][global]Reference"),
-		Text("[Core][global]Interior<Canon>"),
-
-		Text("Invalid Core Type"),
-		Text("Invalid Core Type"),
-
-		Text("[Core][global]Object"),
-		Text("[Core][global]Array<Canon>"),
-		Text("[Core][global]Array<Canon>"),
-		Text("[Core][global]String"),
-		Text("[Core][global]Delegate")
-	};
-
 	AssemblyContext* coreLibrary = nullptr;
 
 	{
@@ -1112,6 +1083,6 @@ RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreTy
 		}
 	}
 	
-	auto token = coreLibrary->Entries.GetTokenByFQN(CoreTypeNames[coreType]);
+	auto token = coreLibrary->Entries.GetTokenByFQN(CoreTypes::GetCoreTypeName(coreType));
 	return GetTypeFromDefinitionToken(coreLibrary, token);
 }

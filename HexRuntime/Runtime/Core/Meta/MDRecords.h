@@ -366,11 +366,11 @@ namespace RTME
 		BEGIN_FLAGS(UInt16)
 			FLAG_GET(IsSealed, 0)
 			FLAG_GET(IsAbstract, 1)
-			FLAG_GET(IsStruct, 3)
-			FLAG_GET(IsInterface, 4)
-			FLAG_GET(IsAttribute, 5)
-			FLAG_GET(IsGeneric, 6)
-			FLAG_GET(IsNested, 7)
+			FLAG_GET(IsStruct, 2)
+			FLAG_GET(IsInterface, 3)
+			FLAG_GET(IsAttribute, 4)
+			FLAG_GET(IsGeneric, 5)
+			FLAG_GET(IsNested, 6)
 		END_FLAGS
 
 		TOKEN_SERIES(Field);

@@ -20,6 +20,16 @@ RTME::ILMD* RTM::MethodDescriptor::GetIL() const
 	return &mColdMD->ILCodeMD;
 }
 
+RTM::TypeDescriptor* RTM::MethodDescriptor::GetReturnType() const
+{
+	return GetSignature()->GetReturnType();
+}
+
+RT::ObservableArray<RTM::MethodArgumentDescriptor> RTM::MethodDescriptor::GetArguments() const
+{
+	return GetSignature()->GetArguments();
+}
+
 RT::MDToken RTM::MethodDescriptor::GetDefToken() const
 {
 	return mSelf;

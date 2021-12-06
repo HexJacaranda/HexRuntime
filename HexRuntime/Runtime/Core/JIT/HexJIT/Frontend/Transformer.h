@@ -1,6 +1,7 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\Meta\MDRecords.h"
+#include "..\..\..\Meta\TypeDescriptor.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
 #include "..\IR.h"
@@ -31,6 +32,7 @@ namespace RTJ::Hex
 			T ret = *(T*)mCodePtr;
 			return ret;
 		}
+
 		/// <summary>
 		/// Get offset of now
 		/// </summary>

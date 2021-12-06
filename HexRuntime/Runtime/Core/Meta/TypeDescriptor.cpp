@@ -78,7 +78,7 @@ RTM::AssemblyContext* RTM::TypeDescriptor::GetAssembly() const
 RT::Int32 RTM::TypeDescriptor::GetSize() const
 {
 	if (CoreTypes::IsPrimitive(GetCoreType()))
-		return CoreTypes::SizeOfCoreType[GetCoreType()];
+		return CoreTypes::GetCoreTypeSize(GetCoreType());
 	return mFieldTable->GetLayout()->Size;
 }
 
@@ -88,12 +88,12 @@ RT::Int32 RTM::TypeDescriptor::GetLayoutSize() const
 	if (CoreTypes::IsPrimitive(coreType) ||
 		coreType == CoreTypes::InteriorRef ||
 		coreType == CoreTypes::Ref)
-		return CoreTypes::SizeOfCoreType[coreType];
+		return CoreTypes::GetCoreTypeSize(coreType);
 	
 	if (coreType != CoreTypes::Struct)
 		return mFieldTable->GetLayout()->Size;
 
-	return CoreTypes::SizeOfCoreType[CoreTypes::Ref];
+	return CoreTypes::GetCoreTypeSize(CoreTypes::Ref);
 }
 
 bool RTM::TypeDescriptor::IsArray() const

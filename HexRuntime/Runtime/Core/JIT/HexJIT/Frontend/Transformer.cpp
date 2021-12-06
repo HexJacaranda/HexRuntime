@@ -9,6 +9,7 @@
 
 #define POOL (mJITContext->Memory)
 
+
 ForcedInline RT::Int32 RTJ::Hex::ILTransformer::GetOffset() const
 {
 	return mCodePtr - mILMD->IL;
@@ -43,35 +44,42 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 	//Read method reference tokenas
 	auto methodRef = ReadAs<MDToken>();
 	auto method = Meta::MetaData->GetMethodFromToken(GetAssembly(), methodRef);
+	auto returnType = method->GetReturnType();
 
-	auto argumentsCount = method->GetSignature()->GetArguments().Count;
+	CallNode* ret = nullptr;
+	auto argumentsCount = method->GetArguments().Count;
 	if (argumentsCount <= 1)
 	{
 		if (argumentsCount == 0)
-			return new (POOL) CallNode(method, nullptr, argumentsCount);
-		return new (POOL) CallNode(method, mEvalStack.Pop());
+			ret = new (POOL) CallNode(method, nullptr, argumentsCount);
+		else
+			ret = new (POOL) CallNode(method, mEvalStack.Pop());
 	}
 	else
 	{
-		TreeNode** arguments = new(POOL) TreeNode * [argumentsCount];
+		TreeNode** arguments = new (POOL) TreeNode * [argumentsCount];
 		for (int i = 0; i < argumentsCount; ++i)
 			arguments[i] = mEvalStack.Pop();
 
-		return new (POOL) CallNode(method, arguments, argumentsCount);
+		ret = new (POOL) CallNode(method, arguments, argumentsCount);
 	}
+
+	//Set node type info
+	ret->TypeInfo = returnType;
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
-	auto local = new(POOL) LocalVariableNode(localIndex);
+	auto local = new (POOL) LocalVariableNode(localIndex);
 	auto&& locals = GetRawContext()->MethDescriptor->GetLocalVariables();
 
 	if (localIndex >= locals.Count)
 		THROW("Local variable index out of range.");
 
 	//Keep uniformity for convenience of traversal in SSA building
-	auto ret = new(POOL) LoadNode(SLMode, local);
+	auto ret = new (POOL) LoadNode(SLMode, local);
 	//Set node type info
 	ret->TypeInfo = locals[localIndex].GetType();
 	return ret;
@@ -80,13 +88,13 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
-	auto local = new(POOL) ArgumentNode(localIndex);
-	auto&& locals = GetRawContext()->MethDescriptor->GetSignature()->GetArguments();
+	auto local = new (POOL) ArgumentNode(localIndex);
+	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
 
 	if (localIndex >= locals.Count)
 		THROW("Argument index out of range.");
 	//Keep uniformity for convenience of traversal in SSA building
-	auto ret = new(POOL) LoadNode(SLMode, local);
+	auto ret = new (POOL) LoadNode(SLMode, local);
 	//Set node type info
 	ret->TypeInfo = locals[localIndex].GetType();
 	return ret;
@@ -99,11 +107,11 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 	auto&& fieldDescriptor = RTM::MetaData->GetFieldFromToken(GetAssembly(), fieldToken);
 
 	if (fieldDescriptor->IsStatic())
-		field = new(POOL) StaticFieldNode(fieldDescriptor);
+		field = new (POOL) StaticFieldNode(fieldDescriptor);
 	else
-		field = new(POOL) InstanceFieldNode(fieldDescriptor, mEvalStack.Pop());
+		field = new (POOL) InstanceFieldNode(fieldDescriptor, mEvalStack.Pop());
 
-	auto ret = new(POOL) LoadNode(SLMode, field);
+	auto ret = new (POOL) LoadNode(SLMode, field);
 	ret->TypeInfo = fieldDescriptor->GetType();
 
 	return ret;
@@ -113,9 +121,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMo
 {
 	auto index = mEvalStack.Pop();
 	auto array = mEvalStack.Pop();
-	auto arrayElement = new(POOL) ArrayElementNode(array, index);
+	auto arrayElement = new (POOL) ArrayElementNode(array, index);
 	if (SLMode == SLMode::Indirect)
-		return new(POOL) LoadNode(SLMode::Indirect, arrayElement);
+		return new (POOL) LoadNode(SLMode::Indirect, arrayElement);
 	else
 		return arrayElement;
 }
@@ -123,7 +131,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMo
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
 {
 	auto stringToken = ReadAs<UInt32>();
-	auto ret = new(POOL) ConstantNode(CoreTypes::String);
+	auto ret = new (POOL) ConstantNode(CoreTypes::String);
 	ret->StringToken = stringToken;
 	ret->TypeInfo = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::String);
 	return ret;
@@ -132,8 +140,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
 {
 	UInt8 coreType = ReadAs<UInt8>();
-	Int32 coreTypeSize = CoreTypes::SizeOfCoreType[coreType];
-	auto ret = new(POOL) ConstantNode(coreType);
+	Int32 coreTypeSize = CoreTypes::GetCoreTypeSize(coreType);
+	auto ret = new (POOL) ConstantNode(coreType);
 	switch (coreTypeSize)
 	{
 	case 1: ret->I1 = ReadAs<Int8>(); break;
@@ -163,13 +171,13 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 	if (field->IsStatic())
 	{
 		//Static field store
-		return new(POOL) StoreNode(new(POOL) StaticFieldNode(field), value);
+		return new (POOL) StoreNode(new (POOL) StaticFieldNode(field), value);
 	}
 	else
 	{
 		//Instance field store
 		auto object = mEvalStack.Pop();
-		return new(POOL) StoreNode(new(POOL) InstanceFieldNode(field, object), value);
+		return new (POOL) StoreNode(new (POOL) InstanceFieldNode(field, object), value);
 	}
 }
 
@@ -178,13 +186,13 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 	TreeNode* value = mEvalStack.Pop();
 
 	auto argumentIndex = ReadAs<Int16>();
-	auto arguments = GetRawContext()->MethDescriptor->GetSignature()->GetArguments();
+	auto arguments = GetRawContext()->MethDescriptor->GetArguments();
 	auto type = arguments[argumentIndex].GetType();
 
 	if (!value->CheckEquivalentWith(type))
 		THROW("Type check failed.");
 
-	return new(POOL) StoreNode(new(POOL) ArgumentNode(argumentIndex), value);
+	return new (POOL) StoreNode(new (POOL) ArgumentNode(argumentIndex), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
@@ -198,7 +206,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 	if (!type->IsAssignableFrom(value->TypeInfo))
 		THROW("Type check failed.");
 
-	return new(POOL) StoreNode(new(POOL) LocalVariableNode(localIndex), value);
+	return new (POOL) StoreNode(new (POOL) LocalVariableNode(localIndex), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
@@ -207,8 +215,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
 	auto index = mEvalStack.Pop();
 	auto array = mEvalStack.Pop();
 
-	return new(POOL) StoreNode(
-		new(POOL) ArrayElementNode(array, index),
+	return new (POOL) StoreNode(
+		new (POOL) ArrayElementNode(array, index),
 		value);
 }
 
@@ -216,7 +224,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreToAddress()
 {
 	auto value = mEvalStack.Pop();
 	auto address = mEvalStack.Pop();
-	return new(POOL) StoreNode(address, value);
+	return new (POOL) StoreNode(address, value);
 }
 
 RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
@@ -225,7 +233,7 @@ RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
 	auto methodRef = ReadAs<MDToken>();
 	auto method = Meta::MetaData->GetMethodFromToken(GetAssembly(), methodRef);
 
-	auto argumentsCount = method->GetSignature()->GetArguments().Count;
+	auto argumentsCount = method->GetArguments().Count;
 	if (argumentsCount <= 1)
 	{
 		if (argumentsCount == 0)
@@ -234,7 +242,7 @@ RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
 	}
 	else
 	{
-		TreeNode** arguments = new(POOL) TreeNode * [argumentsCount];
+		TreeNode** arguments = new (POOL) TreeNode * [argumentsCount];
 		for (int i = 0; i < argumentsCount; ++i)
 			arguments[i] = mEvalStack.Pop();
 
@@ -255,7 +263,7 @@ RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 	}
 	else
 	{
-		TreeNode** dimensions = new(POOL) TreeNode * [dimensionCount];
+		TreeNode** dimensions = new (POOL) TreeNode * [dimensionCount];
 		for (int i = 0; i < dimensionCount; ++i)
 			dimensions[i] = mEvalStack.Pop();
 		return new (POOL) NewArrayNode(elementType, dimensions, dimensionCount);
@@ -272,7 +280,10 @@ RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()
 	if (!left->CheckEquivalentWith(right))
 		THROW("Type check failed.");
 
-	return new(POOL) CompareNode(ReadAs<UInt8>(), left, right);
+	auto ret = new (POOL) CompareNode(ReadAs<UInt8>(), left, right);
+	ret->TypeInfo = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Bool);
+
+	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateDuplicate()
@@ -283,14 +294,14 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateDuplicate()
 void RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitions)
 {
 	TreeNode* ret = nullptr;
-	auto returnType = GetRawContext()->MethDescriptor->GetSignature()->GetReturnType();
+	auto returnType = GetRawContext()->MethDescriptor->GetReturnType();
 	if (returnType != nullptr)
 	{
 		ret = mEvalStack.Pop();
 		if (!returnType->IsAssignableFrom(ret->TypeInfo))
 			THROW("Incompatible conversion when returning");	
 	}
-	auto currentPoint = new(POOL) BasicBlockPartitionPoint(PPKind::Ret, GetOffset(), ret);
+	auto currentPoint = new (POOL) BasicBlockPartitionPoint(PPKind::Ret, GetOffset(), ret);
 	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
 			if (currentPoint->ILOffset == x->ILOffset && x->Kind == PPKind::Target)
@@ -306,7 +317,7 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 	if (left->TypeInfo != right->TypeInfo)
 		THROW("Unconsistency of binary operators");
 
-	auto node = new(POOL) BinaryArithmeticNode(left, right, opcode);
+	auto node = new (POOL) BinaryArithmeticNode(left, right, opcode);
 	node->TypeInfo = left->TypeInfo;
 	return node;
 }
@@ -314,7 +325,7 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic(UInt8 opcode)
 {
 	auto value = mEvalStack.Pop();
-	auto node = new(POOL) UnaryArithmeticNode(value, opcode);
+	auto node = new (POOL) UnaryArithmeticNode(value, opcode);
 	node->TypeInfo = value->TypeInfo;
 	return node;
 }
@@ -323,7 +334,13 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 {
 	auto value = mEvalStack.Pop();
 	UInt8 to = ReadAs<UInt8>();
-	return new(POOL) ConvertNode(value, to);
+	if (CoreTypes::IsValidCoreType(to))
+		THROW("Invalid cast between primitive types");
+
+	auto ret = new (POOL) ConvertNode(value, to);
+	ret->TypeInfo = Meta::MetaData->GetIntrinsicTypeFromCoreType(to);
+	
+	return ret;
 }
 
 RTJ::Hex::CastNode* RTJ::Hex::ILTransformer::GenerateCast()
@@ -335,7 +352,7 @@ RTJ::Hex::CastNode* RTJ::Hex::ILTransformer::GenerateCast()
 	if (type->IsStruct())
 		THROW("Invalid type of cast");
 
-	auto node = new(POOL) CastNode(value);
+	auto node = new (POOL) CastNode(value);
 	node->TypeInfo = type;
 	return node;
 }
@@ -349,7 +366,7 @@ RTJ::Hex::UnBoxNode* RTJ::Hex::ILTransformer::GenerateUnBox()
 	if (!targetType->IsStruct())
 		THROW("Invalid type of unbox");
 
-	auto node = new(POOL) UnBoxNode(value);
+	auto node = new (POOL) UnBoxNode(value);
 	node->TypeInfo = targetType;
 	return node;
 }
@@ -359,7 +376,7 @@ RTJ::Hex::BoxNode* RTJ::Hex::ILTransformer::GenerateBox()
 	auto value = mEvalStack.Pop();
 	auto objectType = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Object);
 
-	auto node = new(POOL) BoxNode(value);
+	auto node = new (POOL) BoxNode(value);
 	node->TypeInfo = objectType;
 	return node;
 }
@@ -368,10 +385,10 @@ void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partition
 {
 	auto value = mEvalStack.Pop();
 	auto jccOffset = ReadAs<Int32>();
-	auto currentPoint = new(POOL) BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
+	auto currentPoint = new (POOL) BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
 	currentPoint->TargetILOffset = jccOffset;
 
-	auto branchedPoint = new(POOL) BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
+	auto branchedPoint = new (POOL) BasicBlockPartitionPoint(PPKind::Target, jccOffset, nullptr);
 	//Append current point into list
 	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
@@ -394,10 +411,10 @@ void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partition
 void RTJ::Hex::ILTransformer::GenerateJmpPP(BasicBlockPartitionPoint*& partitions)
 {
 	auto jmpOffset = ReadAs<Int32>();
-	auto currentPoint = new(POOL) BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
+	auto currentPoint = new (POOL) BasicBlockPartitionPoint(PPKind::Unconditional, GetOffset(), nullptr);
 	currentPoint->TargetILOffset = jmpOffset;
 
-	auto branchedPoint = new(POOL) BasicBlockPartitionPoint(PPKind::Target, jmpOffset, nullptr);
+	auto branchedPoint = new (POOL) BasicBlockPartitionPoint(PPKind::Target, jmpOffset, nullptr);
 	//Append current point into list
 	LinkedList::AppendOneWayOrdered(partitions, currentPoint,
 		[&](BasicBlockPartitionPoint* x, InsertOption& option) {
@@ -421,7 +438,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TryGenerateStatement(TreeNode* val
 {
 	//Is eval stack already balanced?
 	if (mEvalStack.IsBalanced())
-		return new(POOL) Statement(value, beginOffset, GetOffset());
+		return new (POOL) Statement(value, beginOffset, GetOffset());
 	else
 	{
 		if (!isBalancedCritical)
@@ -459,7 +476,13 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		case OpCodes::Call:
 		case OpCodes::CallVirt:
 		{
-			IL_TRY_GEN_STMT_CRITICAL(GenerateCall(), true);
+			auto callNode = GenerateCall();
+			if (callNode->Method->GetReturnType() == nullptr)
+			{
+				IL_TRY_GEN_STMT_CRITICAL(callNode, true);
+			}
+			else
+				mEvalStack.Push(callNode);
 			break;
 		}
 		case OpCodes::Ret:

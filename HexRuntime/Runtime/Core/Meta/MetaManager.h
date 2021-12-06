@@ -94,7 +94,7 @@ namespace RTM
 
 		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
-		void GenerateLayout(FieldTable* table, AssemblyContext* context);
+		FieldsLayout* GenerateLayout(FieldTable* table, AssemblyContext* context);
 
 		MethodTable* GenerateMethodTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 

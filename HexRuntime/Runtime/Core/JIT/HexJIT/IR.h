@@ -780,10 +780,11 @@ namespace RTJ::Hex
 				currentStmt != nullptr && currentStmt->Now != nullptr;
 				currentStmt = currentStmt->Next)
 			{
-				std::forward<Fn>(action)(currentStmt->Now);
+				std::forward<Fn>(action)(currentStmt->Now, false);
 			}
+
 			if (bbIterator->BranchConditionValue != nullptr)
-				std::forward<Fn>(action)(bbIterator->BranchConditionValue);
+				std::forward<Fn>(action)(bbIterator->BranchConditionValue, true);
 		}
 	}
 }

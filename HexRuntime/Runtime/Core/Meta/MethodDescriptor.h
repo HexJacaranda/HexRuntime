@@ -58,6 +58,8 @@ namespace RTM
 		MethodSignatureDescriptor* GetSignature()const;
 		ObservableArray<MethodLocalVariableDescriptor> GetLocalVariables()const;
 		RTME::ILMD* GetIL()const;
+		TypeDescriptor* GetReturnType()const;
+		ObservableArray<MethodArgumentDescriptor> GetArguments()const;
 		MDToken GetDefToken()const;
 		RTO::StringObject* GetName()const;
 		bool IsStatic()const;

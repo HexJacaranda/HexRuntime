@@ -21,6 +21,15 @@
         }
     }
 
+    .method public static int32 SimpleMethod(int32 x, int32 y) managed
+    {
+        .code
+        {
+            .ldc int32 1
+            .ret
+        }
+    }
+
     .method public instance int32 LinearizeTest(int32 x, int32 y) managed
     {
         .code
@@ -39,7 +48,9 @@
 
             .label TRUE_BR
 
-            .ldc int32 2
+            .ldarg x
+            .ldarg y
+            .call [JIT][Test]JITTest::SimpleMethod(int32, int32)
             .ret
         }
     }

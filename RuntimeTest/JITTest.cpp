@@ -22,8 +22,8 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace Microsoft::VisualStudio::CppUnitTestFramework
 {
-	template<> inline std::wstring ToString<Hex::PPKind>(const Hex::PPKind& t) 
-	{ 
+	template<> inline std::wstring ToString<Hex::PPKind>(const Hex::PPKind& t)
+	{
 		switch (t)
 		{
 		case Hex::PPKind::Conditional:
@@ -61,7 +61,7 @@ namespace RuntimeTest
 		Hex::BasicBlock* PassThrough()
 		{
 			FlowT flow{ context };
-			auto bb =flow.PassThrough();
+			auto bb = flow.PassThrough();
 			if constexpr (sizeof...(FlowTs) == 0)
 				return bb;
 			else
@@ -92,7 +92,7 @@ namespace RuntimeTest
 
 			Assert::IsNotNull(context->Context->MethDescriptor, L"Method not found");
 		}
-		
+
 		TEST_CLASS_INITIALIZE(InitializeMetaManager)
 		{
 			Meta::MetaData = new Meta::MetaManager();
@@ -135,10 +135,14 @@ namespace RuntimeTest
 			SetUpMethod(L"LinearizeTest");
 			auto bb = PassThrough<Hex::ILTransformer, Hex::Linearizer>();
 			Assert::AreEqual(2, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
-			Hex::ForeachStatement(bb, [](Hex::TreeNode* node) {
-				if (!node->Is(Hex::NodeKinds::Store) &&
-					!node->Is(Hex::NodeKinds::MorphedCall))
-					Assert::Fail(L"Nodes other than Store/MorphedCall occurs");
+
+			Hex::ForeachStatement(bb, [](Hex::TreeNode* node, bool isCond) {
+				if (!isCond)
+				{
+					if (!node->Is(Hex::NodeKinds::Store) &&
+						!node->Is(Hex::NodeKinds::MorphedCall))
+						Assert::Fail(L"Nodes other than Store/MorphedCall occurs");
+				}
 				});
 		}
 
@@ -174,7 +178,7 @@ namespace RuntimeTest
 						context->Traversal.Space,
 						context->Traversal.Count,
 						stmtIterator->Now,
-						[](Hex::TreeNode*& node) 
+						[](Hex::TreeNode*& node)
 						{
 							switch (node->Kind)
 							{
