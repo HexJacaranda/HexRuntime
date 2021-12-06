@@ -9,21 +9,23 @@ namespace RTP
 {
 	struct AddressConstraint
 	{
-		static constexpr UInt16 Memory = 0x0001;
-		static constexpr UInt16 Register = 0x0002;
-		static constexpr UInt16 Immediate = 0x0004;
+		UNDERLYING_TYPE(UInt16);
 
-		static constexpr UInt16 Width32 = 0x0010;
-		static constexpr UInt16 Width64 = 0x0020;
+		VALUE(Memory) = 0x0001;
+		VALUE(Register) = 0x0002;
+		VALUE(Immediate) = 0x0004;
+
+		VALUE(Width32) = 0x0010;
+		VALUE(Width64) = 0x0020;
 
 		/// <summary>
 		/// For SIMD
-		/// </summary>
-		static constexpr UInt16 Width128 = 0x0040;
-		static constexpr UInt16 Width256 = 0x0080;
-		static constexpr UInt16 Width512 = 0x0100;
+		/// </summary>		
+		VALUE(Width128) = 0x0040;
+		VALUE(Width256) = 0x0080;
+		VALUE(Width512) = 0x0100;
 
-		static constexpr Int32 UnboundRegister = std::numeric_limits<Int32>::max();
+		static constexpr Int32 UnboundRegister = 0x80000000;
 
 		UInt16 Flags;
 		Int32 Value;
@@ -33,10 +35,9 @@ namespace RTP
 #define MEM AddressConstraint::Memory
 #define IMM AddressConstraint::Immediate
 
-#define UNB AddressConstraint::UnboundRegister
+#define UNB(REG) REG | AddressConstraint::UnboundRegister
 
 #define ADR(RM, WIDTH, REGISTER) AddressConstraint { RM | AddressConstraint::Width##WIDTH, REGISTER  }
-#define ADR_UN(RM, WIDTH) ADR(RM, WIDTH, UNB)
 
 	/// <summary>
 	/// Now we can only support opcode of addresses up to 4.

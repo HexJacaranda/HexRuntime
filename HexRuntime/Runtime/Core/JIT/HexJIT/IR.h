@@ -768,4 +768,22 @@ namespace RTJ::Hex
 		while (--index >= 0)
 			std::forward<Fn>(action)(*stack[index]);
 	}
+
+	template<class Fn>
+	static void ForeachStatement(BasicBlock* bbHead, Fn&& action)
+	{
+		for (BasicBlock* bbIterator = bbHead;
+			bbIterator != nullptr;
+			bbIterator = bbIterator->Next)
+		{
+			for (Statement* currentStmt = bbIterator->Now;
+				currentStmt != nullptr && currentStmt->Now != nullptr;
+				currentStmt = currentStmt->Next)
+			{
+				std::forward<Fn>(action)(currentStmt->Now);
+			}
+			if (bbIterator->BranchConditionValue != nullptr)
+				std::forward<Fn>(action)(bbIterator->BranchConditionValue);
+		}
+	}
 }

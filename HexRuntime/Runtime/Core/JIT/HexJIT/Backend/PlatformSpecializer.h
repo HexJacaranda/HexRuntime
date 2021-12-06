@@ -8,12 +8,13 @@
 
 namespace RTJ::Hex
 {
+
 	/// <summary>
 	/// Responsible for attaching platform specific information for linearized IR
 	/// </summary>
-	class IPlatformSpecializer : public IHexJITFlow
+	class IPlatformSpecializer
 	{
 	public:
-
+		
 	};
 }

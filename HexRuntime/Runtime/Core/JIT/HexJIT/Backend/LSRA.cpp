@@ -50,6 +50,12 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 {
 	auto update = [&](Int16 index, NodeKinds kind) {
+		if (kind == NodeKinds::LocalVariable && !mContext->LocalAttaches[index].IsTrackable())
+			return;
+
+		if (kind == NodeKinds::Argument && !mContext->ArgumentAttaches[index].IsTrackable())
+			return;
+
 		Int32 mapIndex = kind == NodeKinds::LocalVariable ? 0 : 1;
 		auto&& livenessList = mLiveness[mapIndex][index];
 

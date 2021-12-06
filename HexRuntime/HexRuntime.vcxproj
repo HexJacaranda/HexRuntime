@@ -30,6 +30,7 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\CodeSequence.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h" />

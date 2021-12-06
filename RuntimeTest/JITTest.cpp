@@ -135,6 +135,11 @@ namespace RuntimeTest
 			SetUpMethod(L"LinearizeTest");
 			auto bb = PassThrough<Hex::ILTransformer, Hex::Linearizer>();
 			Assert::AreEqual(2, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
+			Hex::ForeachStatement(bb, [](Hex::TreeNode* node) {
+				if (!node->Is(Hex::NodeKinds::Store) &&
+					!node->Is(Hex::NodeKinds::MorphedCall))
+					Assert::Fail(L"Nodes other than Store/MorphedCall occurs");
+				});
 		}
 
 		TEST_METHOD(SSABuildingTest)
