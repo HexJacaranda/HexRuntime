@@ -76,6 +76,7 @@
     <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h" />
     <ClInclude Include="Runtime\Core\Platform\Platform.h" />
     <ClInclude Include="Runtime\Core\Platform\PlatformSpecialization.h" />
+    <ClInclude Include="Runtime\Core\Platform\X86Register.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Endianness.h" />
     <ClInclude Include="Runtime\LinkList.h" />

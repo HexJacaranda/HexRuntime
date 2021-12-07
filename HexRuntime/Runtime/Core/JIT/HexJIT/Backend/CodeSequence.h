@@ -19,7 +19,7 @@ namespace RTJ::Hex
 	{
 		RTP::PlatformInstruction* Instruction;
 		/// <summary>
-		/// Requires 4-bytes alignment and destination should be put at first
+		/// Requires at least 4-bytes alignment (SegmentHeap guarantees 8 bytes) and destination should be put at first
 		/// </summary>
 		MemoryRepresentation* Operands;
 	public:

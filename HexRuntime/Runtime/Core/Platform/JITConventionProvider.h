@@ -10,7 +10,7 @@ namespace RTP
 	{
 	public:
 		template<class RangeT>
-		static PlatformCallingConvention* GetConvention(RangeT&& range)
+		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&& range)
 		{
 			//Utilize more registers 64 bit
 			if constexpr (platform & Platform::Bit32)
@@ -21,6 +21,8 @@ namespace RTP
 			{
 
 			}
+
+			return callingConv;
 		}
 	};
 }

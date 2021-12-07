@@ -268,8 +268,6 @@ RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 			dimensions[i] = mEvalStack.Pop();
 		return new (POOL) NewArrayNode(elementType, dimensions, dimensionCount);
 	}
-
-	
 }
 
 RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()

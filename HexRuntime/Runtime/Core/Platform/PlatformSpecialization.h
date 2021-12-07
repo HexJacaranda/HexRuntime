@@ -88,7 +88,7 @@ namespace RTP
 	{
 	public:
 		template<class RangeT>
-		static PlatformCallingConvention* GetConvention(RangeT&&)
+		static PlatformCallingConvention* GetConvention(PlatformCallingConvention callingConv, RangeT&&)
 		{
 			return nullptr;
 		}
