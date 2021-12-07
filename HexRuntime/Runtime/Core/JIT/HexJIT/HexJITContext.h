@@ -1,7 +1,7 @@
 #pragma once
 #include "..\..\..\RuntimeAlias.h"
 #include "..\..\..\Utility.h"
-#include "..\..\Memory\SegmentMemory.h"
+#include "..\..\Memory\SegmentHeap.h"
 #include "..\..\Meta\TypeDescriptor.h"
 #include "..\..\Meta\AssemblyContext.h"
 #include "..\..\Meta\MetaManager.h"
@@ -68,7 +68,7 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Allocator
 		/// </summary>
-		RTMM::SegmentMemory* Memory;
+		RTMM::SegmentHeap* Memory;
 		JITContext* Context;
 		/// <summary>
 		/// The attached local info

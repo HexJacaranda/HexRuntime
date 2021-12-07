@@ -56,8 +56,6 @@ namespace RTP
 		UInt8 Length;
 	};
 
-	int x = sizeof(PlatformInstruction);
-
 	struct PlatformCallingConvention
 	{ 
 		Int32 ArgumentCount;

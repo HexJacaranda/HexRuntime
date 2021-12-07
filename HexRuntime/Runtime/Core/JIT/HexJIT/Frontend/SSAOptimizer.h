@@ -1,6 +1,6 @@
 #pragma once
 #include "..\..\..\..\RuntimeAlias.h"
-#include "..\..\..\Memory\SegmentMemory.h"
+#include "..\..\..\Memory\SegmentHeap.h"
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
 #include "..\IR.h"
@@ -10,7 +10,7 @@ namespace RTJ::Hex
 {
 	class SSAOptimizer : public IHexJITFlow
 	{
-		RTMM::SegmentMemory* mMemory;
+		RTMM::SegmentHeap* mMemory;
 		HexJITContext* mJITContext;	
 		//Fold binary
 		TreeNode* Fold(BinaryArithmeticNode* node);

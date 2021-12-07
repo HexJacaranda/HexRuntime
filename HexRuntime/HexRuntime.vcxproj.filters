@@ -234,7 +234,7 @@
     <ClInclude Include="Runtime\Core\Meta\AssemblyContext.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Memory\SegmentMemory.h">
+    <ClInclude Include="Runtime\Core\Memory\SegmentHeap.h">
       <Filter>头文件\Runtime\Core\Memory</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Memory\PrivateHeap.h">
@@ -380,7 +380,7 @@
     <ClCompile Include="Runtime\Core\Memory\PrivateHeap.cpp">
       <Filter>源文件\Memory</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\Memory\SegmentMemory.cpp">
+    <ClCompile Include="Runtime\Core\Memory\SegmentHeap.cpp">
       <Filter>源文件\Memory</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\InterlockedWindows.cpp">
@@ -430,9 +430,6 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp">
       <Filter>源文件\JIT</Filter>
-    </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\CodeSequence.cpp">
-      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

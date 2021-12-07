@@ -5,6 +5,7 @@
 #include "..\..\LoggingConfiguration.h"
 #include "..\..\Logging.h"
 #include "CoreTypes.h"
+
 #include <memory>
 #include <spdlog/async_logger.h>
 #include <spdlog/spdlog.h>

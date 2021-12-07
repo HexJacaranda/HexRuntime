@@ -6,7 +6,7 @@
 #include "../HexRuntime/Runtime/Core/JIT/OpCodes.h"
 #include "../HexRuntime/Runtime/Core/Meta/CoreTypes.h"
 #include "../HexRuntime/Runtime/Core/JIT/JITContext.h"
-#include "../HexRuntime/Runtime/Core/Memory/SegmentMemory.h"
+#include "../HexRuntime/Runtime/Core/Memory/SegmentHeap.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
@@ -109,7 +109,7 @@ namespace RuntimeTest
 		{
 			context = new Hex::HexJITContext();
 			context->Context = new JITContext();
-			context->Memory = new Memory::SegmentMemory();
+			context->Memory = new Memory::SegmentHeap();
 
 			context->Traversal.Count = 4096;
 			context->Traversal.Space = (Int8*)context->Memory->Allocate(sizeof(void*) * context->Traversal.Count);

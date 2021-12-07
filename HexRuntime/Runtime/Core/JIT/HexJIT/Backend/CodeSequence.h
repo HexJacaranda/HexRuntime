@@ -23,10 +23,11 @@ namespace RTJ::Hex
 		/// </summary>
 		MemoryRepresentation* Operands;
 	public:
+		static constexpr Int FlagMask = 0x3;
 		static constexpr Int ShouldNotEmit = 0x1;
 		static constexpr Int StorePoint = 0x2;
 		MemoryRepresentation* GetOperands()const {
-			return (MemoryRepresentation*)((Int)Operands & ~0x1);
+			return (MemoryRepresentation*)((Int)Operands & ~FlagMask);
 		}
 		void SetFlag(Int flag) {
 			Operands = (MemoryRepresentation*)((Int)Operands | 0x1);
