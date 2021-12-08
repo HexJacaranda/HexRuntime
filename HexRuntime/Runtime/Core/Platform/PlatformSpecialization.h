@@ -9,21 +9,21 @@ namespace RTP
 {
 	struct AddressConstraint
 	{
-		UNDERLYING_TYPE(UInt16);
+		ETY = UInt16;
 
-		VALUE(Memory) = 0x0001;
-		VALUE(Register) = 0x0002;
-		VALUE(Immediate) = 0x0004;
+		VAL Memory = 0x0001;
+		VAL Register = 0x0002;
+		VAL Immediate = 0x0004;
 
-		VALUE(Width32) = 0x0010;
-		VALUE(Width64) = 0x0020;
+		VAL Width32 = 0x0010;
+		VAL Width64 = 0x0020;
 
 		/// <summary>
 		/// For SIMD
 		/// </summary>		
-		VALUE(Width128) = 0x0040;
-		VALUE(Width256) = 0x0080;
-		VALUE(Width512) = 0x0100;
+		VAL Width128 = 0x0040;
+		VAL Width256 = 0x0080;
+		VAL Width512 = 0x0100;
 
 		UInt16 Flags;
 		UInt64 RegisterAvaliableMask;
@@ -70,11 +70,11 @@ namespace RTP
 	class CallingArgumentType
 	{
 	public:
-		UNDERLYING_TYPE(UInt32);
+		ETY = UInt32;
 
-		VALUE(Integer) = 0x00000000;
-		VALUE(Float) = 0x00000001;
-		VALUE(SIMD) = 0x00000002;
+		VAL Integer = 0x00000000;
+		VAL Float = 0x00000001;
+		VAL SIMD = 0x00000002;
 	};
 
 	struct PlatformCallingArgument
@@ -88,7 +88,7 @@ namespace RTP
 	{
 	public:
 		template<class RangeT>
-		static PlatformCallingConvention* GetConvention(PlatformCallingConvention callingConv, RangeT&&)
+		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&&)
 		{
 			return nullptr;
 		}

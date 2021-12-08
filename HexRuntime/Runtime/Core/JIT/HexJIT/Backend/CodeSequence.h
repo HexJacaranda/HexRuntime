@@ -5,7 +5,7 @@
 
 namespace RTJ::Hex
 {
-	struct InstructionOperand
+	struct OperandKind
 	{
 		ETY = UInt8;
 		VAL Unused = 0x00;
@@ -13,7 +13,10 @@ namespace RTJ::Hex
 		VAL VirtualRegister = 0x02;
 		VAL Immediate = 0x03;
 		VAL SIB = 0x04;
+	};
 
+	struct InstructionOperand
+	{
 		UInt8 Kind;
 		union
 		{

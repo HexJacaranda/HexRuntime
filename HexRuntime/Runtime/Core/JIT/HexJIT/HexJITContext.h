@@ -15,11 +15,11 @@ namespace RTJ::Hex
 	class LocalAttachedFlags
 	{
 	public:
-		UNDERLYING_TYPE(UInt32);
-		VALUE(Trackable) = 0x00000001;
-		VALUE(JITGenerated) = 0x00000002;
-		VALUE(AddressTaken) = 0x00000004;
-		VALUE(Unused) = 0x80000000;
+		ETY = UInt32;
+		VAL Trackable = 0x00000001;
+		VAL JITGenerated = 0x00000002;
+		VAL AddressTaken = 0x00000004;
+		VAL Unused = 0x80000000;
 	};
 
 	template<class T>

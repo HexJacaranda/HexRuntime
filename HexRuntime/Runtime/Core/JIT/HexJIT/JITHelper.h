@@ -88,7 +88,7 @@ namespace RTJ::Hex::JITCall
 		static Platform::PlatformCallingConvention* convention =
 			Platform::PlatformCallingConventionProvider<
 			Platform::CallingConventions::JIT,
-			Platform::CurrentPlatform>::GetConvention(arguments | std::views::all);
+			Platform::CurrentPlatform>::GetConvention(new Platform::PlatformCallingConvention, arguments | std::views::all);
 
 		return convention;
 	}

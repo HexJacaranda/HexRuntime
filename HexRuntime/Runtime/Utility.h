@@ -159,9 +159,6 @@ namespace RT
 		}
 	}
 
-#define UNDERLYING_TYPE(TYPE) using EnumType = TYPE
-#define VALUE(NAME) static constexpr EnumType NAME
-
 #define ETY using EnumType
 #define VAL static constexpr EnumType
 }

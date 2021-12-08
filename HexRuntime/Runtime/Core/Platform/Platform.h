@@ -7,21 +7,21 @@ namespace RTP
 	class Platform
 	{
 	public:
-		UNDERLYING_TYPE(UInt32);
+		ETY = UInt32;
 
 		//Architecture
-		VALUE(AnyArchitecture) = 0x00000000;
-		VALUE(x86) = 0x00000001;
-		VALUE(Arm) = 0x00000002;
+		VAL AnyArchitecture = 0x00000000;
+		VAL x86 = 0x00000001;
+		VAL Arm = 0x00000002;
 
 		//Width
-		VALUE(AnyWidth)   = 0x00000000;
-		VALUE(Bit32) = 0x00010000;
-		VALUE(Bit64) = 0x00020000;
+		VAL AnyWidth   = 0x00000000;
+		VAL Bit32 = 0x00010000;
+		VAL Bit64 = 0x00020000;
 
 		//OS
-		VALUE(AnyOS) = 0x00000000;
-		VALUE(Windows) = 0x00100000;		
+		VAL AnyOS = 0x00000000;
+		VAL Windows = 0x00100000;		
 	};
 
 	
