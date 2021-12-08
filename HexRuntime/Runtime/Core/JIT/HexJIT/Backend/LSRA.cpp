@@ -87,7 +87,18 @@ void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 	}
 	case NodeKinds::MorphedCall:
 	{
+		auto call = node->As<MorphedCallNode>();
+		ForeachInlined(call->Arguments, call->ArgumentCount,
+			[&](auto node) { UpdateLivenessFor(node); });
 
+		auto origin = call->Origin;
+		if (origin->Is(NodeKinds::Call))
+		{
+			auto managedCall = origin->As<CallNode>();
+			ForeachInlined(managedCall->Arguments, managedCall->ArgumentCount,
+				[&](auto node) {UpdateLivenessFor(node); });
+		}
+		
 	}
 	default:
 		break;

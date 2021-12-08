@@ -148,7 +148,20 @@ namespace RT
 		}
 	};
 
-#define UNDERLYING_TYPE(TYPE) using EnumType = TYPE
+	template<class T, class Fn>
+	static void ForeachInlined(T** inlineArray, Int32 count, Fn&& action) {
+		if (count == 1)
+			std::forward<Fn>(action)((T*)inlineArray);
+		else if (count > 1)
+		{
+			for (Int32 i = 0; i < count; ++i)
+				std::forward<Fn>(action)(inlineArray[i]);
+		}
+	}
 
+#define UNDERLYING_TYPE(TYPE) using EnumType = TYPE
 #define VALUE(NAME) static constexpr EnumType NAME
+
+#define ETY using EnumType
+#define VAL static constexpr EnumType
 }

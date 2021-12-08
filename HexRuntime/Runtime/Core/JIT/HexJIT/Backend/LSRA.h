@@ -3,6 +3,7 @@
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
 #include "..\IR.h"
+#include "CodeSequence.h"
 #include <unordered_map>
 #include <bitset>
 
@@ -22,6 +23,7 @@ namespace RTJ::Hex
 		HexJITContext* mContext = nullptr;
 		Int32 mLivenessIndex = 0;
 		std::array<std::unordered_map<Int16, std::vector<Liveness>>, 2>  mLiveness;
+		std::vector<CodeSequence> mCodeSeq;
 	private:
 		void ChooseCandidate();
 		void ComputeLivenessDuration();
