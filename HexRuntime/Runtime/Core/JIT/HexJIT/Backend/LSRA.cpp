@@ -1,4 +1,5 @@
 #include "LSRA.h"
+#include "..\..\..\Exception\RuntimeException.h"
 
 void RTJ::Hex::LSRA::ChooseCandidate()
 {
@@ -45,6 +46,16 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 		if (bbIterator->BranchConditionValue != nullptr)
 			UpdateLivenessFor(bbIterator->BranchConditionValue);
 	}
+
+	//Reset index for allocation
+	mLivenessIndex = 0;
+}
+
+void RTJ::Hex::LSRA::AllocateRegisters()
+{
+	ForeachStatement(mContext->BBs.front(), [&](auto now, bool _) {
+		auto codeSeq = mInterpreter.Interpret(now);
+	});
 }
 
 void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
@@ -96,11 +107,12 @@ void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 		{
 			auto managedCall = origin->As<CallNode>();
 			ForeachInlined(managedCall->Arguments, managedCall->ArgumentCount,
-				[&](auto node) {UpdateLivenessFor(node); });
+				[&](auto node) { UpdateLivenessFor(node); });
 		}
-		
+		break;
 	}
 	default:
+		THROW("Should not reach here");
 		break;
 	}
 }
@@ -129,11 +141,12 @@ RTJ::Hex::LocalVariableNode* RTJ::Hex::LSRA::GuardedSourceExtract(LoadNode* stor
 	return nullptr;
 }
 
-RTJ::Hex::LSRA::LSRA(HexJITContext* context) : mContext(context)
+RTJ::Hex::LSRA::LSRA(HexJITContext* context) : mContext(context), mInterpreter(context->Memory)
 {
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 {
-	return nullptr;
+	ComputeLivenessDuration();
+	AllocateRegisters();
 }

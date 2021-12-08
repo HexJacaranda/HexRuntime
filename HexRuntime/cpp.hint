@@ -8,3 +8,4 @@
 #define JIT_CALLING_CONV_IMPL(NAME) Platform::PlatformCallingArgument NAME##CCArgs[]
 #define REG
 #define MSK
+#define RTJ
