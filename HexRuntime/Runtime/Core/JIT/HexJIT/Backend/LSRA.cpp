@@ -54,8 +54,20 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 void RTJ::Hex::LSRA::AllocateRegisters()
 {
 	ForeachStatement(mContext->BBs.front(), [&](auto now, bool _) {
-		auto codeSeq = mInterpreter.Interpret(now);
+		Int32 before = mInstructions.size();
+		mInterpreter.Interpret(mInstructions, now);
+		Int32 after = mInstructions.size();
+		AllocateRegisterFor(before, after);
 	});
+}
+
+void RTJ::Hex::LSRA::AllocateRegisterFor(Int32 seqBeginIndex, Int32 seqEndIndex)
+{
+	for (Int32 i = seqBeginIndex; i < seqEndIndex; ++i)
+	{
+		auto&& instruction = mInstructions[i];
+
+	}
 }
 
 void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
@@ -149,4 +161,5 @@ RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 {
 	ComputeLivenessDuration();
 	AllocateRegisters();
+	return mContext->BBs.front();
 }

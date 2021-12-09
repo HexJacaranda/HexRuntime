@@ -2,8 +2,8 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\Memory\SegmentHeap.h"
 #include "..\IR.h"
-#include "CodeSequence.h"
-
+#include "ConcreteInstruction.h"
+#include <vector>
 
 namespace RTJ::Hex
 {
@@ -14,8 +14,7 @@ namespace RTJ::Hex
 		NativeCodeInterpreter(RTMM::SegmentHeap* heap) {
 
 		}
-		CodeSequence* Interpret(TreeNode* node) {
-			return nullptr;
+		void Interpret(std::vector<ConcreteInstruction>& out, TreeNode* node) {
 		}
 	};
 }

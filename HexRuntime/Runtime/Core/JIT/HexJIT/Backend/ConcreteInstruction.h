@@ -9,10 +9,23 @@ namespace RTJ::Hex
 	{
 		ETY = UInt8;
 		VAL Unused = 0x00;
-		VAL Register = 0x01;
-		VAL VirtualRegister = 0x02;
-		VAL Immediate = 0x03;
-		VAL SIB = 0x04;
+		//Virtual phase
+		VAL VirtualRegister = 0x01;
+		VAL Local = 0x02;
+		VAL Argument = 0x03;
+
+		//Realization phase
+		VAL Register = 0x04;		
+		VAL Immediate = 0x05;
+		VAL SIB = 0x06;
+	};
+
+	struct ScaleIndexBase
+	{
+		Int32 Displacement;
+		UInt8 Scale;
+		UInt8 Index;
+		UInt8 Base;
 	};
 
 	struct InstructionOperand
@@ -23,11 +36,15 @@ namespace RTJ::Hex
 			UInt8 Register;
 			UInt64 Immediate64;
 			UInt32 Immediate32;
-			UInt64 SIB;
+			Int16 VariableIndex;
+			/// <summary>
+			/// SIB support
+			/// </summary>
+			ScaleIndexBase SIB;
 		};
 	};
 
-	struct SequenceLine
+	struct ConcreteInstruction
 	{
 		RTP::PlatformInstruction* Instruction;
 		/// <summary>
@@ -50,11 +67,5 @@ namespace RTJ::Hex
 		bool IsStorePoint()const {
 			return ((Int)Operands | StorePoint);
 		}
-	};
-
-	struct CodeSequence
-	{
-		Int32 LineCount;
-		SequenceLine* Instructions;	
 	};
 }

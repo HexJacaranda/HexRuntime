@@ -300,7 +300,7 @@
     <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h">
       <Filter>头文件\Runtime\Core\Platform\CallingConventionProviders</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\CodeSequence.h">
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\ConcreteInstruction.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Platform\X86Register.h">
