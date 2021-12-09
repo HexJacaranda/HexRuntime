@@ -35,20 +35,15 @@ namespace RTP
 
 #define ADR(RM, WIDTH, REGISTER_MASK) AddressConstraint { RM | AddressConstraint::Width##WIDTH, REGISTER_MASK  }
 
-	/// <summary>
-	/// Now we can only support opcode of addresses up to 3.
-	/// The flag which is zero will be the end if there're less than 3 oprands
-	/// </summary>
-	struct PlatformInstructionConstraint
-	{
-		std::array<AddressConstraint, 3> AddressConstraints;
-	};
-
 #define INS_CNS(COUNT ,...) PlatformInstructionConstraint { COUNT , { __VA_ARGS__ } }
 
 	struct PlatformInstruction
 	{
-		PlatformInstructionConstraint Constraint;
+		/// <summary>
+		/// Now we can only support opcode of addresses up to 3.
+		/// The flag which is zero will be the end if there're less than 3 operands
+		/// </summary>
+		std::array<AddressConstraint, 3> AddressConstraints;
 		/// <summary>
 		/// Currently up to 4 bytes opcode
 		/// </summary>

@@ -48,13 +48,16 @@ namespace RTJ::Hex
 	{
 		RTP::PlatformInstruction* Instruction;
 		/// <summary>
-		/// Requires at least 4-bytes alignment (SegmentHeap guarantees 8 bytes) and destination should be put at first
+		/// Requires 8-bytes alignment (SegmentHeap guarantees 8 bytes) and destination should be put at first
 		/// </summary>
 		InstructionOperand* Operands;
 	public:
-		static constexpr Int FlagMask = 0x3;
-		static constexpr Int ShouldNotEmit = 0x1;
-		static constexpr Int StorePoint = 0x2;
+		ETY = Int;
+		VAL FlagMask = 0x7;
+		VAL ShouldNotEmit = 0x1;
+		VAL Store = 0x2;
+		VAL Load = 0x4;
+
 		InstructionOperand* GetOperands()const {
 			return (InstructionOperand*)((Int)Operands & ~FlagMask);
 		}
@@ -64,8 +67,11 @@ namespace RTJ::Hex
 		bool ShouldEmit()const {
 			return ((Int)Operands | ShouldNotEmit);
 		}
-		bool IsStorePoint()const {
-			return ((Int)Operands | StorePoint);
+		bool IsStore()const {
+			return ((Int)Operands | Store);
+		}
+		bool IsLoad()const {
+			return ((Int)Operands | Load);
 		}
 	};
 }

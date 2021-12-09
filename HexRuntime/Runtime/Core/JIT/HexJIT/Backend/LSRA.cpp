@@ -63,10 +63,24 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 
 void RTJ::Hex::LSRA::AllocateRegisterFor(Int32 seqBeginIndex, Int32 seqEndIndex)
 {
+	//Loop new instructions
 	for (Int32 i = seqBeginIndex; i < seqEndIndex; ++i)
 	{
 		auto&& instruction = mInstructions[i];
+		Int32 operandCountLimit = instruction.Instruction->AddressConstraints.size();
+		auto operands = instruction.GetOperands();
 
+		Int32 operandCount = 0;
+		for (; operandCount < operandCountLimit && operands[operandCount].Kind != OperandKind::Unused; ++operandCount);
+
+		for (Int32 k = 0; k < operandCount; ++k)
+		{
+			auto&& operand = operands[k];
+			switch (operand.Kind)
+			{
+
+			}
+		}
 	}
 }
 

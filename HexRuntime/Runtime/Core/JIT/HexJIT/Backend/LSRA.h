@@ -17,6 +17,23 @@ namespace RTJ::Hex
 	};
 
 	/// <summary>
+	/// Triple tuple between (Local/Argument, PlatformRegister, VirtualRegister)
+	/// </summary>
+	struct RegisterAllocationState
+	{
+		Int16 Index;
+		UInt8 Register;
+		UInt8 VirtualRegister;
+	public:
+		Int16 GetLocal()const {
+			return Index;
+		}
+		Int16 GetArgument()const {
+			return Index & 0x7FFF;
+		}
+	};
+
+	/// <summary>
 	/// Linear scan register allocation
 	/// </summary>
 	class LSRA : public IHexJITFlow
@@ -25,6 +42,7 @@ namespace RTJ::Hex
 		Int32 mLivenessIndex = 0;
 		std::array<std::unordered_map<Int16, std::vector<Liveness>>, 2>  mLiveness;
 		std::vector<ConcreteInstruction> mInstructions;
+		std::unordered_map<Int16, RegisterAllocationState> mStateMapping;
 		NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth> mInterpreter;
 	private:
 		void ChooseCandidate();
