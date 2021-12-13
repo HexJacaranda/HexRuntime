@@ -7,10 +7,11 @@
 
 namespace RTP
 {
-	struct AddressConstraint
+	struct AddressConstraintFlags
 	{
 		ETY = UInt16;
 
+		VAL Unused = 0x0000;
 		VAL Memory = 0x0001;
 		VAL Register = 0x0002;
 		VAL Immediate = 0x0004;
@@ -24,16 +25,21 @@ namespace RTP
 		VAL Width128 = 0x0040;
 		VAL Width256 = 0x0080;
 		VAL Width512 = 0x0100;
+	};
 
+	struct AddressConstraint
+	{
 		UInt16 Flags;
 		UInt64 RegisterAvaliableMask;
 	};
 
-#define REG AddressConstraint::Register
-#define MEM AddressConstraint::Memory
-#define IMM AddressConstraint::Immediate
+#define NON AddressConstraintFlags::Unused
+#define REG AddressConstraintFlags::Register
+#define MEM AddressConstraintFlags::Memory
+#define IMM AddressConstraintFlags::Immediate
 
-#define ADR(RM, WIDTH, REGISTER_MASK) AddressConstraint { RM | AddressConstraint::Width##WIDTH, REGISTER_MASK  }
+#define ADR(RM, WIDTH, REGISTER_MASK) AddressConstraint { RM | WIDTH, REGISTER_MASK  }
+#define NO_RET AddressConstraint { NON, 0 }
 
 #define INS_CNS(COUNT ,...) PlatformInstructionConstraint { COUNT , { __VA_ARGS__ } }
 
@@ -56,29 +62,40 @@ namespace RTP
 		Int32 ArgumentCount;
 		/* For address constraint here, theoretically only REG and MEM can be supported by common platforms. 
 		* Specially, REG | MEM indicates that it's placed on stack and address passed in register (See some 
-		* calling convetion in X86-X64)
+		* calling convetions in X86-X64)
 		*/
 		AddressConstraint* ArgumentPassway;
 		AddressConstraint ReturnPassway;
+	public:
+
 	};
 	
 	class CallingArgumentType
 	{
 	public:
-		ETY = UInt32;
-
-		VAL Integer = 0x00000000;
-		VAL Float = 0x00000001;
-		VAL SIMD = 0x00000002;
+		ETY = UInt16;
+		VAL EmptyReturn = 0x0000;
+		VAL Integer = 0x0001;
+		VAL Float = 0x0002;
+		VAL SIMD = 0x0003;
 	};
 
+	/// <summary>
+	/// Any argument greater than 0x7FFF is set to 0x7FFF for it's useless in calling conv generation
+	/// </summary>
 	struct PlatformCallingArgument
 	{
-		Int32 LayoutSize;
-		UInt32 Type = CallingArgumentType::Integer;
+		ETY = Int16;
+		VAL LimitSize = 0x7FFF;
+
+		Int16 LayoutSize;
+		UInt16 Type = CallingArgumentType::Integer;
 	};
 
-	template<CallingConventions convention, UInt32 platform>
+	template<CallingConventions convention, 
+		UInt32 width,
+		UInt32 os,
+		UInt32 architecture>
 	class PlatformCallingConventionProvider
 	{
 	public:
@@ -88,4 +105,8 @@ namespace RTP
 			return nullptr;
 		}
 	};
+
+#define GET_CONV_ENTRACE(OUT_CALLING_CONV_NAME, IN_ARGUMENTS) \
+			template<class RangeT> \
+			static PlatformCallingConvention* GetConvention(PlatformCallingConvention* OUT_CALLING_CONV_NAME, RangeT&& IN_ARGUMENTS)
 }

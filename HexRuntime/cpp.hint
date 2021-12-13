@@ -9,3 +9,4 @@
 #define REG
 #define MSK
 #define RTJ
+#define CALLING_CONV_PROVIDER(CONV, PLATFORM)

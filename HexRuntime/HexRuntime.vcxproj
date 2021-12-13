@@ -74,9 +74,9 @@
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
-    <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h" />
     <ClInclude Include="Runtime\Core\Platform\Platform.h" />
     <ClInclude Include="Runtime\Core\Platform\PlatformSpecialization.h" />
+    <ClInclude Include="Runtime\Core\Platform\X86CallingConventionProvider.h" />
     <ClInclude Include="Runtime\Core\Platform\X86Register.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Endianness.h" />

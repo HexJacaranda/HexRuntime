@@ -297,9 +297,6 @@
     <ClInclude Include="Runtime\Core\Platform\PlatformSpecialization.h">
       <Filter>头文件\Runtime\Core\Platform</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h">
-      <Filter>头文件\Runtime\Core\Platform\CallingConventionProviders</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\ConcreteInstruction.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
@@ -308,6 +305,9 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeInterpreter.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Platform\X86CallingConventionProvider.h">
+      <Filter>头文件\Runtime\Core\Platform\CallingConventionProviders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
