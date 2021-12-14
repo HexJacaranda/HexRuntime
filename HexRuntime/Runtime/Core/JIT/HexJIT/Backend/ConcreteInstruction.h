@@ -34,9 +34,10 @@ namespace RTJ::Hex
 		union
 		{
 			UInt8 Register;
+			UInt8 VirtualRegister;
 			UInt64 Immediate64;
 			UInt32 Immediate32;
-			Int16 VariableIndex;
+			UInt16 VariableIndex;
 			/// <summary>
 			/// SIB support
 			/// </summary>
@@ -44,6 +45,23 @@ namespace RTJ::Hex
 		};
 	};
 
+	/// <summary>
+	///	Concrete instruction consists of memory restriction exposed platform instruction and
+	/// the concrete operand(s), although they may be actually virtual.
+	/// Special flags:
+	/// <para> 
+	/// 1. LocalStore: When your instruction store a register to a local variable (arugments), set this flag.
+	/// And make sure operands is [Local Variable, Reg]
+	/// </para>
+	/// <para> 
+	/// 2. LocalLoad: When your instruction load a local variable (arugments) to a register, set this flag. 
+	/// And make sure operands is [Reg, Local Variable] 
+	/// </para>
+	/// <para> 
+	/// And these two flags help LSRA to do more optimization and mark ShoudNotEmit to reduce unnecessary 
+	/// memory access from template code.
+	/// </para>
+	/// </summary>
 	struct ConcreteInstruction
 	{
 		RTP::PlatformInstruction* Instruction;
@@ -55,8 +73,8 @@ namespace RTJ::Hex
 		ETY = Int;
 		VAL FlagMask = 0x7;
 		VAL ShouldNotEmit = 0x1;
-		VAL Store = 0x2;
-		VAL Load = 0x4;
+		VAL LocalStore = 0x2;
+		VAL LocalLoad = 0x4;
 
 		InstructionOperand* GetOperands()const {
 			return (InstructionOperand*)((Int)Operands & ~FlagMask);
@@ -67,11 +85,11 @@ namespace RTJ::Hex
 		bool ShouldEmit()const {
 			return ((Int)Operands | ShouldNotEmit);
 		}
-		bool IsStore()const {
-			return ((Int)Operands | Store);
+		bool IsLocalStore()const {
+			return ((Int)Operands | LocalStore);
 		}
-		bool IsLoad()const {
-			return ((Int)Operands | Load);
+		bool IsLocalLoad()const {
+			return ((Int)Operands | LocalLoad);
 		}
 	};
 }

@@ -309,6 +309,9 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeInterpreter.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Bit.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -439,6 +442,9 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp">
       <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Bit.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -7,14 +7,24 @@
 
 namespace RTJ::Hex
 {
+	/// <summary>
+	/// For exposed instruction flag, see comments in ConcreteInstruction 
+	/// </summary>
 	template<UInt32 Architecture, UInt32 Width>
 	class NativeCodeInterpreter
 	{
 	public:
-		NativeCodeInterpreter(RTMM::SegmentHeap* heap) {
+		NativeCodeInterpreter(RTMM::SegmentHeap* heap) 
+		{
 
 		}
-		void Interpret(std::vector<ConcreteInstruction>& out, TreeNode* node) {
+		void Interpret(std::vector<ConcreteInstruction>& out, TreeNode* node) 
+		{
+
+		}
+		bool PurposeMemoryOperation(ConcreteInstruction const& origin, ConcreteInstruction& out)
+		{
+
 		}
 	};
 }
