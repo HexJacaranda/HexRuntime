@@ -28,9 +28,16 @@ namespace RTJ::Hex
 		UInt8 Base;
 	};
 
+	struct InstructionOperandFlags
+	{
+		ETY = UInt8;
+		VAL Modify = 0x01;
+	};
+
 	struct InstructionOperand
 	{
 		UInt8 Kind;
+		UInt8 Flags;
 		union
 		{
 			UInt8 Register;
@@ -43,6 +50,10 @@ namespace RTJ::Hex
 			/// </summary>
 			ScaleIndexBase SIB;
 		};
+	public:
+		bool IsModifyingRegister()const {
+			return Flags & InstructionOperandFlags::Modify;
+		}
 	};
 
 	/// <summary>
@@ -76,11 +87,16 @@ namespace RTJ::Hex
 		VAL LocalStore = 0x2;
 		VAL LocalLoad = 0x4;
 
+		static constexpr Int32 LoadOperandCount = 2;
+
 		InstructionOperand* GetOperands()const {
 			return (InstructionOperand*)((Int)Operands & ~FlagMask);
 		}
 		void SetFlag(Int flag) {
-			Operands = (InstructionOperand*)((Int)Operands | 0x1);
+			Operands = (InstructionOperand*)((Int)Operands | flag);
+		}
+		Int GetFlag()const {
+			return (Int)Operands & FlagMask;
 		}
 		bool ShouldEmit()const {
 			return ((Int)Operands | ShouldNotEmit);

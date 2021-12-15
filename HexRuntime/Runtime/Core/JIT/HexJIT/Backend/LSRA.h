@@ -23,14 +23,20 @@ namespace RTJ::Hex
 	struct RegisterAllocationState
 	{
 		ETY = UInt8;
-		VAL SpilledRegister = 0xFF;
+		VAL OnHold = 0xFF;
 
 		UInt16 Index;
 		UInt8 Register;
 		UInt8 VirtualRegister;
 	public:
-		RegisterAllocationState(UInt16 index, UInt8 physicalRegister, UInt8 virtualRegister) :
-			Index(index), Register(physicalRegister), VirtualRegister(virtualRegister) {}
+		RegisterAllocationState() :
+			Index(0), 
+			Register(OnHold), 
+			VirtualRegister(OnHold) {}
+		RegisterAllocationState(UInt16 index, UInt8 virtualRegister) :
+			Index(index), 
+			Register(OnHold), 
+			VirtualRegister(virtualRegister) {}
 		Int16 GetLocal()const {
 			return (Int16)(Index & 0x7FFF);
 		}
@@ -47,30 +53,34 @@ namespace RTJ::Hex
 		HexJITContext* mContext = nullptr;
 		Int32 mLivenessIndex = 0;
 		std::unordered_map<UInt16, std::vector<Liveness>> mLiveness;
+		
+		Int32 mInsIndex = 0;
 		std::vector<ConcreteInstruction> mInstructions;
-
-		std::unordered_map<UInt16, RegisterAllocationState> mStateMapping;
-		//Requires multiple
-		std::unordered_map<UInt8, UInt16> mVirtualRegisterToLocal;
-
+		std::unordered_map<UInt16, UInt8> mLocal2VReg;
+		std::unordered_map<UInt8, UInt16> mVReg2Local;
+		std::unordered_map<UInt8, UInt8> mVReg2PReg;
+		std::unordered_map<UInt16, ConcreteInstruction> mInstructionOnWatch;
 		UInt64 mRegisterPool;
+
 		NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth> mInterpreter;
 	private:
-		RegisterAllocationState* TryGetRegisterState(UInt16 localIndex)const;
-		RegisterAllocationState* TryGetRegisterStateFromVirtualRegister(UInt16 virtualRegister)const;
 		std::optional<UInt8> TryPollRegister(UInt64 mask);
-		
-		bool TryInheritFromContext(UInt16 variableIndex, UInt8 newVirtualRegister);
-		bool TryAlloacteRegister(UInt16 variableIndex, UInt8 virtualRegister, UInt64 registerRequirement);
-		void SpillVariableFor(UInt16 variableIndex, UInt8 virtualRegister);
+		void WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister);
+		std::optional<ConcreteInstruction> RequestLoad(UInt8 virtualRegister, UInt64 registerMask);
+		void WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister);
+		void RequestStore(UInt16 variableIndex, UInt8 virtualRegister);
+		void InvalidateVirtualRegister(UInt8 virtualRegister);
+
+		void AllocateRegisterForNewSequence();
+		void UpdateLivenessFor(TreeNode* node);
 
 		void ChooseCandidate();
 		void ComputeLivenessDuration();
 		void AllocateRegisters();
-		void AllocateRegisterFor(Int32 seqBeginIndex, Int32 seqEndIndex);
-		void UpdateLivenessFor(TreeNode* node);
+
 		static LocalVariableNode* GuardedDestinationExtract(StoreNode* store);
 		static LocalVariableNode* GuardedSourceExtract(LoadNode* store);
+		ConcreteInstruction CopyInstruction(ConcreteInstruction const& origin, Int32 operandsCount);
 	public:
 		LSRA(HexJITContext* context);
 		virtual BasicBlock* PassThrough() final;

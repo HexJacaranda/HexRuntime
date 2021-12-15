@@ -2,15 +2,7 @@
 #include "..\..\..\Exception\RuntimeException.h"
 #include "..\..\..\..\Bit.h"
 
-RTJ::Hex::RegisterAllocationState* RTJ::Hex::LSRA::TryGetRegisterState(UInt16 localIndex) const
-{
-
-}
-
-RTJ::Hex::RegisterAllocationState* RTJ::Hex::LSRA::TryGetRegisterStateFromVirtualRegister(UInt16 virtualRegister) const
-{
-
-}
+#define POOL mContext->Memory
 
 std::optional<RT::UInt8> RTJ::Hex::LSRA::TryPollRegister(UInt64 mask)
 {
@@ -25,43 +17,105 @@ std::optional<RT::UInt8> RTJ::Hex::LSRA::TryPollRegister(UInt64 mask)
 		return {};
 }
 
-bool RTJ::Hex::LSRA::TryInheritFromContext(UInt16 variableIndex, UInt8 newVirtualRegister)
+void RTJ::Hex::LSRA::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister)
 {
-	auto iterator = mStateMapping.find(variableIndex);
-	//Check if there's any alreadly on register
-	if (iterator != mStateMapping.end())
+	auto iterator = mLocal2VReg.find(variableIndex);
+	//Check if there's any alreadly in state mapping
+	if (iterator != mLocal2VReg.end())
 	{
-		auto&& state = iterator->second;
+		/* We don't care whether the physical register is allocated
+		* or just on-hold. We just simply inherit the value from the
+		* history and it will be used when we encounter the usage of
+		* v-register
+		*/
+		auto&& virtualRegister = iterator->second;
 
-		//Remove the origin v-register mapping
-		mVirtualRegisterToLocal.erase(state.VirtualRegister);
-		//Insert new v-register mapping
-		mVirtualRegisterToLocal[newVirtualRegister] = variableIndex;
-		//Update state mapping
-		state.VirtualRegister = newVirtualRegister;
-		return true;
+		//Check if origin allocated virtual register is the same with new one
+		if (virtualRegister != newVirtualRegister)
+		{
+			mVReg2Local.erase(virtualRegister);
+			mVReg2Local[virtualRegister] = variableIndex;
+			//Update virtual register
+			virtualRegister = newVirtualRegister;
+		}
 	}
 	else
-		return false;
+	{
+		//If there is non, create on-hold state
+		mVReg2Local[newVirtualRegister] = variableIndex;
+		mLocal2VReg[variableIndex] = newVirtualRegister;
+	}
+
+	//Update or create <local, on-watch instruction>
+	mInstructionOnWatch[variableIndex] = mInstructions[mInsIndex];
 }
 
-bool RTJ::Hex::LSRA::TryAlloacteRegister(UInt16 variableIndex, UInt8 virtualRegister, UInt64 registerRequirement)
+std::optional<RTJ::Hex::ConcreteInstruction> RTJ::Hex::LSRA::RequestLoad(
+	UInt8 virtualRegister, 
+	UInt64 registerMask)
 {
-	auto newRegister = TryPollRegister(registerRequirement);
-	if (!newRegister.has_value())
-		return false;
+	auto variableIndex = mVReg2Local[virtualRegister];
+	if (!mVReg2PReg.contains(virtualRegister))
+	{
+		//Allocate register for virtual register
+		auto registerRequest = TryPollRegister(registerMask);
+		if (registerRequest.has_value())
+		{
+			//Get freed register and update state
+			auto instruction = CopyInstruction(mInstructionOnWatch[variableIndex], ConcreteInstruction::LoadOperandCount);
+			//Write register to instruction
+			auto&& registerOperand = instruction.GetOperands()[0];
+			registerOperand.Kind = OperandKind::Register;
 
-	auto registerValue = newRegister.value();
-	
-	//Set mapping
-	mVirtualRegisterToLocal[virtualRegister] = variableIndex;
-	mStateMapping[variableIndex] = RegisterAllocationState(variableIndex, registerValue, virtualRegister);
+			auto newRegister = registerRequest.value();
+			registerOperand.Register = newRegister;
+			//Update mapping
+			mVReg2PReg[virtualRegister] = newRegister;
+
+			return instruction;
+		}
+		else
+		{
+			//Spill one variable
+
+		}
+	}
+	return {};
 }
 
-void RTJ::Hex::LSRA::SpillVariableFor(UInt16 variableIndex, UInt8 virtualRegister)
+void RTJ::Hex::LSRA::WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister)
 {
-	mVirtualRegisterToLocal[virtualRegister] = variableIndex;
-	mStateMapping[variableIndex] = RegisterAllocationState(variableIndex, RegisterAllocationState::SpilledRegister, virtualRegister);
+	auto iterator = mVReg2Local.find(virtualRegister);
+	if (iterator != mVReg2Local.end())
+	{
+		auto oldVariable = iterator->second;
+		if (oldVariable != variableIndex)
+		{
+			mVReg2Local.erase(iterator);
+			mLocal2VReg.erase(oldVariable);
+		}
+	}
+
+	mVReg2Local[virtualRegister] = variableIndex;
+	mLocal2VReg[variableIndex] = virtualRegister;
+}
+
+void RTJ::Hex::LSRA::RequestStore(UInt16 variableIndex, UInt8 virtualRegister)
+{
+
+}
+
+void RTJ::Hex::LSRA::InvalidateVirtualRegister(UInt8 virtualRegister)
+{
+	auto iterator = mVReg2Local.find(virtualRegister);
+	if (iterator != mVReg2Local.end())
+	{
+		auto localIndex = iterator->second;
+		mVReg2Local.erase(iterator);
+		mLocal2VReg.erase(localIndex);
+		//Maybe we can just leave the mapping here
+		mInstructionOnWatch.erase(localIndex);
+	}
 }
 
 void RTJ::Hex::LSRA::ChooseCandidate()
@@ -120,67 +174,38 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 void RTJ::Hex::LSRA::AllocateRegisters()
 {
 	ForeachStatement(mContext->BBs.front(), [&](auto now, bool _) {
-		Int32 before = mInstructions.size();
+		mInsIndex = mInstructions.size();
 		mInterpreter.Interpret(mInstructions, now);
-		Int32 after = mInstructions.size();
-		AllocateRegisterFor(before, after);
+		AllocateRegisterForNewSequence();
 	});
 }
 
-void RTJ::Hex::LSRA::AllocateRegisterFor(Int32 seqBeginIndex, Int32 seqEndIndex)
+void RTJ::Hex::LSRA::AllocateRegisterForNewSequence()
 {
 	//Loop new instructions
-	for (Int32 i = seqBeginIndex; i < seqEndIndex; ++i)
+	while(mInsIndex < mInstructions.size())
 	{
-		auto&& instruction = mInstructions[i];
+		auto&& instruction = mInstructions[mInsIndex];
 		Int32 operandCountLimit = instruction.Instruction->AddressConstraints.size();
 		auto operands = instruction.GetOperands();
 
 		if (instruction.IsLocalLoad())
 		{
-			auto&& destinationReg = instruction.Operands[0];
-			auto&& sourceLocalVariable = instruction.Operands[1];
-			//Context register may exist for local variable loading
-
-			if (TryInheritFromContext(sourceLocalVariable.VariableIndex, destinationReg.VirtualRegister))
-				//Should not emit this
-				instruction.SetFlag(ConcreteInstruction::ShouldNotEmit); 
-			else
-			{
-				//Allocate register for this variable
-				auto registerRequirement = instruction.Instruction->AddressConstraints[0].RegisterAvaliableMask;
-				if (!TryAlloacteRegister(sourceLocalVariable.VariableIndex, destinationReg.VirtualRegister, registerRequirement))
-				{
-					//If the allocation failed, we need to spill a register for this operation
-					SpillVariableFor(sourceLocalVariable.VariableIndex, destinationReg.VirtualRegister);
-				}
-			}
+			auto&& destinationRegister = operands[0];
+			auto&& sourceVariable = operands[1];		
+			WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister);
+			//Should never emit
+			instruction.SetFlag(ConcreteInstruction::ShouldNotEmit);
 		}
 		else if (instruction.IsLocalStore())
 		{
-			auto&& destinationLocal = instruction.Operands[0];
-			auto&& sourceReg = instruction.Operands[1];
-
-			auto&& state = mStateMapping[destinationLocal.VariableIndex];
-
-			auto allocatedState = TryGetRegisterStateFromVirtualRegister(sourceReg.VirtualRegister);
-			if (allocatedState == nullptr)
-			{
-				//Should throw
-			}
-
-			state = RegisterAllocationState(destinationLocal.VariableIndex, allocatedState->Register, sourceReg.VirtualRegister);
+			auto&& destinationVariable = operands[0];
+			auto&& sourceRegister = operands[1];
+			WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister);
 		}
 		else
 		{
-			for (Int32 k = 0; k < operandCountLimit && operands[k].Kind != OperandKind::Unused; ++k)
-			{
-				auto&& operand = operands[k];
-				switch (operand.Kind)
-				{
 
-				}
-			}
 		}
 	}
 }
@@ -270,12 +295,28 @@ RTJ::Hex::LocalVariableNode* RTJ::Hex::LSRA::GuardedSourceExtract(LoadNode* stor
 	return nullptr;
 }
 
+RTJ::Hex::ConcreteInstruction RTJ::Hex::LSRA::CopyInstruction(ConcreteInstruction const& origin, Int32 operandsCount)
+{
+	ConcreteInstruction newOne = origin;
+	if (operandsCount > 0)
+	{
+		InstructionOperand* operands = new (POOL) InstructionOperand[operandsCount];
+		std::memcpy(operands, origin.GetOperands(), sizeof(InstructionOperand) * operandsCount);
+		newOne.Operands = operands;
+	}
+	else
+		newOne.Operands = nullptr;
+	newOne.SetFlag(origin.GetFlag());
+	return newOne;
+}
+
 RTJ::Hex::LSRA::LSRA(HexJITContext* context) : mContext(context), mInterpreter(context->Memory)
 {
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 {
+	ChooseCandidate();
 	ComputeLivenessDuration();
 	AllocateRegisters();
 	return mContext->BBs.front();
