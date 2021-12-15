@@ -17,7 +17,7 @@ std::optional<RT::UInt8> RTJ::Hex::LSRA::TryPollRegister(UInt64 mask)
 		return {};
 }
 
-void RTJ::Hex::LSRA::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister)
+void RTJ::Hex::LSRA::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction instruction)
 {
 	auto iterator = mLocal2VReg.find(variableIndex);
 	//Check if there's any alreadly in state mapping
@@ -47,32 +47,41 @@ void RTJ::Hex::LSRA::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister)
 	}
 
 	//Update or create <local, on-watch instruction>
-	mInstructionOnWatch[variableIndex] = mInstructions[mInsIndex];
+	mLoadInsOnWatch[variableIndex] = instruction;
 }
 
 std::optional<RTJ::Hex::ConcreteInstruction> RTJ::Hex::LSRA::RequestLoad(
-	UInt8 virtualRegister, 
+	UInt8 virtualRegister,
 	UInt64 registerMask)
 {
-	auto variableIndex = mVReg2Local[virtualRegister];
 	if (!mVReg2PReg.contains(virtualRegister))
 	{
 		//Allocate register for virtual register
 		auto registerRequest = TryPollRegister(registerMask);
 		if (registerRequest.has_value())
 		{
-			//Get freed register and update state
-			auto instruction = CopyInstruction(mInstructionOnWatch[variableIndex], ConcreteInstruction::LoadOperandCount);
-			//Write register to instruction
-			auto&& registerOperand = instruction.GetOperands()[0];
-			registerOperand.Kind = OperandKind::Register;
-
 			auto newRegister = registerRequest.value();
-			registerOperand.Register = newRegister;
-			//Update mapping
-			mVReg2PReg[virtualRegister] = newRegister;
-
-			return instruction;
+			//Maybe it's a completely independent instruction
+			auto variableResult = mVReg2Local.find(virtualRegister);
+			if (variableResult != mVReg2Local.end())
+			{
+				auto variableIndex = variableResult->second;
+				//Get freed register and update state
+				auto instruction = CopyInstruction(mLoadInsOnWatch[variableIndex], ConcreteInstruction::LoadOperandCount);
+				//Write register to instruction
+				auto&& registerOperand = instruction.GetOperands()[0];
+				registerOperand.Kind = OperandKind::Register;
+				registerOperand.Register = newRegister;
+				//Update mapping
+				mVReg2PReg[virtualRegister] = newRegister;
+				return instruction;
+			}
+			else
+			{
+				//Update mapping
+				mVReg2PReg[virtualRegister] = newRegister;
+				return {};
+			}
 		}
 		else
 		{
@@ -105,6 +114,12 @@ void RTJ::Hex::LSRA::RequestStore(UInt16 variableIndex, UInt8 virtualRegister)
 
 }
 
+void RTJ::Hex::LSRA::UsePhysicalResigster(InstructionOperand& operand)
+{
+	operand.Kind = OperandKind::Register;
+	operand.Register = mVReg2PReg[operand.VirtualRegister];
+}
+
 void RTJ::Hex::LSRA::InvalidateVirtualRegister(UInt8 virtualRegister)
 {
 	auto iterator = mVReg2Local.find(virtualRegister);
@@ -114,7 +129,36 @@ void RTJ::Hex::LSRA::InvalidateVirtualRegister(UInt8 virtualRegister)
 		mVReg2Local.erase(iterator);
 		mLocal2VReg.erase(localIndex);
 		//Maybe we can just leave the mapping here
-		mInstructionOnWatch.erase(localIndex);
+		mLoadInsOnWatch.erase(localIndex);
+	}
+}
+
+void RTJ::Hex::LSRA::InvalidateLocalVariable(UInt8 variable)
+{
+	auto iterator = mLocal2VReg.find(variable);
+	if (iterator != mLocal2VReg.end())
+	{
+		auto virtualRegister = iterator->second;
+		mVReg2Local.erase(virtualRegister);
+		mLocal2VReg.erase(iterator);
+		//Maybe we can just leave the mapping here
+		mLoadInsOnWatch.erase(variable);
+	}
+}
+
+void RTJ::Hex::LSRA::InvalidateContextWithLiveness()
+{
+	for (auto iterator = mLiveness.begin(); iterator != mLiveness.end(); ++iterator)
+	{
+		auto&& [local, durationQueue] = *iterator;
+		if (!durationQueue.empty())
+		{
+			auto&& liveness = durationQueue.front();
+			if (liveness.To <= mLivenessIndex)
+				durationQueue.pop();
+			else if (mLivenessIndex < liveness.From)
+				InvalidateLocalVariable(local);
+		}
 	}
 }
 
@@ -145,26 +189,29 @@ void RTJ::Hex::LSRA::ChooseCandidate()
 void RTJ::Hex::LSRA::ComputeLivenessDuration()
 {
 	auto bbHead = mContext->BBs.front();
-	for (BasicBlock* bbIterator = bbHead; 
-		bbIterator != nullptr; 
-		bbIterator = bbIterator->Next)
+	for (BasicBlock* basicBlock = bbHead;
+		basicBlock != nullptr;
+		basicBlock = basicBlock->Next)
 	{
-		for (Statement* stmtIterator = bbIterator->Now;
-			stmtIterator != nullptr;
-			stmtIterator = stmtIterator->Next)
+		for (Statement* stmt = basicBlock->Now;
+			stmt != nullptr;
+			stmt = stmt->Next)
 		{
 			/* Here we can assume that all the nodes are flattened by Linearizer.
 			* All the depth should not be greater than 3 (maybe 4?)
 			*/
-			UpdateLivenessFor(stmtIterator->Now);
+			UpdateLivenessFor(stmt->Now);
 			mLivenessIndex++;
 		}
 
-		if (bbIterator->BranchConditionValue != nullptr)
+		if (basicBlock->BranchConditionValue != nullptr)
 		{
-			UpdateLivenessFor(bbIterator->BranchConditionValue);
+			UpdateLivenessFor(basicBlock->BranchConditionValue);
 			mLivenessIndex++;
 		}
+		if (basicBlock->BranchKind != PPKind::Sequential)
+			//Gap to stop allocation context propagating
+			mLivenessIndex++;
 	}
 
 	//Reset index for allocation
@@ -173,39 +220,70 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 
 void RTJ::Hex::LSRA::AllocateRegisters()
 {
-	ForeachStatement(mContext->BBs.front(), [&](auto now, bool _) {
-		mInsIndex = mInstructions.size();
-		mInterpreter.Interpret(mInstructions, now);
-		AllocateRegisterForNewSequence();
-	});
+	auto bbHead = mContext->BBs.front();
+	for (BasicBlock* basicBlock = bbHead;
+		basicBlock != nullptr;
+		basicBlock = basicBlock->Next)
+	{
+		for (Statement* stmt = basicBlock->Now;
+			stmt != nullptr;
+			stmt = stmt->Next)
+		{
+			mInterpreter.Interpret(stmt->Now,
+				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
+			mLivenessIndex++;
+			//Clean up context according to liveness
+			InvalidateContextWithLiveness();
+		}
+
+		//If we need branch instruction
+		if (basicBlock->BranchKind != PPKind::Sequential)
+		{
+			mInterpreter.InterpretBranch(basicBlock->BranchConditionValue,
+				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
+			mLivenessIndex++;
+			if (basicBlock->BranchConditionValue != nullptr)
+				mLivenessIndex++;
+			//Clean up context according to liveness
+			InvalidateContextWithLiveness();
+		}
+	}
 }
 
-void RTJ::Hex::LSRA::AllocateRegisterForNewSequence()
+void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 {
-	//Loop new instructions
-	while(mInsIndex < mInstructions.size())
+	auto operands = instruction.GetOperands();
+	if (instruction.IsLocalLoad())
 	{
-		auto&& instruction = mInstructions[mInsIndex];
-		Int32 operandCountLimit = instruction.Instruction->AddressConstraints.size();
-		auto operands = instruction.GetOperands();
+		auto&& destinationRegister = operands[0];
+		auto&& sourceVariable = operands[1];
+		WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister, instruction);
+	}
+	else if (instruction.IsLocalStore())
+	{
+		auto&& destinationVariable = operands[0];
+		auto&& sourceRegister = operands[1];
+		WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister);
+	}
+	else
+	{
+		auto&& constraints = instruction.Instruction->AddressConstraints;
+		for (Int32 i = 0; i < (Int32)instruction.Instruction->ConstraintLength; ++i)
+		{
+			auto&& operand = operands[i];
+			if (operand.Flags & OperandKind::VirtualRegister)
+			{
+				auto emitInstruction = RequestLoad(operand.VirtualRegister, constraints[i].RegisterAvaliableMask);
+				if (emitInstruction.has_value())
+					mInstructions.push_back(emitInstruction.value());
 
-		if (instruction.IsLocalLoad())
-		{
-			auto&& destinationRegister = operands[0];
-			auto&& sourceVariable = operands[1];		
-			WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister);
-			//Should never emit
-			instruction.SetFlag(ConcreteInstruction::ShouldNotEmit);
-		}
-		else if (instruction.IsLocalStore())
-		{
-			auto&& destinationVariable = operands[0];
-			auto&& sourceRegister = operands[1];
-			WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister);
-		}
-		else
-		{
+				//Update to physical register
+				UsePhysicalResigster(operand);
 
+				//Check if we should invalidate the relationship (v-reg, local variable)
+				if (operand.IsModifyingRegister())
+					InvalidateVirtualRegister(operand.VirtualRegister);
+			}
 		}
 	}
 }
@@ -225,14 +303,14 @@ void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 		auto&& livenessList = mLiveness[index];
 
 		if (livenessList.size() == 0)
-			livenessList.push_back({ mLivenessIndex, mLivenessIndex + 1 });
+			livenessList.push({ mLivenessIndex, mLivenessIndex + 1 });
 		else
 		{
 			auto&& previous = livenessList.back();
 			if (previous.To == mLivenessIndex)
 				previous.To++;
 			else
-				livenessList.push_back({ mLivenessIndex, mLivenessIndex + 1 });
+				livenessList.push({ mLivenessIndex, mLivenessIndex + 1 });
 		}
 	};
 

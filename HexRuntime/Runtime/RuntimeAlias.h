@@ -57,6 +57,7 @@ namespace Runtime
 #define RTI Runtime::Core::Interfaces
 	
 #define ForcedInline __forceinline
+#define PADDING_EXT(BYTES) UInt8 __GENERATED_PADDING_FOR_EXTENSION[BYTES]
 
 //Argument as result annotation
 #define _RE_

@@ -92,8 +92,9 @@ namespace RTJ::Hex
 		InstructionOperand* GetOperands()const {
 			return (InstructionOperand*)((Int)Operands & ~FlagMask);
 		}
-		void SetFlag(Int flag) {
+		ConcreteInstruction* SetFlag(Int flag) {
 			Operands = (InstructionOperand*)((Int)Operands | flag);
+			return this;
 		}
 		Int GetFlag()const {
 			return (Int)Operands & FlagMask;

@@ -25,8 +25,12 @@ namespace RTP
 		VAL Width256 = 0x0080;
 		VAL Width512 = 0x0100;
 
-		UInt16 Flags;
 		UInt64 RegisterAvaliableMask;
+		/// <summary>
+		/// Reserved for register mask
+		/// </summary>
+		PADDING_EXT(6);
+		UInt16 Flags;	
 	};
 
 #define REG AddressConstraint::Register
@@ -48,7 +52,8 @@ namespace RTP
 		/// Currently up to 4 bytes opcode
 		/// </summary>
 		std::array<UInt8, 4> Opcodes;
-		UInt8 Length;
+		UInt8 OpcodeLength;
+		UInt8 ConstraintLength;
 	};
 
 	struct PlatformCallingConvention

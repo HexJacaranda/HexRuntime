@@ -6,8 +6,9 @@
 #include "ConcreteInstruction.h"
 #include "NativeCodeInterpreter.h"
 #include <unordered_map>
-#include <bitset>
 #include <optional>
+#include <tuple>
+#include <queue>
 
 namespace RTJ::Hex
 {
@@ -52,26 +53,30 @@ namespace RTJ::Hex
 	{
 		HexJITContext* mContext = nullptr;
 		Int32 mLivenessIndex = 0;
-		std::unordered_map<UInt16, std::vector<Liveness>> mLiveness;
+		std::unordered_map<UInt16, std::queue<Liveness>> mLiveness;
 		
 		Int32 mInsIndex = 0;
 		std::vector<ConcreteInstruction> mInstructions;
 		std::unordered_map<UInt16, UInt8> mLocal2VReg;
 		std::unordered_map<UInt8, UInt16> mVReg2Local;
 		std::unordered_map<UInt8, UInt8> mVReg2PReg;
-		std::unordered_map<UInt16, ConcreteInstruction> mInstructionOnWatch;
+		std::unordered_map<UInt16, ConcreteInstruction> mLoadInsOnWatch;
+		std::unordered_map<UInt16, ConcreteInstruction> mStoreInsOnWatch;
 		UInt64 mRegisterPool;
 
 		NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth> mInterpreter;
 	private:
 		std::optional<UInt8> TryPollRegister(UInt64 mask);
-		void WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister);
+		void WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction instruction);
 		std::optional<ConcreteInstruction> RequestLoad(UInt8 virtualRegister, UInt64 registerMask);
 		void WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister);
 		void RequestStore(UInt16 variableIndex, UInt8 virtualRegister);
+		void UsePhysicalResigster(InstructionOperand& operand);
 		void InvalidateVirtualRegister(UInt8 virtualRegister);
+		void InvalidateLocalVariable(UInt8 variable);
+		void InvalidateContextWithLiveness();
 
-		void AllocateRegisterForNewSequence();
+		void AllocateRegisterFor(ConcreteInstruction instruction);
 		void UpdateLivenessFor(TreeNode* node);
 
 		void ChooseCandidate();
