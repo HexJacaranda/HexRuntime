@@ -87,8 +87,6 @@ namespace RTJ::Hex
 		VAL LocalStore = 0x2;
 		VAL LocalLoad = 0x4;
 
-		static constexpr Int32 LoadOperandCount = 2;
-
 		InstructionOperand* GetOperands()const {
 			return (InstructionOperand*)((Int)Operands & ~FlagMask);
 		}

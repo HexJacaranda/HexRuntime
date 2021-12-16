@@ -17,6 +17,11 @@ namespace RTM
 
 namespace RTJ::Hex
 {
+	class AllocationContext;
+}
+
+namespace RTJ::Hex
+{
 	enum class NodeKinds : UInt8
 	{
 		Constant,
@@ -535,6 +540,8 @@ namespace RTJ::Hex
 		/// </summary>
 		TreeNode* BranchConditionValue = nullptr;
 		BasicBlock* BranchedBB = nullptr;
+
+		AllocationContext* RegisterContext;
 	public:
 		std::vector<BasicBlock*> BBIn;
 	};

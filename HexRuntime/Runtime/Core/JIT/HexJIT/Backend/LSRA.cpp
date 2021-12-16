@@ -4,149 +4,7 @@
 
 #define POOL mContext->Memory
 
-std::optional<RT::UInt8> RTJ::Hex::LSRA::TryPollRegister(UInt64 mask)
-{
-	UInt64 maskedValue = mRegisterPool & mask;
-	if (maskedValue)
-	{
-		UInt8 freeRegister = Bit::LeftMostSetBit(maskedValue);
-		Bit::SetZero(mRegisterPool, freeRegister);
-		return freeRegister;
-	}
-	else
-		return {};
-}
-
-void RTJ::Hex::LSRA::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction instruction)
-{
-	auto iterator = mLocal2VReg.find(variableIndex);
-	//Check if there's any alreadly in state mapping
-	if (iterator != mLocal2VReg.end())
-	{
-		/* We don't care whether the physical register is allocated
-		* or just on-hold. We just simply inherit the value from the
-		* history and it will be used when we encounter the usage of
-		* v-register
-		*/
-		auto&& virtualRegister = iterator->second;
-
-		//Check if origin allocated virtual register is the same with new one
-		if (virtualRegister != newVirtualRegister)
-		{
-			mVReg2Local.erase(virtualRegister);
-			mVReg2Local[virtualRegister] = variableIndex;
-			//Update virtual register
-			virtualRegister = newVirtualRegister;
-		}
-	}
-	else
-	{
-		//If there is non, create on-hold state
-		mVReg2Local[newVirtualRegister] = variableIndex;
-		mLocal2VReg[variableIndex] = newVirtualRegister;
-	}
-
-	//Update or create <local, on-watch instruction>
-	mLoadInsOnWatch[variableIndex] = instruction;
-}
-
-std::optional<RTJ::Hex::ConcreteInstruction> RTJ::Hex::LSRA::RequestLoad(
-	UInt8 virtualRegister,
-	UInt64 registerMask)
-{
-	if (!mVReg2PReg.contains(virtualRegister))
-	{
-		//Allocate register for virtual register
-		auto registerRequest = TryPollRegister(registerMask);
-		if (registerRequest.has_value())
-		{
-			auto newRegister = registerRequest.value();
-			//Maybe it's a completely independent instruction
-			auto variableResult = mVReg2Local.find(virtualRegister);
-			if (variableResult != mVReg2Local.end())
-			{
-				auto variableIndex = variableResult->second;
-				//Get freed register and update state
-				auto instruction = CopyInstruction(mLoadInsOnWatch[variableIndex], ConcreteInstruction::LoadOperandCount);
-				//Write register to instruction
-				auto&& registerOperand = instruction.GetOperands()[0];
-				registerOperand.Kind = OperandKind::Register;
-				registerOperand.Register = newRegister;
-				//Update mapping
-				mVReg2PReg[virtualRegister] = newRegister;
-				return instruction;
-			}
-			else
-			{
-				//Update mapping
-				mVReg2PReg[virtualRegister] = newRegister;
-				return {};
-			}
-		}
-		else
-		{
-			//Spill one variable
-
-		}
-	}
-	return {};
-}
-
-void RTJ::Hex::LSRA::WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister)
-{
-	auto iterator = mVReg2Local.find(virtualRegister);
-	if (iterator != mVReg2Local.end())
-	{
-		auto oldVariable = iterator->second;
-		if (oldVariable != variableIndex)
-		{
-			mVReg2Local.erase(iterator);
-			mLocal2VReg.erase(oldVariable);
-		}
-	}
-
-	mVReg2Local[virtualRegister] = variableIndex;
-	mLocal2VReg[variableIndex] = virtualRegister;
-}
-
-void RTJ::Hex::LSRA::RequestStore(UInt16 variableIndex, UInt8 virtualRegister)
-{
-
-}
-
-void RTJ::Hex::LSRA::UsePhysicalResigster(InstructionOperand& operand)
-{
-	operand.Kind = OperandKind::Register;
-	operand.Register = mVReg2PReg[operand.VirtualRegister];
-}
-
-void RTJ::Hex::LSRA::InvalidateVirtualRegister(UInt8 virtualRegister)
-{
-	auto iterator = mVReg2Local.find(virtualRegister);
-	if (iterator != mVReg2Local.end())
-	{
-		auto localIndex = iterator->second;
-		mVReg2Local.erase(iterator);
-		mLocal2VReg.erase(localIndex);
-		//Maybe we can just leave the mapping here
-		mLoadInsOnWatch.erase(localIndex);
-	}
-}
-
-void RTJ::Hex::LSRA::InvalidateLocalVariable(UInt8 variable)
-{
-	auto iterator = mLocal2VReg.find(variable);
-	if (iterator != mLocal2VReg.end())
-	{
-		auto virtualRegister = iterator->second;
-		mVReg2Local.erase(virtualRegister);
-		mLocal2VReg.erase(iterator);
-		//Maybe we can just leave the mapping here
-		mLoadInsOnWatch.erase(variable);
-	}
-}
-
-void RTJ::Hex::LSRA::InvalidateContextWithLiveness()
+void RTJ::Hex::LSRA::InvalidateWithinBasicBlock()
 {
 	for (auto iterator = mLiveness.begin(); iterator != mLiveness.end(); ++iterator)
 	{
@@ -157,9 +15,57 @@ void RTJ::Hex::LSRA::InvalidateContextWithLiveness()
 			if (liveness.To <= mLivenessIndex)
 				durationQueue.pop();
 			else if (mLivenessIndex < liveness.From)
-				InvalidateLocalVariable(local);
+				mRegContext->InvalidateLocalVariable(local);
+		}
+
+		if (durationQueue.empty())
+		{
+			iterator = mLiveness.erase(iterator);
+			continue;
 		}
 	}
+}
+
+void RTJ::Hex::LSRA::InvalidateAcrossBaiscBlock()
+{
+	for (auto iterator = mLiveness.begin(); iterator != mLiveness.end(); ++iterator)
+	{
+		auto&& [local, durationQueue] = *iterator;
+		if (!durationQueue.empty())
+		{
+			auto&& liveness = durationQueue.front();
+			if (liveness.To <= mLivenessIndex)
+				durationQueue.pop();
+			else if (mLivenessIndex < liveness.From)
+			{
+				//Out
+				mRegContext->InvalidateLocalVariable(local);
+				mRegContext->TryInvalidatePVAllocation(local);
+			}
+		}
+		if (durationQueue.empty())
+		{
+			iterator = mLiveness.erase(iterator);
+			continue;
+		}
+	}
+}
+
+void RTJ::Hex::LSRA::MergeContext()
+{
+	AllocationContext* mergedContext = nullptr;
+	for (auto&& bb : mCurrentBB->BBIn)
+	{
+		if (auto context = bb->RegisterContext; context != nullptr)
+		{
+
+		}
+	}
+}
+
+std::optional<RT::UInt8> RTJ::Hex::LSRA::RetriveSpillCandidate()
+{
+	return {};
 }
 
 void RTJ::Hex::LSRA::ChooseCandidate()
@@ -225,6 +131,9 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		basicBlock != nullptr;
 		basicBlock = basicBlock->Next)
 	{
+		//Call merge method at first
+		MergeContext();
+
 		for (Statement* stmt = basicBlock->Now;
 			stmt != nullptr;
 			stmt = stmt->Next)
@@ -232,8 +141,9 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 			mInterpreter.Interpret(stmt->Now,
 				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
 			mLivenessIndex++;
+
 			//Clean up context according to liveness
-			InvalidateContextWithLiveness();
+			InvalidateWithinBasicBlock();
 		}
 
 		//If we need branch instruction
@@ -242,10 +152,9 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 			mInterpreter.InterpretBranch(basicBlock->BranchConditionValue,
 				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
 			mLivenessIndex++;
-			if (basicBlock->BranchConditionValue != nullptr)
-				mLivenessIndex++;
+
 			//Clean up context according to liveness
-			InvalidateContextWithLiveness();
+			InvalidateAcrossBaiscBlock();
 		}
 	}
 }
@@ -257,13 +166,14 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 	{
 		auto&& destinationRegister = operands[0];
 		auto&& sourceVariable = operands[1];
-		WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister, instruction);
+		mRegContext->WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister, instruction);
+		
 	}
 	else if (instruction.IsLocalStore())
 	{
 		auto&& destinationVariable = operands[0];
 		auto&& sourceRegister = operands[1];
-		WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister);
+		mRegContext->WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister, instruction);
 	}
 	else
 	{
@@ -273,16 +183,21 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 			auto&& operand = operands[i];
 			if (operand.Flags & OperandKind::VirtualRegister)
 			{
-				auto emitInstruction = RequestLoad(operand.VirtualRegister, constraints[i].RegisterAvaliableMask);
+				auto [emitInstruction, needSpill] = mRegContext->RequestLoad(operand.VirtualRegister, constraints[i].RegisterAvaliableMask);
+
+				if (needSpill)
+				{
+
+				}
 				if (emitInstruction.has_value())
 					mInstructions.push_back(emitInstruction.value());
 
 				//Update to physical register
-				UsePhysicalResigster(operand);
+				mRegContext->UsePhysicalResigster(operand);
 
 				//Check if we should invalidate the relationship (v-reg, local variable)
 				if (operand.IsModifyingRegister())
-					InvalidateVirtualRegister(operand.VirtualRegister);
+					mRegContext->InvalidateVirtualRegister(operand.VirtualRegister);
 			}
 		}
 	}
@@ -373,12 +288,13 @@ RTJ::Hex::LocalVariableNode* RTJ::Hex::LSRA::GuardedSourceExtract(LoadNode* stor
 	return nullptr;
 }
 
-RTJ::Hex::ConcreteInstruction RTJ::Hex::LSRA::CopyInstruction(ConcreteInstruction const& origin, Int32 operandsCount)
+RTJ::Hex::ConcreteInstruction RTJ::Hex::AllocationContext::CopyInstruction(ConcreteInstruction const& origin)
 {
 	ConcreteInstruction newOne = origin;
+	auto operandsCount = origin.Instruction->ConstraintLength;
 	if (operandsCount > 0)
 	{
-		InstructionOperand* operands = new (POOL) InstructionOperand[operandsCount];
+		InstructionOperand* operands = new (mHeap) InstructionOperand[operandsCount];
 		std::memcpy(operands, origin.GetOperands(), sizeof(InstructionOperand) * operandsCount);
 		newOne.Operands = operands;
 	}
@@ -398,4 +314,176 @@ RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 	ComputeLivenessDuration();
 	AllocateRegisters();
 	return mContext->BBs.front();
+}
+
+void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction ins)
+{
+	auto iterator = mLocal2VReg.find(variableIndex);
+	//Check if there's any alreadly in state mapping
+	if (iterator != mLocal2VReg.end())
+	{
+		/* We don't care whether the physical register is allocated
+		* or just on-hold. We just simply inherit the value from the
+		* history and it will be used when we encounter the usage of
+		* v-register
+		*/
+		auto&& virtualRegister = iterator->second;
+
+		//Check if origin allocated virtual register is the same with new one
+		if (virtualRegister != newVirtualRegister)
+		{
+			mVReg2Local.erase(virtualRegister);
+			mVReg2Local[virtualRegister] = variableIndex;
+			//Update virtual register
+			virtualRegister = newVirtualRegister;
+		}
+	}
+	else
+	{
+		//If there is non, create on-hold state
+		mVReg2Local[newVirtualRegister] = variableIndex;
+		mLocal2VReg[variableIndex] = newVirtualRegister;
+	}
+
+	//Update proto instruction
+	mLoadInsOnWatch[variableIndex] = ins;
+}
+
+void RTJ::Hex::AllocationContext::WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister, ConcreteInstruction ins)
+{
+	
+	if (auto iterator = mVReg2Local.find(virtualRegister); iterator != mVReg2Local.end())
+	{
+		if (auto oldVariable = iterator->second; oldVariable != variableIndex)
+		{
+			mVReg2Local.erase(iterator);
+			mLocal2VReg.erase(oldVariable);
+		}
+	}
+
+	mVReg2Local[virtualRegister] = variableIndex;
+	mLocal2VReg[variableIndex] = virtualRegister;
+	mLoadInsOnWatch[variableIndex] = ins;
+}
+
+std::optional<RT::UInt8> RTJ::Hex::AllocationContext::TryPollRegister(UInt64 mask)
+{
+	UInt64 maskedValue = mRegisterPool & mask;
+	if (maskedValue)
+	{
+		UInt8 freeRegister = Bit::LeftMostSetBit(maskedValue);
+		Bit::SetZero(mRegisterPool, freeRegister);
+		return freeRegister;
+	}
+	else
+		return {};
+}
+
+void RTJ::Hex::AllocationContext::ReturnRegister(UInt8 physicalRegister)
+{
+}
+
+void RTJ::Hex::AllocationContext::UsePhysicalResigster(InstructionOperand& operand)
+{
+	operand.Kind = OperandKind::Register;
+	operand.Register = mVReg2PReg[operand.VirtualRegister];
+}
+
+void RTJ::Hex::AllocationContext::InvalidateVirtualRegister(UInt8 virtualRegister)
+{
+	if (auto iterator = mVReg2Local.find(virtualRegister); iterator != mVReg2Local.end())
+	{
+		auto localIndex = iterator->second;
+		mVReg2Local.erase(iterator);
+		mLocal2VReg.erase(localIndex);
+		//Maybe we can just leave the mapping here
+		mLoadInsOnWatch.erase(localIndex);
+	}
+}
+
+void RTJ::Hex::AllocationContext::InvalidateLocalVariable(UInt16 variable)
+{
+	if (auto iterator = mLocal2VReg.find(variable); iterator != mLocal2VReg.end())
+	{
+		auto virtualRegister = iterator->second;
+		mVReg2Local.erase(virtualRegister);
+		mLocal2VReg.erase(iterator);
+		//Maybe we can just leave the mapping here
+		mLoadInsOnWatch.erase(variable);
+	}
+}
+
+void RTJ::Hex::AllocationContext::InvalidatePVAllocation(UInt16 variable)
+{
+	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
+	{
+		auto iterator = mVReg2PReg.find(vReg->second);
+		if (iterator != mVReg2PReg.end())
+		{
+			ReturnRegister(iterator->second);
+			mVReg2PReg.erase(iterator);
+		}
+	}
+}
+
+void RTJ::Hex::AllocationContext::TryInvalidatePVAllocation(UInt16 variable)
+{
+	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
+	{
+		auto iterator = mVReg2PReg.find(vReg->second);
+		if (iterator != mVReg2PReg.end())
+		{
+			ReturnRegister(iterator->second);
+			mVReg2PReg.erase(iterator);
+		}
+	}
+}
+
+std::tuple<std::optional<RTJ::Hex::ConcreteInstruction>, bool> 
+RTJ::Hex::AllocationContext::RequestLoad(
+	UInt8 virtualRegister,
+	UInt64 registerMask)
+{
+	if (!mVReg2PReg.contains(virtualRegister))
+	{
+		//Allocate register for virtual register
+		auto registerRequest = TryPollRegister(registerMask);
+		if (registerRequest.has_value())
+		{
+			auto newRegister = registerRequest.value();
+			//Maybe it's a completely independent instruction			
+			if (auto variableResult = mVReg2Local.find(virtualRegister); 
+				variableResult != mVReg2Local.end())
+			{
+				auto variableIndex = variableResult->second;
+				//Get freed register and update state
+				auto instruction = CopyInstruction(mLoadInsOnWatch[variableIndex]);
+				//Write register to instruction
+				auto&& registerOperand = instruction.GetOperands()[0];
+				registerOperand.Kind = OperandKind::Register;
+				registerOperand.Register = newRegister;
+				//Update mapping
+				mVReg2PReg[virtualRegister] = newRegister;
+				return { instruction, false };
+			}
+			else
+			{
+				//Update mapping
+				mVReg2PReg[virtualRegister] = newRegister;
+				return {};
+			}
+		}
+		else
+		{
+			//Need to spill
+			return { {}, true };
+		}
+	}
+	return { {}, false };
+}
+
+std::optional<RTJ::Hex::ConcreteInstruction> 
+RTJ::Hex::AllocationContext::RequestStore(UInt16 variableIndex, UInt8 virtualRegister)
+{
+
 }
