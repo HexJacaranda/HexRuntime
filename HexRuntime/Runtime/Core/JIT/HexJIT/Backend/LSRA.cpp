@@ -1,6 +1,7 @@
 #include "LSRA.h"
 #include "..\..\..\Exception\RuntimeException.h"
 #include "..\..\..\..\Bit.h"
+#include <set>
 
 #define POOL mContext->Memory
 
@@ -99,29 +100,37 @@ void RTJ::Hex::LSRA::ComputeLivenessDuration()
 		basicBlock != nullptr;
 		basicBlock = basicBlock->Next)
 	{
-		for (Statement* stmt = basicBlock->Now;
-			stmt != nullptr;
-			stmt = stmt->Next)
+		Statement* tail = basicBlock->Now;
+		if (tail == nullptr)
+			continue;
+
+		auto&& liveness = basicBlock->Liveness;
+		Int32 livenessMapIndex = 0;
+
+		while (tail->Next != nullptr)
 		{
+			tail = tail->Next;
+			livenessMapIndex++;
+		}
+
+		std::set<UInt16> liveSet{};
+		//In reverse order
+		for (Statement* stmt = tail;
+			stmt != nullptr;
+			stmt = stmt->Prev)
+		{			
 			/* Here we can assume that all the nodes are flattened by Linearizer.
 			* All the depth should not be greater than 3 (maybe 4?)
 			*/
-			UpdateLivenessFor(stmt->Now);
-			mLivenessIndex++;
+			UpdateLiveSet(stmt->Now, liveSet);
+			liveness[livenessMapIndex--] = liveSet;
 		}
 
 		if (basicBlock->BranchConditionValue != nullptr)
 		{
 			UpdateLivenessFor(basicBlock->BranchConditionValue);
-			mLivenessIndex++;
 		}
-		if (basicBlock->BranchKind != PPKind::Sequential)
-			//Gap to stop allocation context propagating
-			mLivenessIndex++;
 	}
-
-	//Reset index for allocation
-	mLivenessIndex = 0;
 }
 
 void RTJ::Hex::LSRA::AllocateRegisters()
@@ -140,7 +149,6 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		{
 			mInterpreter.Interpret(stmt->Now,
 				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
-			mLivenessIndex++;
 
 			//Clean up context according to liveness
 			InvalidateWithinBasicBlock();
@@ -151,7 +159,6 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		{
 			mInterpreter.InterpretBranch(basicBlock->BranchConditionValue,
 				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
-			mLivenessIndex++;
 
 			//Clean up context according to liveness
 			InvalidateAcrossBaiscBlock();
@@ -203,30 +210,34 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 	}
 }
 
-void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
+void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, std::set<UInt16>& liveSet)
 {
-	auto update = [&](Int16 index, NodeKinds kind) {
-		if (kind == NodeKinds::LocalVariable && !mContext->LocalAttaches[index].IsTrackable())
-			return;
+	auto isQualified = [this](Int16 indexValue, NodeKinds kind) -> std::optional<UInt16> {
+		if (kind == NodeKinds::LocalVariable &&
+			!mContext->LocalAttaches[indexValue].IsTrackable())
+			return {};
 
-		if (kind == NodeKinds::Argument && !mContext->ArgumentAttaches[index].IsTrackable())
-			return;
+		if (kind == NodeKinds::Argument &&
+			!mContext->ArgumentAttaches[indexValue].IsTrackable())
+			return {};
 
+		UInt16 index = indexValue;
 		if (kind == NodeKinds::Argument)
-			index |= 0x8000;
+			index |= 0x8000u;
 
-		auto&& livenessList = mLiveness[index];
+		return index;
+	};
 
-		if (livenessList.size() == 0)
-			livenessList.push({ mLivenessIndex, mLivenessIndex + 1 });
-		else
-		{
-			auto&& previous = livenessList.back();
-			if (previous.To == mLivenessIndex)
-				previous.To++;
-			else
-				livenessList.push({ mLivenessIndex, mLivenessIndex + 1 });
-		}
+	auto use = [&](Int16 originIndexValue, NodeKinds kind)
+	{
+		if (auto index = isQualified(originIndexValue, kind); index.has_value())
+			liveSet.insert(index.value());
+	};
+
+	auto kill = [&](Int16 originIndexValue, NodeKinds kind)
+	{
+		if (auto index = isQualified(originIndexValue, kind); index.has_value())
+			liveSet.erase(index.value());
 	};
 
 	switch (node->Kind)
@@ -234,27 +245,27 @@ void RTJ::Hex::LSRA::UpdateLivenessFor(TreeNode* node)
 	case NodeKinds::Store:
 	{
 		if (auto variable = GuardedDestinationExtract(node->As<StoreNode>()))
-			update(variable->LocalIndex, variable->Kind);
+			kill(variable->LocalIndex, variable->Kind);
 		break;
 	}
 	case NodeKinds::Load:
 	{
 		if (auto variable = GuardedSourceExtract(node->As<LoadNode>()))
-			update(variable->LocalIndex, variable->Kind);
+			use(variable->LocalIndex, variable->Kind);
 		break;
 	}
 	case NodeKinds::MorphedCall:
 	{
 		auto call = node->As<MorphedCallNode>();
 		ForeachInlined(call->Arguments, call->ArgumentCount,
-			[&](auto node) { UpdateLivenessFor(node); });
+			[&](auto node) { UpdateLivenessFor(node, liveSet); });
 
 		auto origin = call->Origin;
 		if (origin->Is(NodeKinds::Call))
 		{
 			auto managedCall = origin->As<CallNode>();
 			ForeachInlined(managedCall->Arguments, managedCall->ArgumentCount,
-				[&](auto node) { UpdateLivenessFor(node); });
+				[&](auto node) { UpdateLivenessFor(node, liveSet); });
 		}
 		break;
 	}

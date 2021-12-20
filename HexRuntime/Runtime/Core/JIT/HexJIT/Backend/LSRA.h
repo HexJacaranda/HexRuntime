@@ -9,43 +9,10 @@
 #include <optional>
 #include <tuple>
 #include <queue>
+#include <set>
 
 namespace RTJ::Hex
 {
-	struct Liveness
-	{
-		Int32 From;
-		Int32 To;
-	};
-
-	/// <summary>
-	/// Triple tuple between (Local/Argument, PlatformRegister, VirtualRegister)
-	/// </summary>
-	struct RegisterAllocationState
-	{
-		ETY = UInt8;
-		VAL OnHold = 0xFF;
-
-		UInt16 Index;
-		UInt8 Register;
-		UInt8 VirtualRegister;
-	public:
-		RegisterAllocationState() :
-			Index(0), 
-			Register(OnHold), 
-			VirtualRegister(OnHold) {}
-		RegisterAllocationState(UInt16 index, UInt8 virtualRegister) :
-			Index(index), 
-			Register(OnHold), 
-			VirtualRegister(virtualRegister) {}
-		Int16 GetLocal()const {
-			return (Int16)(Index & 0x7FFF);
-		}
-		Int16 GetArgument()const {
-			return (Int16)(Index & 0x7FFF);
-		}
-	};
-
 	class AllocationContext
 	{
 		RTMM::SegmentHeap* mHeap = nullptr;
@@ -82,8 +49,6 @@ namespace RTJ::Hex
 	class LSRA : public IHexJITFlow
 	{
 		HexJITContext* mContext = nullptr;
-		Int32 mLivenessIndex = 0;
-		std::unordered_map<UInt16, std::queue<Liveness>> mLiveness;
 		
 		Int32 mInsIndex = 0;
 		std::vector<ConcreteInstruction> mInstructions; 
@@ -105,14 +70,14 @@ namespace RTJ::Hex
 		void MergeContext();
 		std::optional<UInt8> RetriveSpillCandidate();
 		void AllocateRegisterFor(ConcreteInstruction instruction);
-		void UpdateLivenessFor(TreeNode* node);
-
+		
 		void ChooseCandidate();
 		void ComputeLivenessDuration();
 		void AllocateRegisters();
 
 		static LocalVariableNode* GuardedDestinationExtract(StoreNode* store);
 		static LocalVariableNode* GuardedSourceExtract(LoadNode* store);
+		void UpdateLiveSet(TreeNode* node, std::set<UInt16>& liveSet);
 	public:
 		LSRA(HexJITContext* context);
 		virtual BasicBlock* PassThrough() final;

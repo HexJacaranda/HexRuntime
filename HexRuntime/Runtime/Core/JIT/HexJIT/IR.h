@@ -7,6 +7,7 @@
 #include "..\..\Meta\CoreTypes.h"
 #include "..\..\Platform\PlatformSpecialization.h"
 #include <vector>
+#include <set>
 
 namespace RTM
 {
@@ -519,6 +520,9 @@ namespace RTJ::Hex
 		Finally
 	};
 
+	using BitSet = std::set<UInt16>;
+	using LivenessMapT = std::vector<BitSet>;
+
 	struct BasicBlock
 	{
 		//IL sequential connection
@@ -542,6 +546,9 @@ namespace RTJ::Hex
 		BasicBlock* BranchedBB = nullptr;
 
 		AllocationContext* RegisterContext;
+		std::vector<UInt16> VariablesLiveIn;
+		std::vector<UInt16> VariablesLiveOut;
+		LivenessMapT Liveness;
 	public:
 		std::vector<BasicBlock*> BBIn;
 	};
