@@ -16,7 +16,7 @@ namespace RT
 	template<class U>
 	class SmallSet
 	{
-		std::vector<U> mSet;
+		mutable std::vector<U> mSet;
 	public:
 		bool Contains(U const& value)const
 		{
@@ -49,10 +49,16 @@ namespace RT
 		iterator_type end() {
 			return mSet.end();
 		}
-		const_iterator_type cbegin() {
+		const_iterator_type begin() const {
 			return mSet.cbegin();
 		}
-		const_iterator_type cend() {
+		const_iterator_type end() const {
+			return mSet.cend();
+		}
+		const_iterator_type cbegin() const {
+			return mSet.cbegin();
+		}
+		const_iterator_type cend() const {
 			return mSet.cend();
 		}
 	public:
@@ -63,22 +69,22 @@ namespace RT
 		SmallSet& operator=(SmallSet&&) = default;
 		~SmallSet() = default;
 	public:
-		SmallSet operator|(SmallSet const& another)const
+		SmallSet operator|(SmallSet const& another)
 		{
 			SmallSet value{};
-			std::set_union(RANGE(mSet), RANGE(another), std::inserter(value.mSet, value.mSet.begin()));
+			std::set_union(RANGE(mSet), RANGE(another.mSet), std::inserter(value.mSet, value.mSet.begin()));
 			return value;
 		}
-		SmallSet operator&(SmallSet const& another)const
+		SmallSet operator&(SmallSet const& another)
 		{
 			SmallSet value{};
-			std::set_intersection(RANGE(mSet), RANGE(another), std::inserter(value.mSet, value.mSet.begin()));
+			std::set_intersection(RANGE(mSet), RANGE(another.mSet), std::inserter(value.mSet, value.mSet.begin()));
 			return value;
 		}
-		SmallSet operator-(SmallSet const& another)const
+		SmallSet operator-(SmallSet const& another)
 		{
 			SmallSet value{};
-			std::set_difference(RANGE(mSet), RANGE(another), std::inserter(value.mSet, value.mSet.begin()));
+			std::set_difference(RANGE(mSet), RANGE(another.mSet), std::inserter(value.mSet, value.mSet.begin()));
 			return value;
 		}
 		bool operator== (SmallSet const& another)const

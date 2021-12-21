@@ -265,14 +265,14 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, Variab
 	{
 		auto call = node->As<MorphedCallNode>();
 		ForeachInlined(call->Arguments, call->ArgumentCount,
-			[&](auto argument) { UpdateLiveSet(argument, liveSet); });
+			[&](auto argument) { UpdateLiveSet(argument, currentBB, liveSet); });
 
 		auto origin = call->Origin;
 		if (origin->Is(NodeKinds::Call))
 		{
 			auto managedCall = origin->As<CallNode>();
 			ForeachInlined(managedCall->Arguments, managedCall->ArgumentCount,
-				[&](auto argument) { UpdateLiveSet(argument, liveSet); });
+				[&](auto argument) { UpdateLiveSet(argument, currentBB, liveSet); });
 		}
 		break;
 	}
@@ -503,5 +503,5 @@ RTJ::Hex::AllocationContext::RequestLoad(
 std::optional<RTJ::Hex::ConcreteInstruction> 
 RTJ::Hex::AllocationContext::RequestStore(UInt16 variableIndex, UInt8 virtualRegister)
 {
-
+	return {};
 }
