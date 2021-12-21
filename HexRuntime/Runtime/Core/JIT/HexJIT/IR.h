@@ -6,8 +6,8 @@
 #include "..\..\..\Utility.h"
 #include "..\..\Meta\CoreTypes.h"
 #include "..\..\Platform\PlatformSpecialization.h"
+#include "..\..\..\SmallSet.h"
 #include <vector>
-#include <set>
 
 namespace RTM
 {
@@ -520,8 +520,8 @@ namespace RTJ::Hex
 		Finally
 	};
 
-	using BitSet = std::vector<UInt16>;
-	using LivenessMapT = std::vector<BitSet>;
+	using VariableSet = SmallSet<UInt16>;
+	using LivenessMapT = std::vector<VariableSet>;
 
 	struct BasicBlock
 	{
@@ -546,13 +546,30 @@ namespace RTJ::Hex
 		BasicBlock* BranchedBB = nullptr;
 
 		AllocationContext* RegisterContext;
-		BitSet VariablesLiveIn;
-		BitSet VariablesLiveOut;
-		BitSet VariablesUse;
-		BitSet VariablesDef;
+		VariableSet VariablesLiveIn;
+		VariableSet VariablesLiveOut;
+		VariableSet VariablesUse;
+		VariableSet VariablesDef;
 		LivenessMapT Liveness;
 	public:
 		std::vector<BasicBlock*> BBIn;
+	public:
+		template<class Fn>
+		void ForeachSuccessor(Fn&& action)
+		{
+			auto next = Next;
+			auto branch = BranchedBB;
+
+			if (next != nullptr)
+				std::forward<Fn>(action)(next);
+
+			//Prevent duplicate access
+			if (branch != nullptr && branch != next)
+				std::forward<Fn>(action)(branch);
+		}
+		bool IsUnreachable()const {
+			return BBIn.empty();
+		}
 	};
 
 	struct BasicBlockPartitionPoint

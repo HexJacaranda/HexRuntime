@@ -85,7 +85,7 @@ namespace RTJ::Hex
 
 		static LocalVariableNode* GuardedDestinationExtract(StoreNode* store);
 		static LocalVariableNode* GuardedSourceExtract(LoadNode* store);
-		void UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, std::set<UInt16>& liveSet);
+		void UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, VariableSet& liveSet);
 	public:
 		LSRA(HexJITContext* context);
 		virtual BasicBlock* PassThrough() final;

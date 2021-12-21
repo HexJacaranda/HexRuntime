@@ -312,6 +312,9 @@
     <ClInclude Include="Runtime\Bit.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\SmallSet.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

@@ -87,6 +87,7 @@
     <ClInclude Include="Runtime\ObservableArray.h" />
     <ClInclude Include="Runtime\Range.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
+    <ClInclude Include="Runtime\SmallSet.h" />
     <ClInclude Include="Runtime\Utility.h" />
   </ItemGroup>
   <ItemGroup>

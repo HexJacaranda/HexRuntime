@@ -61,6 +61,9 @@ namespace Runtime
 
 //Argument as result annotation
 #define _RE_
+
+
+#define SIMD256
 }
 
 //Overrides for mimalloc

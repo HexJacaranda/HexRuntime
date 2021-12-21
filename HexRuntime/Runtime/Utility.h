@@ -159,15 +159,6 @@ namespace RT
 		}
 	}
 
-	template< typename T >
-	typename std::vector<T>::iterator SortedInsert(std::vector<T>& vec, T const& item)
-	{
-		auto location = std::upper_bound(vec.begin(), vec.end(), item);
-		if (location != vec.end() && *location == item)
-			return vec.end();
-		return vec.insert(location, item);
-	}
-
 #define ETY using EnumType
 #define VAL static constexpr EnumType
 }

@@ -71,7 +71,7 @@ void RTJ::Hex::LSRA::LivenessDurationBuildPass()
 			livenessMapIndex++;
 
 		auto&& liveness = basicBlock->Liveness = std::move(LivenessMapT(livenessMapIndex + 1));
-		std::set<UInt16> liveSet{};
+		VariableSet liveSet{};
 		//In reverse order
 		if (basicBlock->BranchConditionValue != nullptr)
 		{
@@ -89,12 +89,43 @@ void RTJ::Hex::LSRA::LivenessDurationBuildPass()
 
 void RTJ::Hex::LSRA::LivenessDurationCompletePass()
 {
-	for (auto&& basicBlock : mContext->BBs | std::views::reverse)
+	BitSet stableMap(mContext->BBs.size());
+
+	while (!stableMap.IsOne())
 	{
-		auto&& oldIn = basicBlock->VariablesLiveIn;
-		auto&& oldOut = basicBlock->VariablesLiveOut;
-		
-		auto newIn = basicBlock->VariablesUse & (oldOut - basicBlock->VariablesDef);
+		for (Int32 i = 0; i < stableMap.Count(); i++)
+		{
+			auto&& basicBlock = mContext->BBs[i];
+			//Reduce computation for stable BB
+			if (!stableMap.Test(i) && !basicBlock->IsUnreachable())
+			{
+				auto&& oldIn = basicBlock->VariablesLiveIn;
+				auto&& oldOut = basicBlock->VariablesLiveOut;
+
+				auto newIn = basicBlock->VariablesUse | (oldOut - basicBlock->VariablesDef);
+				auto newOut = VariableSet{};
+
+				basicBlock->ForeachSuccessor(
+					[&](auto successor)
+					{
+						newOut = std::move(newOut | successor->VariablesLiveIn);
+					});
+
+				/* We only compare newIn with oldIn because:
+				* 1. Changes from LiveOut will be propagated to LiveIn
+				* 2. LiveIn changes will be propagated to predecessors' LiveOut
+				*/
+
+				if (newIn != oldIn)
+				{
+					//Propagate to predecessors
+					for (auto&& bbIn : basicBlock->BBIn)
+						stableMap.SetZero(bbIn->Index);
+				}
+				else
+					stableMap.SetOne(i);
+			}
+		}
 	}
 }
 
@@ -178,7 +209,7 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 	}
 }
 
-void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, std::set<UInt16>& liveSet)
+void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, VariableSet& liveSet)
 {
 	auto isQualified = [this](Int16 indexValue, NodeKinds kind) -> std::optional<UInt16> {
 		if (kind == NodeKinds::LocalVariable &&
@@ -201,8 +232,8 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, std::s
 		if (auto index = isQualified(originIndexValue, kind); index.has_value())
 		{
 			auto indexValue = index.value();
-			SortedInsert(currentBB->VariablesUse, indexValue);
-			liveSet.insert(indexValue);
+			currentBB->VariablesUse.Add(indexValue);
+			liveSet.Add(indexValue);
 		}
 	};
 
@@ -211,8 +242,8 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, std::s
 		if (auto index = isQualified(originIndexValue, kind); index.has_value())
 		{
 			auto indexValue = index.value();
-			SortedInsert(currentBB->VariablesDef, indexValue);
-			liveSet.erase(indexValue);
+			currentBB->VariablesDef.Add(indexValue);
+			liveSet.Remove(indexValue);
 		}
 	};
 
