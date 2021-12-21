@@ -520,7 +520,7 @@ namespace RTJ::Hex
 		Finally
 	};
 
-	using BitSet = std::set<UInt16>;
+	using BitSet = std::vector<UInt16>;
 	using LivenessMapT = std::vector<BitSet>;
 
 	struct BasicBlock
@@ -546,8 +546,10 @@ namespace RTJ::Hex
 		BasicBlock* BranchedBB = nullptr;
 
 		AllocationContext* RegisterContext;
-		std::vector<UInt16> VariablesLiveIn;
-		std::vector<UInt16> VariablesLiveOut;
+		BitSet VariablesLiveIn;
+		BitSet VariablesLiveOut;
+		BitSet VariablesUse;
+		BitSet VariablesDef;
 		LivenessMapT Liveness;
 	public:
 		std::vector<BasicBlock*> BBIn;

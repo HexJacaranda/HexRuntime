@@ -53,7 +53,6 @@ namespace RTJ::Hex
 		Int32 mInsIndex = 0;
 		std::vector<ConcreteInstruction> mInstructions; 
 		AllocationContext* mRegContext;
-		BasicBlock* mCurrentBB;
 		NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth> mInterpreter;
 	private:
 		/// <summary>
@@ -72,12 +71,21 @@ namespace RTJ::Hex
 		void AllocateRegisterFor(ConcreteInstruction instruction);
 		
 		void ChooseCandidate();
+
+		/// <summary>
+		/// Build the main part of liveness
+		/// </summary>
+		void LivenessDurationBuildPass();
+		/// <summary>
+		/// Build the rest
+		/// </summary>
+		void LivenessDurationCompletePass();
 		void ComputeLivenessDuration();
 		void AllocateRegisters();
 
 		static LocalVariableNode* GuardedDestinationExtract(StoreNode* store);
 		static LocalVariableNode* GuardedSourceExtract(LoadNode* store);
-		void UpdateLiveSet(TreeNode* node, std::set<UInt16>& liveSet);
+		void UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, std::set<UInt16>& liveSet);
 	public:
 		LSRA(HexJITContext* context);
 		virtual BasicBlock* PassThrough() final;

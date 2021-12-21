@@ -2,66 +2,23 @@
 #include "..\..\..\Exception\RuntimeException.h"
 #include "..\..\..\..\Bit.h"
 #include <set>
+#include <ranges>
 
 #define POOL mContext->Memory
 
 void RTJ::Hex::LSRA::InvalidateWithinBasicBlock()
 {
-	for (auto iterator = mLiveness.begin(); iterator != mLiveness.end(); ++iterator)
-	{
-		auto&& [local, durationQueue] = *iterator;
-		if (!durationQueue.empty())
-		{
-			auto&& liveness = durationQueue.front();
-			if (liveness.To <= mLivenessIndex)
-				durationQueue.pop();
-			else if (mLivenessIndex < liveness.From)
-				mRegContext->InvalidateLocalVariable(local);
-		}
 
-		if (durationQueue.empty())
-		{
-			iterator = mLiveness.erase(iterator);
-			continue;
-		}
-	}
 }
 
 void RTJ::Hex::LSRA::InvalidateAcrossBaiscBlock()
 {
-	for (auto iterator = mLiveness.begin(); iterator != mLiveness.end(); ++iterator)
-	{
-		auto&& [local, durationQueue] = *iterator;
-		if (!durationQueue.empty())
-		{
-			auto&& liveness = durationQueue.front();
-			if (liveness.To <= mLivenessIndex)
-				durationQueue.pop();
-			else if (mLivenessIndex < liveness.From)
-			{
-				//Out
-				mRegContext->InvalidateLocalVariable(local);
-				mRegContext->TryInvalidatePVAllocation(local);
-			}
-		}
-		if (durationQueue.empty())
-		{
-			iterator = mLiveness.erase(iterator);
-			continue;
-		}
-	}
+
 }
 
 void RTJ::Hex::LSRA::MergeContext()
 {
-	AllocationContext* mergedContext = nullptr;
-	for (auto&& bb : mCurrentBB->BBIn)
-	{
-		if (auto context = bb->RegisterContext; context != nullptr)
-		{
 
-		}
-	}
 }
 
 std::optional<RT::UInt8> RTJ::Hex::LSRA::RetriveSpillCandidate()
@@ -93,52 +50,63 @@ void RTJ::Hex::LSRA::ChooseCandidate()
 	}
 }
 
-void RTJ::Hex::LSRA::ComputeLivenessDuration()
+void RTJ::Hex::LSRA::LivenessDurationBuildPass()
 {
-	auto bbHead = mContext->BBs.front();
-	for (BasicBlock* basicBlock = bbHead;
-		basicBlock != nullptr;
-		basicBlock = basicBlock->Next)
+	for (auto&& basicBlock : mContext->BBs | std::views::reverse)
 	{
+		/* Here we can assume that all the nodes are flattened by Linearizer.
+		 * All the depth should not be greater than 3 (maybe 4?)
+		 */
 		Statement* tail = basicBlock->Now;
-		if (tail == nullptr)
-			continue;
-
-		auto&& liveness = basicBlock->Liveness;
 		Int32 livenessMapIndex = 0;
 
-		while (tail->Next != nullptr)
+		//Iterate over normal body
+		while (tail != nullptr && tail->Next != nullptr)
 		{
 			tail = tail->Next;
 			livenessMapIndex++;
 		}
+		//Condition statement
+		if (basicBlock->BranchConditionValue != nullptr)
+			livenessMapIndex++;
 
+		auto&& liveness = basicBlock->Liveness = std::move(LivenessMapT(livenessMapIndex + 1));
 		std::set<UInt16> liveSet{};
 		//In reverse order
-		for (Statement* stmt = tail;
-			stmt != nullptr;
-			stmt = stmt->Prev)
-		{			
-			/* Here we can assume that all the nodes are flattened by Linearizer.
-			* All the depth should not be greater than 3 (maybe 4?)
-			*/
-			UpdateLiveSet(stmt->Now, liveSet);
+		if (basicBlock->BranchConditionValue != nullptr)
+		{
+			UpdateLiveSet(basicBlock->BranchConditionValue, basicBlock, liveSet);
 			liveness[livenessMapIndex--] = liveSet;
 		}
 
-		if (basicBlock->BranchConditionValue != nullptr)
+		for (Statement* stmt = tail; stmt != nullptr; stmt = stmt->Prev)
 		{
-			UpdateLivenessFor(basicBlock->BranchConditionValue);
+			UpdateLiveSet(stmt->Now, basicBlock, liveSet);
+			liveness[livenessMapIndex--] = liveSet;
 		}
 	}
 }
 
+void RTJ::Hex::LSRA::LivenessDurationCompletePass()
+{
+	for (auto&& basicBlock : mContext->BBs | std::views::reverse)
+	{
+		auto&& oldIn = basicBlock->VariablesLiveIn;
+		auto&& oldOut = basicBlock->VariablesLiveOut;
+		
+		auto newIn = basicBlock->VariablesUse & (oldOut - basicBlock->VariablesDef);
+	}
+}
+
+void RTJ::Hex::LSRA::ComputeLivenessDuration()
+{
+	LivenessDurationBuildPass();
+	LivenessDurationCompletePass();
+}
+
 void RTJ::Hex::LSRA::AllocateRegisters()
 {
-	auto bbHead = mContext->BBs.front();
-	for (BasicBlock* basicBlock = bbHead;
-		basicBlock != nullptr;
-		basicBlock = basicBlock->Next)
+	for (auto&& basicBlock : mContext->BBs)
 	{
 		//Call merge method at first
 		MergeContext();
@@ -210,7 +178,7 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 	}
 }
 
-void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, std::set<UInt16>& liveSet)
+void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, std::set<UInt16>& liveSet)
 {
 	auto isQualified = [this](Int16 indexValue, NodeKinds kind) -> std::optional<UInt16> {
 		if (kind == NodeKinds::LocalVariable &&
@@ -226,18 +194,26 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, std::set<UInt16>& liveSet)
 			index |= 0x8000u;
 
 		return index;
-	};
+	}; 
 
 	auto use = [&](Int16 originIndexValue, NodeKinds kind)
 	{
 		if (auto index = isQualified(originIndexValue, kind); index.has_value())
-			liveSet.insert(index.value());
+		{
+			auto indexValue = index.value();
+			SortedInsert(currentBB->VariablesUse, indexValue);
+			liveSet.insert(indexValue);
+		}
 	};
 
 	auto kill = [&](Int16 originIndexValue, NodeKinds kind)
 	{
 		if (auto index = isQualified(originIndexValue, kind); index.has_value())
-			liveSet.erase(index.value());
+		{
+			auto indexValue = index.value();
+			SortedInsert(currentBB->VariablesDef, indexValue);
+			liveSet.erase(indexValue);
+		}
 	};
 
 	switch (node->Kind)
@@ -258,20 +234,19 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, std::set<UInt16>& liveSet)
 	{
 		auto call = node->As<MorphedCallNode>();
 		ForeachInlined(call->Arguments, call->ArgumentCount,
-			[&](auto node) { UpdateLivenessFor(node, liveSet); });
+			[&](auto argument) { UpdateLiveSet(argument, liveSet); });
 
 		auto origin = call->Origin;
 		if (origin->Is(NodeKinds::Call))
 		{
 			auto managedCall = origin->As<CallNode>();
 			ForeachInlined(managedCall->Arguments, managedCall->ArgumentCount,
-				[&](auto node) { UpdateLivenessFor(node, liveSet); });
+				[&](auto argument) { UpdateLiveSet(argument, liveSet); });
 		}
 		break;
 	}
 	default:
 		THROW("Should not reach here");
-		break;
 	}
 }
 
@@ -392,6 +367,7 @@ std::optional<RT::UInt8> RTJ::Hex::AllocationContext::TryPollRegister(UInt64 mas
 
 void RTJ::Hex::AllocationContext::ReturnRegister(UInt8 physicalRegister)
 {
+	Bit::SetOne(mRegisterPool, physicalRegister);
 }
 
 void RTJ::Hex::AllocationContext::UsePhysicalResigster(InstructionOperand& operand)

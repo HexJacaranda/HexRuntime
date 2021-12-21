@@ -1,5 +1,6 @@
 #pragma once
 #include "RuntimeAlias.h"
+#include <set>
 
 namespace RT
 {
@@ -133,7 +134,6 @@ namespace RT
 	class Enumerable
 	{
 	public:
-
 		template<ContainerT Container, class BodyFn, class ConnectionFn>
 		static void ContractIterate(Container&& container, BodyFn&& bodyFn, ConnectionFn&& connectionFn)
 		{
@@ -157,6 +157,15 @@ namespace RT
 			for (Int32 i = 0; i < count; ++i)
 				std::forward<Fn>(action)(inlineArray[i]);
 		}
+	}
+
+	template< typename T >
+	typename std::vector<T>::iterator SortedInsert(std::vector<T>& vec, T const& item)
+	{
+		auto location = std::upper_bound(vec.begin(), vec.end(), item);
+		if (location != vec.end() && *location == item)
+			return vec.end();
+		return vec.insert(location, item);
 	}
 
 #define ETY using EnumType
