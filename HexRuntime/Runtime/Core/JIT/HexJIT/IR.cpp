@@ -29,3 +29,9 @@ void RTJ::Hex::TreeNode::TypeFrom(TreeNode* target)
 {
 	TypeInfo = target->TypeInfo;
 }
+
+RTJ::Hex::TreeNode* RTJ::Hex::TreeNode::SetType(RTM::TypeDescriptor* type)
+{
+	TypeInfo = type;
+	return this;
+}

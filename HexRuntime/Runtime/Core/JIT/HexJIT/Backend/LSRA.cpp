@@ -251,8 +251,14 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, Variab
 	{
 	case NodeKinds::Store:
 	{
-		if (auto variable = GuardedDestinationExtract(node->As<StoreNode>()))
+		auto storeNode = node->As<StoreNode>();
+		if (auto variable = GuardedDestinationExtract(storeNode))
 			kill(variable->LocalIndex, variable->Kind);
+
+		//The source node may be direct morphed call
+		auto sourceNode = storeNode->Source;
+		if (sourceNode->Is(NodeKinds::MorphedCall))
+			UpdateLiveSet(sourceNode, currentBB, liveSet);
 		break;
 	}
 	case NodeKinds::Load:

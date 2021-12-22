@@ -69,9 +69,9 @@ namespace RTJ::Hex
 		StoreNode* GenerateStoreLocal();
 		StoreNode* GenerateStoreArrayElement();
 		StoreNode* GenerateStoreToAddress();
-		NewNode* GenerateNew();
-		NewArrayNode* GenerateNewArray();
-		CompareNode* GenerateCompare();
+		TreeNode* GenerateNew();
+		TreeNode* GenerateNewArray();
+		TreeNode* GenerateCompare();
 		TreeNode* GenerateDuplicate();
 
 		BinaryArithmeticNode* GenerateBinaryArithmetic(UInt8 opcode);

@@ -86,6 +86,7 @@ namespace RTJ::Hex
 		bool CheckUpCastFrom(TreeNode* target)const;
 		bool CheckUpCastFrom(RTM::TypeDescriptor* source)const;
 		void TypeFrom(TreeNode* target);
+		TreeNode* SetType(RTM::TypeDescriptor* type);
 	};
 
 	struct UnaryNode : TreeNode {

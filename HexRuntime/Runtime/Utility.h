@@ -149,9 +149,9 @@ namespace RT
 	};
 
 	template<class T, class Fn>
-	static void ForeachInlined(T** inlineArray, Int32 count, Fn&& action) {
+	static void ForeachInlined(T**& inlineArray, Int32 count, Fn&& action) {
 		if (count == 1)
-			std::forward<Fn>(action)((T*)inlineArray);
+			std::forward<Fn>(action)(*(T**)&inlineArray);
 		else if (count > 1)
 		{
 			for (Int32 i = 0; i < count; ++i)

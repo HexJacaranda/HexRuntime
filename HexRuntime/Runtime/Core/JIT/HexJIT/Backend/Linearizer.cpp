@@ -22,7 +22,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 	auto&& bbHead = mJITContext->BBs[0];
 	auto layDown = [&](TreeNode*& root) {
 		TreeNode* _ = nullptr;
-		auto stmts = LayDown(root, _, false);
+		auto stmts = Flatten(root, _, false);
 		if (!stmts.IsEmpty())
 			LinkedList::AppendRangeTwoWay(mStmtHead, mPreviousStmt, stmts.GetHead(), stmts.GetTail());
 	};
@@ -46,7 +46,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 	return bbHead;
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDown(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
 {
 	switch (node->Kind)
 	{
@@ -54,7 +54,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDown(TreeNode* 
 	case NodeKinds::Array:
 	case NodeKinds::Compare:
 	case NodeKinds::BinaryArithmetic:
-		return LayDownDouble(node, generatedLocal, requestJITVariable);
+		return FlattenBinary(node, generatedLocal, requestJITVariable);
 	case NodeKinds::Convert:
 	case NodeKinds::Cast:
 	case NodeKinds::Box:
@@ -62,19 +62,21 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDown(TreeNode* 
 	case NodeKinds::InstanceField:
 	case NodeKinds::UnaryArithmetic:
 	case NodeKinds::Duplicate:
-		return LayDownSingle(node, generatedLocal, requestJITVariable);
+		return FlattenUnary(node, generatedLocal, requestJITVariable);
 	case NodeKinds::Load:
-		return LayDownLoad(node, generatedLocal, requestJITVariable);
+		return FlattenLoad(node, generatedLocal, requestJITVariable);
 	case NodeKinds::Call:
 	case NodeKinds::New:
 	case NodeKinds::NewArray:
-		return LayDownMultiple(node, generatedLocal, requestJITVariable);
+		return FlattenMultiple(node, generatedLocal, requestJITVariable);
+	case NodeKinds::MorphedCall:
+		return FlattenMorphedCall(node, generatedLocal, requestJITVariable);
 	default:
 		break;
 	}
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownLoad(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenLoad(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
 {
 	auto load = node->As<LoadNode>();
 	auto source = load->Source;
@@ -87,11 +89,11 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownLoad(TreeNo
 	case NodeKinds::Argument:
 		return {};
 	default:
-		LayDown(source, generatedLocal, requestJITVariable);
+		Flatten(source, generatedLocal, requestJITVariable);
 	}
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownStore(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenStore(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
 {
 	RT::DoubleLinkList<RTJ::Hex::Statement> ret{};
 
@@ -117,7 +119,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownStore(TreeN
 		*  origin InstanceFiled. But if we really do the former one, it 
 		*  will cause problems for other JIT flows.
 		*/
-		LAY_DOWN_TO(ret, destination, LayDown(destination, localNode, false));
+		LAY_DOWN_TO(ret, destination, Flatten(destination, localNode, false));
 	}
 	}
 
@@ -127,23 +129,29 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownStore(TreeN
 	case NodeKinds::LocalVariable:
 	case NodeKinds::Argument:
 		break;
+	case NodeKinds::MorphedCall:
+	{
+		TreeNode* localNode = nullptr;
+		LAY_DOWN_TO(ret, source, FlattenMorphedCall(source, localNode, false));
+		break;
+	}
 	default:
 	{
 		TreeNode* localNode = nullptr;
-		LAY_DOWN_TO(ret, source, LayDown(source, localNode));
+		LAY_DOWN_TO(ret, source, Flatten(source, localNode));
 	}
 	}
 
 	return ret;
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownSingle(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenUnary(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
 {
 	auto single = node->As<UnaryNodeAccessProxy>();
 
 	RT::DoubleLinkList<RTJ::Hex::Statement> ret{};
 	TreeNode* localNode = nullptr;
-	LAY_DOWN_TO(ret, single->Value, LayDown(single->Value, localNode));
+	LAY_DOWN_TO(ret, single->Value, Flatten(single->Value, localNode));
 
 	if (requestJITVariable)
 	{
@@ -156,14 +164,14 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownSingle(Tree
 	return ret;
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownDouble(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenBinary(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
 {
 	auto single = node->As<BinaryNodeAccessProxy>();
 
 	RT::DoubleLinkList<RTJ::Hex::Statement> ret{};
 	TreeNode* localNode = nullptr;
-	LAY_DOWN_TO(ret, single->First, LayDown(single->First, localNode));
-	LAY_DOWN_TO(ret, single->Second, LayDown(single->Second, localNode));
+	LAY_DOWN_TO(ret, single->First, Flatten(single->First, localNode));
+	LAY_DOWN_TO(ret, single->Second, Flatten(single->Second, localNode));
 
 	if (requestJITVariable)
 	{
@@ -176,10 +184,9 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownDouble(Tree
 	return ret;
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
 {
 	auto call = node->As<CallNode>();
-	ObservableArray<TreeNode*> arguments = { call->Arguments, call->ArgumentCount };
 
 	/*
 	* First we need to sort out the evaluation order of arguments
@@ -191,25 +198,31 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownMultiple(Tr
 	DoubleLinkList<Statement> methodSequence{};
 	DoubleLinkList<Statement> computationSequence{};
 
-	for (auto&& argument : arguments)
-	{
-		TreeNode* localNode = nullptr;
-		switch (argument->Kind)
+	ForeachInlined(call->Arguments, call->ArgumentCount,
+		[&](TreeNode*& argument)
 		{
-		case NodeKinds::Call:
-		case NodeKinds::New:
-		case NodeKinds::NewArray:
-		{
-			LAY_DOWN_TO(methodSequence, argument, LayDownMultiple(argument, localNode));
-			break;
-		}
-		default:
-		{
-			LAY_DOWN_TO(computationSequence, argument, LayDown(argument, localNode));
-			break;
-		}
-		}
-	}
+			TreeNode* localNode = nullptr;
+			switch (argument->Kind)
+			{
+			case NodeKinds::MorphedCall:
+			{
+				LAY_DOWN_TO(methodSequence, argument, FlattenMorphedCall(argument, localNode));
+				break;
+			}
+			case NodeKinds::Call:
+			case NodeKinds::New:
+			case NodeKinds::NewArray:
+			{
+				LAY_DOWN_TO(methodSequence, argument, FlattenMultiple(argument, localNode));
+				break;
+			}
+			default:
+			{
+				LAY_DOWN_TO(computationSequence, argument, Flatten(argument, localNode));
+				break;
+			}
+			}
+		});
 
 	//Join
 	methodSequence.Append(computationSequence);
@@ -225,6 +238,27 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::LayDownMultiple(Tr
 	}
 
 	return methodSequence;
+}
+
+RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenMorphedCall(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+{
+	MorphedCallNode* call = node->As<MorphedCallNode>();
+	DoubleLinkList<Statement> ret{};
+
+	TreeNode* localNode = nullptr;
+	ret.Append(FlattenMultiple(node, localNode, false));
+
+	if (requestJITVariable)
+	{
+		if (call->TypeInfo == nullptr)
+			THROW("Cannot require JIT variable from void");
+		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(call->TypeInfo));
+	}
+	
+	//Lay down origin value
+	LAY_DOWN_TO(ret, call->Origin, Flatten(call->Origin, localNode));
+
+	return ret;
 }
 
 RT::Int32 RTJ::Hex::Linearizer::RequestJITVariable(RTM::Type* type)

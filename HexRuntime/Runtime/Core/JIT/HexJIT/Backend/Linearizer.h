@@ -21,12 +21,13 @@ namespace RTJ::Hex
 		Linearizer(HexJITContext* context);
 		virtual BasicBlock* PassThrough()final;
 	private:
-		DoubleLinkList<Statement> LayDown(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
-		DoubleLinkList<Statement> LayDownLoad(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
-		DoubleLinkList<Statement> LayDownStore(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
-		DoubleLinkList<Statement> LayDownSingle(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
-		DoubleLinkList<Statement> LayDownDouble(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
-		DoubleLinkList<Statement> LayDownMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> Flatten(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> FlattenLoad(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> FlattenStore(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> FlattenUnary(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> FlattenBinary(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> FlattenMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
+		DoubleLinkList<Statement> FlattenMorphedCall(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable = true);
 		Int32 RequestJITVariable(RTM::Type* type);
 	};
 }

@@ -36,7 +36,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 		callingConv = CALLING_CONV_OF(ManagedVirtualCall);
 	}
 
-	return new (POOL) MorphedCallNode(node, nativeMethod, callingConv, methodConstant);
+	return (new (POOL) MorphedCallNode(node, nativeMethod, callingConv, methodConstant))
+		->SetType(node->TypeInfo);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
@@ -44,7 +45,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
 	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
 	methodConstant->Pointer = node->Method;
 
-	return new (POOL) MorphedCallNode(node, &JITCall::NewObject, CALLING_CONV_OF(NewObject), methodConstant);
+	return (new (POOL) MorphedCallNode(node, &JITCall::NewObject, CALLING_CONV_OF(NewObject), methodConstant))
+		->SetType(node->TypeInfo);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
@@ -57,12 +59,13 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 			new (POOL) ConstantNode(node->ElementType), 
 			node->Dimension 
 		};
-		return new (POOL) MorphedCallNode(node, &JITCall::NewSZArray, CALLING_CONV_OF(NewSZArray), arguments, 2);
+		return (new (POOL) MorphedCallNode(node, &JITCall::NewSZArray, CALLING_CONV_OF(NewSZArray), arguments, 2))
+			->SetType(node->TypeInfo);
 	}
 	else
 	{
 		//Multi-dimensional
-		//Maybe we should generate scoped stack allocation for the third arguments
+		//TODO: Maybe we should generate scoped stack allocation for the third arguments
 		auto arguments = new (POOL) TreeNode * [3]
 		{
 			new (POOL) ConstantNode(node->ElementType),
@@ -70,7 +73,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 			nullptr
 		};
 
-		return new (POOL) MorphedCallNode(node, &JITCall::NewArrayFast, CALLING_CONV_OF(NewArray), arguments, 2);
+		return (new (POOL) MorphedCallNode(node, &JITCall::NewArrayFast, CALLING_CONV_OF(NewArray), arguments, 2))
+			->SetType(node->TypeInfo);
 	}
 }
 
@@ -98,7 +102,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 	if (node->Source->Is(NodeKinds::InstanceField))
 	{
 		auto readBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::ReadBarrierForRef, CALLING_CONV_OF(ReadBarrierForRef), node);
-		InsertCall(readBarrierNode);
+		readBarrierNode->SetType(node->TypeInfo);
+		return readBarrierNode;
 	}
 	return node;
 }

@@ -79,10 +79,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 		THROW("Local variable index out of range.");
 
 	//Keep uniformity for convenience of traversal in SSA building
-	auto ret = new (POOL) LoadNode(SLMode, local);
-	//Set node type info
-	ret->TypeInfo = locals[localIndex].GetType();
-	return ret;
+	return (new (POOL) LoadNode(SLMode, local))
+		->SetType(locals[localIndex].GetType());
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
@@ -94,10 +92,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 	if (localIndex >= locals.Count)
 		THROW("Argument index out of range.");
 	//Keep uniformity for convenience of traversal in SSA building
-	auto ret = new (POOL) LoadNode(SLMode, local);
-	//Set node type info
-	ret->TypeInfo = locals[localIndex].GetType();
-	return ret;
+	return (new (POOL) LoadNode(SLMode, local))
+		->SetType(locals[localIndex].GetType());	
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
@@ -122,10 +118,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMo
 	auto index = mEvalStack.Pop();
 	auto array = mEvalStack.Pop();
 	auto arrayElement = new (POOL) ArrayElementNode(array, index);
-	if (SLMode == SLMode::Indirect)
-		return new (POOL) LoadNode(SLMode::Indirect, arrayElement);
-	else
-		return arrayElement;
+	return (new (POOL) LoadNode(SLMode, arrayElement))
+		->SetType(array->TypeInfo->GetTypeArguments()[0]);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
@@ -227,18 +221,19 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreToAddress()
 	return new (POOL) StoreNode(address, value);
 }
 
-RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNew()
 {
 	//Read method reference tokenas
 	auto methodRef = ReadAs<MDToken>();
 	auto method = Meta::MetaData->GetMethodFromToken(GetAssembly(), methodRef);
+	auto type = method->GetReturnType();
 
 	auto argumentsCount = method->GetArguments().Count;
 	if (argumentsCount <= 1)
 	{
 		if (argumentsCount == 0)
-			return new (POOL) NewNode(method, nullptr, argumentsCount);
-		return new (POOL) NewNode(method, mEvalStack.Pop());
+			return (new (POOL) NewNode(method, nullptr, argumentsCount))->SetType(type);
+		return (new (POOL) NewNode(method, mEvalStack.Pop()))->SetType(type);
 	}
 	else
 	{
@@ -246,31 +241,34 @@ RTJ::Hex::NewNode* RTJ::Hex::ILTransformer::GenerateNew()
 		for (int i = 0; i < argumentsCount; ++i)
 			arguments[i] = mEvalStack.Pop();
 
-		return new (POOL) NewNode(method, arguments, argumentsCount);
+		return (new (POOL) NewNode(method, arguments, argumentsCount))->SetType(type);
 	}
 }
 
-RTJ::Hex::NewArrayNode* RTJ::Hex::ILTransformer::GenerateNewArray()
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 {
 	Int32 dimensionCount = ReadAs<Int32>();
 	//Read type reference token
 	auto typeRef = ReadAs<MDToken>();
 	auto elementType = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
-
+	//TODO: make instantiated array type
+	auto arrayType = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Array);
 	if (dimensionCount == 1)
 	{
-		return new (POOL) NewArrayNode(elementType, mEvalStack.Pop());
+		return (new (POOL) NewArrayNode(elementType, mEvalStack.Pop()))
+			->SetType(arrayType);
 	}
 	else
 	{
 		TreeNode** dimensions = new (POOL) TreeNode * [dimensionCount];
 		for (int i = 0; i < dimensionCount; ++i)
 			dimensions[i] = mEvalStack.Pop();
-		return new (POOL) NewArrayNode(elementType, dimensions, dimensionCount);
+		return (new (POOL) NewArrayNode(elementType, dimensions, dimensionCount))
+			->SetType(arrayType);
 	}
 }
 
-RTJ::Hex::CompareNode* RTJ::Hex::ILTransformer::GenerateCompare()
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateCompare()
 {
 	auto right = mEvalStack.Pop();
 	auto left = mEvalStack.Pop();
