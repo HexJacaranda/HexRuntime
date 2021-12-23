@@ -21,8 +21,9 @@ void RTJ::Hex::LSRA::MergeContext()
 
 }
 
-std::optional<RT::UInt8> RTJ::Hex::LSRA::RetriveSpillCandidate()
+std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex)
 {
+
 	return {};
 }
 
@@ -121,6 +122,10 @@ void RTJ::Hex::LSRA::LivenessDurationCompletePass()
 					//Propagate to predecessors
 					for (auto&& bbIn : basicBlock->BBIn)
 						stableMap.SetZero(bbIn->Index);
+
+					//Update to new set
+					oldIn = std::move(newIn);
+					oldOut = std::move(newOut);
 				}
 				else
 					stableMap.SetOne(i);
@@ -142,12 +147,11 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		//Call merge method at first
 		MergeContext();
 
-		for (Statement* stmt = basicBlock->Now;
-			stmt != nullptr;
-			stmt = stmt->Next)
+		Int32 index = 0;
+		for (Statement* stmt = basicBlock->Now; stmt != nullptr; stmt = stmt->Next, index++)
 		{
 			mInterpreter.Interpret(stmt->Now,
-				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
+				[&](ConcreteInstruction ins) { this->AllocateRegisterFor(basicBlock, index, ins); });
 
 			//Clean up context according to liveness
 			InvalidateWithinBasicBlock();
@@ -157,7 +161,7 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		if (basicBlock->BranchKind != PPKind::Sequential)
 		{
 			mInterpreter.InterpretBranch(basicBlock->BranchConditionValue,
-				[this](ConcreteInstruction ins) { this->AllocateRegisterFor(ins); });
+				[&](ConcreteInstruction ins) { this->AllocateRegisterFor(basicBlock, index, ins); });
 
 			//Clean up context according to liveness
 			InvalidateAcrossBaiscBlock();
@@ -165,7 +169,7 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 	}
 }
 
-void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
+void RTJ::Hex::LSRA::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, ConcreteInstruction instruction)
 {
 	auto operands = instruction.GetOperands();
 	if (instruction.IsLocalLoad())
@@ -184,22 +188,43 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(ConcreteInstruction instruction)
 	else
 	{
 		auto&& constraints = instruction.Instruction->AddressConstraints;
+		//Prevent spilling the same register
+		UInt64 currentUseMask = 0ull;
 		for (Int32 i = 0; i < (Int32)instruction.Instruction->ConstraintLength; ++i)
 		{
 			auto&& operand = operands[i];
+			//TODO: Adapt to SIB which may contains multiple register references in one operand
 			if (operand.Flags & OperandKind::VirtualRegister)
 			{
-				auto [emitInstruction, needSpill] = mRegContext->RequestLoad(operand.VirtualRegister, constraints[i].RegisterAvaliableMask);
-
+				auto availiableMask = constraints[i].RegisterAvaliableMask & ~currentUseMask;
+				auto [emitInstruction, needSpill] = mRegContext->RequestLoad(operand.VirtualRegister, availiableMask);
+				auto variable = mRegContext->GetLocal(operand.VirtualRegister);
 				if (needSpill)
 				{
+					//Get candidate and spill it
+					auto candidate = RetriveSpillCandidate(availiableMask, livenessIndex);
+					if (!candidate.has_value())
+						THROW("Unable to spill variable.");
 
+					auto&& [oldVirtualRegister, oldVariableIndex] = candidate.value();
+					auto storeInstruction = mRegContext->RequestSpill(
+						oldVirtualRegister, oldVariableIndex, operand.VirtualRegister, variable);
+
+					//Append instruction
+					bb->Instructions.push_back(storeInstruction);
+					/* Store the variable on register whether it's forced by spill or requested by
+					* other BB when merging the context. But be careful that when we meet the next
+					* store (not by spill) for this variable, if it's alreadly been stored, we need
+					* to remove the variable for correction. Otherwise we can avoid appending redundant 
+					* store instruction to the end of BB
+					*/
+					mVariableLanded[bb->Index].Add(oldVariableIndex);
 				}
 				if (emitInstruction.has_value())
-					mInstructions.push_back(emitInstruction.value());
+					bb->Instructions.push_back(emitInstruction.value());
 
 				//Update to physical register
-				mRegContext->UsePhysicalResigster(operand);
+				mRegContext->UsePhysicalResigster(operand, currentUseMask);
 
 				//Check if we should invalidate the relationship (v-reg, local variable)
 				if (operand.IsModifyingRegister())
@@ -311,22 +336,6 @@ RTJ::Hex::LocalVariableNode* RTJ::Hex::LSRA::GuardedSourceExtract(LoadNode* stor
 	return nullptr;
 }
 
-RTJ::Hex::ConcreteInstruction RTJ::Hex::AllocationContext::CopyInstruction(ConcreteInstruction const& origin)
-{
-	ConcreteInstruction newOne = origin;
-	auto operandsCount = origin.Instruction->ConstraintLength;
-	if (operandsCount > 0)
-	{
-		InstructionOperand* operands = new (mHeap) InstructionOperand[operandsCount];
-		std::memcpy(operands, origin.GetOperands(), sizeof(InstructionOperand) * operandsCount);
-		newOne.Operands = operands;
-	}
-	else
-		newOne.Operands = nullptr;
-	newOne.SetFlag(origin.GetFlag());
-	return newOne;
-}
-
 RTJ::Hex::LSRA::LSRA(HexJITContext* context) : mContext(context), mInterpreter(context->Memory)
 {
 }
@@ -337,6 +346,11 @@ RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 	ComputeLivenessDuration();
 	AllocateRegisters();
 	return mContext->BBs.front();
+}
+
+RTJ::Hex::AllocationContext::AllocationContext(RTMM::SegmentHeap* heap, InterpreterT* interpreter)
+	: mHeap(heap), mInterpreter(interpreter)
+{
 }
 
 void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction ins)
@@ -367,14 +381,10 @@ void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVir
 		mVReg2Local[newVirtualRegister] = variableIndex;
 		mLocal2VReg[variableIndex] = newVirtualRegister;
 	}
-
-	//Update proto instruction
-	mLoadInsOnWatch[variableIndex] = ins;
 }
 
 void RTJ::Hex::AllocationContext::WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister, ConcreteInstruction ins)
-{
-	
+{	
 	if (auto iterator = mVReg2Local.find(virtualRegister); iterator != mVReg2Local.end())
 	{
 		if (auto oldVariable = iterator->second; oldVariable != variableIndex)
@@ -386,7 +396,6 @@ void RTJ::Hex::AllocationContext::WatchOnStore(UInt16 variableIndex, UInt8 virtu
 
 	mVReg2Local[virtualRegister] = variableIndex;
 	mLocal2VReg[variableIndex] = virtualRegister;
-	mLoadInsOnWatch[variableIndex] = ins;
 }
 
 std::optional<RT::UInt8> RTJ::Hex::AllocationContext::TryPollRegister(UInt64 mask)
@@ -407,10 +416,12 @@ void RTJ::Hex::AllocationContext::ReturnRegister(UInt8 physicalRegister)
 	Bit::SetOne(mRegisterPool, physicalRegister);
 }
 
-void RTJ::Hex::AllocationContext::UsePhysicalResigster(InstructionOperand& operand)
+void RTJ::Hex::AllocationContext::UsePhysicalResigster(InstructionOperand& operand, UInt64& usedMask)
 {
+	//TODO: Adapt SIB
 	operand.Kind = OperandKind::Register;
 	operand.Register = mVReg2PReg[operand.VirtualRegister];
+	Bit::SetOne(usedMask, operand.Register);
 }
 
 void RTJ::Hex::AllocationContext::InvalidateVirtualRegister(UInt8 virtualRegister)
@@ -420,8 +431,6 @@ void RTJ::Hex::AllocationContext::InvalidateVirtualRegister(UInt8 virtualRegiste
 		auto localIndex = iterator->second;
 		mVReg2Local.erase(iterator);
 		mLocal2VReg.erase(localIndex);
-		//Maybe we can just leave the mapping here
-		mLoadInsOnWatch.erase(localIndex);
 	}
 }
 
@@ -432,8 +441,6 @@ void RTJ::Hex::AllocationContext::InvalidateLocalVariable(UInt16 variable)
 		auto virtualRegister = iterator->second;
 		mVReg2Local.erase(virtualRegister);
 		mLocal2VReg.erase(iterator);
-		//Maybe we can just leave the mapping here
-		mLoadInsOnWatch.erase(variable);
 	}
 }
 
@@ -479,13 +486,9 @@ RTJ::Hex::AllocationContext::RequestLoad(
 			if (auto variableResult = mVReg2Local.find(virtualRegister); 
 				variableResult != mVReg2Local.end())
 			{
-				auto variableIndex = variableResult->second;
+				auto&& [_, variableIndex] = *variableResult;
 				//Get freed register and update state
-				auto instruction = CopyInstruction(mLoadInsOnWatch[variableIndex]);
-				//Write register to instruction
-				auto&& registerOperand = instruction.GetOperands()[0];
-				registerOperand.Kind = OperandKind::Register;
-				registerOperand.Register = newRegister;
+				auto instruction = mInterpreter->ProvideLoad(variableIndex, newRegister);
 				//Update mapping
 				mVReg2PReg[virtualRegister] = newRegister;
 				return { instruction, false };
@@ -506,8 +509,24 @@ RTJ::Hex::AllocationContext::RequestLoad(
 	return { {}, false };
 }
 
-std::optional<RTJ::Hex::ConcreteInstruction> 
-RTJ::Hex::AllocationContext::RequestStore(UInt16 variableIndex, UInt8 virtualRegister)
+RT::UInt16 RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRegister)
 {
-	return {};
+	return mVReg2Local[virtualRegister];
+}
+
+RTJ::Hex::ConcreteInstruction RTJ::Hex::AllocationContext::RequestSpill(
+	UInt8 oldVirtualRegister, UInt16 oldVariable, UInt8 newVirtualRegister, UInt16 newVariable)
+{
+	mVReg2Local.erase(oldVirtualRegister);
+	mLocal2VReg.erase(oldVariable);
+
+	mVReg2Local[newVirtualRegister] = newVariable;
+	mLocal2VReg[newVariable] = newVirtualRegister;
+
+	auto mapPV = mVReg2PReg.find(oldVirtualRegister);
+	auto [_, physicalRegister] = *mapPV;
+	mVReg2PReg.erase(mapPV);
+	mVReg2PReg[newVirtualRegister] = physicalRegister;
+	
+	return mInterpreter->ProvideWrite(oldVariable, physicalRegister);
 }

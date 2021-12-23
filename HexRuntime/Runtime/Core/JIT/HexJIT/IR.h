@@ -6,6 +6,7 @@
 #include "..\..\..\Utility.h"
 #include "..\..\Meta\CoreTypes.h"
 #include "..\..\Platform\PlatformSpecialization.h"
+#include "Backend\ConcreteInstruction.h"
 #include "..\..\..\SmallSet.h"
 #include <vector>
 
@@ -552,6 +553,7 @@ namespace RTJ::Hex
 		VariableSet VariablesUse;
 		VariableSet VariablesDef;
 		LivenessMapT Liveness;
+		std::vector<ConcreteInstruction> Instructions;
 	public:
 		std::vector<BasicBlock*> BBIn;
 	public:

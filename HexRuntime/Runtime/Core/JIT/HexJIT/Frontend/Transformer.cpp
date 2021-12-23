@@ -30,7 +30,7 @@ ForcedInline RTM::AssemblyContext* RTJ::Hex::ILTransformer::GetAssembly() const
 	return GetRawContext()->Assembly;
 }
 
-ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(_RE_ UInt8& opcode)
+ForcedInline void RTJ::Hex::ILTransformer::DecodeInstruction(UInt8& opcode)
 {
 	mPreviousCodePtr = mCodePtr;
 	opcode = *mCodePtr;
@@ -444,7 +444,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TryGenerateStatement(TreeNode* val
 	}
 }
 
-RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements(_RE_ BasicBlockPartitionPoint*& partitions)
+RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements(BasicBlockPartitionPoint*& partitions)
 {
 	Statement* stmtHead = nullptr;
 	Statement* stmtPrevious = nullptr;

@@ -46,9 +46,19 @@ namespace RTJ::Hex
 
 		}
 
+		ConcreteInstruction ProvideWrite(UInt16 variableIndex, UInt8 physicalRegister)
+		{
+			return {};
+		}
+
+		ConcreteInstruction ProvideLoad(UInt16 variableIndex, UInt8 physicalRegister)
+		{
+			return {};
+		}
+
 		bool PurposeMemoryOperation(ConcreteInstruction const& origin, ConcreteInstruction& out)
 		{
-
+			return {};
 		}
 	};
 

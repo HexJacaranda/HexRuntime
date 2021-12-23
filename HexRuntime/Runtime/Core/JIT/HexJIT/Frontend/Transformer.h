@@ -56,7 +56,7 @@ namespace RTJ::Hex
 		/// Decode the instruction at current memory
 		/// </summary>
 		/// <param name="opcode">opcode value</param>
-		ForcedInline void DecodeInstruction(_RE_ UInt8& opcode);
+		ForcedInline void DecodeInstruction(UInt8& opcode);
 		CallNode* GenerateCall();
 		TreeNode* GenerateLoadLocalVariable(UInt8 SLMode);
 		TreeNode* GenerateLoadArgument(UInt8 SLMode);
@@ -98,7 +98,7 @@ namespace RTJ::Hex
 		/// information we collected
 		/// </summary>
 		/// <returns></returns>
-		Statement* TransformToUnpartitionedStatements(_RE_ BasicBlockPartitionPoint*& partitions);
+		Statement* TransformToUnpartitionedStatements(BasicBlockPartitionPoint*& partitions);
 		/// <summary>
 		/// Correctly partition the chained statements according to partition information.
 		/// </summary>
