@@ -39,6 +39,8 @@ namespace RTJ::Hex
 		void InvalidatePVAllocation(UInt16 variable);
 		void TryInvalidatePVAllocation(UInt16 variable);
 		UInt16 GetLocal(UInt8 virtualRegister);
+		std::optional<UInt8> GetVirtualRegister(UInt16 variable);
+		std::optional<UInt8> GetPhysicalRegister(UInt16 variable);
 		
 		ConcreteInstruction RequestSpill(UInt8 oldVirtualRegister, UInt16 oldVariable, UInt8 newVirtualRegister, UInt16 newVariable);
 		std::tuple<std::optional<ConcreteInstruction>, bool> RequestLoad(UInt8 virtualRegister, UInt64 registerMask);
@@ -52,7 +54,11 @@ namespace RTJ::Hex
 		HexJITContext* mContext = nullptr;
 		AllocationContext* mRegContext;
 		std::vector<VariableSet> mVariableLanded;
-		NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth> mInterpreter;
+		/// <summary>
+		/// BB sorted in topological order in reverse.
+		/// </summary>
+		std::vector<BasicBlock*> mSortedBB;
+		InterpreterT mInterpreter;
 	private:
 		/// <summary>
 		/// This method invalidates variables yet we'll do a more relaxed one.
@@ -65,20 +71,24 @@ namespace RTJ::Hex
 		/// <summary>
 		/// This will merge the AllocationContext from BBIn
 		/// </summary>
-		void MergeContext();
-		std::optional<std::tuple<UInt8, UInt16>> RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex);
+		void MergeContext(BasicBlock* bb);
+		std::optional<std::tuple<UInt8, UInt16>> RetriveSpillCandidate(BasicBlock* bb, UInt64 mask, Int32 livenessIndex);
 		void AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, ConcreteInstruction instruction);
 		
+		void BuildTopologcialSortedBB(BasicBlock* bb, std::vector<bool>& visited);
+		void BuildTopologicalSortedBB();
 		void ChooseCandidate();
+
+		void BuildLivenessDuration();
 		/// <summary>
 		/// Build the main part of liveness
 		/// </summary>
-		void LivenessDurationBuildPass();
+		void BuildLivenessDurationPhaseOne();
 		/// <summary>
 		/// Build the rest
 		/// </summary>
-		void LivenessDurationCompletePass();
-		void ComputeLivenessDuration();
+		void BuildLivenessDurationPhaseTwo();
+		
 		void AllocateRegisters();
 
 		static LocalVariableNode* GuardedDestinationExtract(StoreNode* store);

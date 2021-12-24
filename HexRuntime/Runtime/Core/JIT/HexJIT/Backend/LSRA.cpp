@@ -16,15 +16,45 @@ void RTJ::Hex::LSRA::InvalidateAcrossBaiscBlock()
 
 }
 
-void RTJ::Hex::LSRA::MergeContext()
+void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
 {
+	AllocationContext* newContext = new (POOL) AllocationContext(
+		mContext->Memory,
+		&mInterpreter);
 
+	for (auto&& in : bb->BBIn)
+	{
+		
+	}
 }
 
-std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex)
+std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCandidate(
+	BasicBlock* bb, UInt64 mask, Int32 livenessIndex)
 {
+	auto&& liveMap = bb->Liveness;
+	VariableSet set{};
+	for (auto&& variable : liveMap[livenessIndex])
+	{
+		auto physicalReg = mRegContext->GetPhysicalRegister(variable);
+		if (physicalReg.has_value() && Bit::TestAt(mask, physicalReg.value()))
+			set.Add(variable);
+	}
 
-	return {};
+	//Impossible
+	if (set.Count() == 0)
+		return {};
+
+	for (Int32 i = livenessIndex + 1; i < liveMap.size(); ++i)
+	{
+		auto newOne = set & liveMap[i];
+		if (newOne.Count() == 0)
+			break;
+		set = std::move(newOne);
+	}
+
+	return std::make_tuple(
+		mRegContext->GetVirtualRegister(set.Front()).value(),
+		set.Front());
 }
 
 void RTJ::Hex::LSRA::ChooseCandidate()
@@ -51,7 +81,7 @@ void RTJ::Hex::LSRA::ChooseCandidate()
 	}
 }
 
-void RTJ::Hex::LSRA::LivenessDurationBuildPass()
+void RTJ::Hex::LSRA::BuildLivenessDurationPhaseOne()
 {
 	for (auto&& basicBlock : mContext->BBs | std::views::reverse)
 	{
@@ -88,7 +118,7 @@ void RTJ::Hex::LSRA::LivenessDurationBuildPass()
 	}
 }
 
-void RTJ::Hex::LSRA::LivenessDurationCompletePass()
+void RTJ::Hex::LSRA::BuildLivenessDurationPhaseTwo()
 {
 	BitSet stableMap(mContext->BBs.size());
 
@@ -134,18 +164,38 @@ void RTJ::Hex::LSRA::LivenessDurationCompletePass()
 	}
 }
 
-void RTJ::Hex::LSRA::ComputeLivenessDuration()
+void RTJ::Hex::LSRA::BuildLivenessDuration()
 {
-	LivenessDurationBuildPass();
-	LivenessDurationCompletePass();
+	BuildLivenessDurationPhaseOne();
+	BuildLivenessDurationPhaseTwo();
+}
+
+void RTJ::Hex::LSRA::BuildTopologcialSortedBB(BasicBlock* bb, std::vector<bool>& visited)
+{
+	visited[bb->Index] = true;
+
+	bb->ForeachSuccessor([&](BasicBlock* successor) {
+		if (!visited[successor->Index])
+			BuildTopologcialSortedBB(successor, visited);
+		});
+
+	//In reverse order
+	mSortedBB.push_back(bb);
+}
+
+void RTJ::Hex::LSRA::BuildTopologicalSortedBB()
+{
+	std::vector<bool> visit(mContext->BBs.size());
+	BuildTopologcialSortedBB(mContext->BBs.front(), visit);
+	std::reverse(mContext->BBs.begin(), mContext->BBs.end());
 }
 
 void RTJ::Hex::LSRA::AllocateRegisters()
 {
-	for (auto&& basicBlock : mContext->BBs)
+	for (auto&& basicBlock : mSortedBB)
 	{
 		//Call merge method at first
-		MergeContext();
+		MergeContext(basicBlock);
 
 		Int32 index = 0;
 		for (Statement* stmt = basicBlock->Now; stmt != nullptr; stmt = stmt->Next, index++)
@@ -202,7 +252,7 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, Co
 				if (needSpill)
 				{
 					//Get candidate and spill it
-					auto candidate = RetriveSpillCandidate(availiableMask, livenessIndex);
+					auto candidate = RetriveSpillCandidate(bb, ~currentUseMask, livenessIndex);
 					if (!candidate.has_value())
 						THROW("Unable to spill variable.");
 
@@ -343,7 +393,7 @@ RTJ::Hex::LSRA::LSRA(HexJITContext* context) : mContext(context), mInterpreter(c
 RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 {
 	ChooseCandidate();
-	ComputeLivenessDuration();
+	BuildLivenessDuration();
 	AllocateRegisters();
 	return mContext->BBs.front();
 }
@@ -497,7 +547,7 @@ RTJ::Hex::AllocationContext::RequestLoad(
 			{
 				//Update mapping
 				mVReg2PReg[virtualRegister] = newRegister;
-				return {};
+				return { {}, false };
 			}
 		}
 		else
@@ -529,4 +579,19 @@ RTJ::Hex::ConcreteInstruction RTJ::Hex::AllocationContext::RequestSpill(
 	mVReg2PReg[newVirtualRegister] = physicalRegister;
 	
 	return mInterpreter->ProvideWrite(oldVariable, physicalRegister);
+}
+
+std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetPhysicalRegister(UInt16 variable)
+{
+	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
+		if (auto pReg = mVReg2PReg.find(vReg->second); pReg != mVReg2PReg.end())
+			return pReg->second;
+	return {};
+}
+
+std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetVirtualRegister(UInt16 variable)
+{
+	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
+		return vReg->second;
+	return {};
 }

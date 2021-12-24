@@ -39,6 +39,18 @@ namespace RT
 		{
 			return mSet.size();
 		}
+		U& Front() {
+			return mSet.front();
+		}
+		U const& Front()const {
+			return mSet.front();
+		}
+		U& Back() {
+			return mSet.back();
+		}
+		U const& Back()const {
+			return mSet.back();
+		}
 	public:
 		using iterator_type = typename std::vector<U>::iterator;
 		using const_iterator_type = typename std::vector<U>::const_iterator;

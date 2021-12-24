@@ -63,6 +63,11 @@ bool RT::Bit::TestAllOne(UInt64* value, Int32 count)
 #endif
 }
 
+bool RT::Bit::TestAt(UInt64 value, UInt8 bitIndex)
+{
+	return _bittest64((long long*)&value, bitIndex);
+}
+
 void RT::BitSet::SetOne(Int32 index)
 {
 	Int32 intIndex = index / (8 * sizeof(UInt64));
@@ -106,6 +111,7 @@ RT::BitSet::BitSet(Int32 count)
 	Int32 finalCount = intCount * base;
 
 	mBits = (UInt64*)mi_malloc_aligned(intCount * sizeof(UInt64), sizeof(UInt64));
+	std::memset(mBits, 0, intCount * sizeof(UInt64));
 	mCount = count;
 	mIntCount = intCount;
 }

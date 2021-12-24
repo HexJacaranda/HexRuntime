@@ -11,6 +11,7 @@ namespace RT
 		static void SetOne(UInt64& value, UInt8 bitIndex);
 		static bool TestAllZero(UInt64* value, Int32 count);
 		static bool TestAllOne(UInt64* value, Int32 count);
+		static bool TestAt(UInt64 value, UInt8 bitIndex);
 	};
 
 	class BitSet

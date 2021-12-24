@@ -547,7 +547,7 @@ namespace RTJ::Hex
 		TreeNode* BranchConditionValue = nullptr;
 		BasicBlock* BranchedBB = nullptr;
 
-		AllocationContext* RegisterContext;
+		AllocationContext* RegisterContext = nullptr;
 		VariableSet VariablesLiveIn;
 		VariableSet VariablesLiveOut;
 		VariableSet VariablesUse;
