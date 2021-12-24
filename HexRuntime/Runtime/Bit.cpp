@@ -5,7 +5,16 @@
 RT::UInt8 RT::Bit::LeftMostSetBit(UInt64 value)
 {
 	unsigned long ret = 0;
-	_BitScanForward64(&ret, value);
+	if (_BitScanForward64(&ret, value) == 0)
+		return InvalidBit;
+	return ret;
+}
+
+RT::UInt8 RT::Bit::RightMostSetBit(UInt64 value)
+{
+	unsigned long ret = 0;
+	if (_BitScanReverse64(&ret, value) == 0)
+		return InvalidBit;
 	return ret;
 }
 
@@ -80,6 +89,24 @@ void RT::BitSet::SetZero(Int32 index)
 	Int32 intIndex = index / (8 * sizeof(UInt64));
 	Int32 bitIndex = index % (8 * sizeof(UInt64));
 	Bit::SetZero(mBits[intIndex], bitIndex);
+}
+
+RT::Int32 RT::BitSet::PickLeft()
+{
+	for (Int32 i = 0; i < mIntCount; ++i)
+		if (auto index = Bit::LeftMostSetBit(mBits[i]); index != Bit::InvalidBit)
+			return i * sizeof(UInt64) * 8 + index;
+
+	return -1;
+}
+
+RT::Int32 RT::BitSet::PickRight()
+{
+	for (Int32 i = mIntCount - 1; i >= 0; --i)
+		if (auto index = Bit::RightMostSetBit(mBits[i]); index != Bit::InvalidBit)
+			return i * sizeof(UInt64) * 8 + index;
+
+	return -1;
 }
 
 bool RT::BitSet::Test(Int32 index)

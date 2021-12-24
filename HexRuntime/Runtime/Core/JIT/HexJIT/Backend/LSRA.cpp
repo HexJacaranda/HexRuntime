@@ -1,6 +1,5 @@
 #include "LSRA.h"
 #include "..\..\..\Exception\RuntimeException.h"
-#include "..\..\..\..\Bit.h"
 #include <set>
 #include <ranges>
 
@@ -170,12 +169,12 @@ void RTJ::Hex::LSRA::BuildLivenessDuration()
 	BuildLivenessDurationPhaseTwo();
 }
 
-void RTJ::Hex::LSRA::BuildTopologcialSortedBB(BasicBlock* bb, std::vector<bool>& visited)
+void RTJ::Hex::LSRA::BuildTopologcialSortedBB(BasicBlock* bb, BitSet& visited)
 {
-	visited[bb->Index] = true;
+	visited.SetOne(bb->Index);
 
 	bb->ForeachSuccessor([&](BasicBlock* successor) {
-		if (!visited[successor->Index])
+		if (!visited.Test(successor->Index))
 			BuildTopologcialSortedBB(successor, visited);
 		});
 
@@ -185,8 +184,12 @@ void RTJ::Hex::LSRA::BuildTopologcialSortedBB(BasicBlock* bb, std::vector<bool>&
 
 void RTJ::Hex::LSRA::BuildTopologicalSortedBB()
 {
-	std::vector<bool> visit(mContext->BBs.size());
-	BuildTopologcialSortedBB(mContext->BBs.front(), visit);
+	BitSet visit(mContext->BBs.size());
+	while (!visit.IsOne())
+	{
+		Int32 index = visit.PickRight();
+		BuildTopologcialSortedBB(mContext->BBs[index], visit);
+	}
 	std::reverse(mContext->BBs.begin(), mContext->BBs.end());
 }
 

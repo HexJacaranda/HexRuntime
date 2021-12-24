@@ -3,6 +3,7 @@
 #include "..\HexJITContext.h"
 #include "..\JITFlow.h"
 #include "..\IR.h"
+#include "..\..\..\..\Bit.h"
 #include "ConcreteInstruction.h"
 #include "NativeCodeInterpreter.h"
 #include <unordered_map>
@@ -75,7 +76,7 @@ namespace RTJ::Hex
 		std::optional<std::tuple<UInt8, UInt16>> RetriveSpillCandidate(BasicBlock* bb, UInt64 mask, Int32 livenessIndex);
 		void AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, ConcreteInstruction instruction);
 		
-		void BuildTopologcialSortedBB(BasicBlock* bb, std::vector<bool>& visited);
+		void BuildTopologcialSortedBB(BasicBlock* bb, BitSet& visited);
 		void BuildTopologicalSortedBB();
 		void ChooseCandidate();
 
