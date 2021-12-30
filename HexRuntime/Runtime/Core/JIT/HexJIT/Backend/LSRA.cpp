@@ -21,9 +21,23 @@ void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
 		mContext->Memory,
 		&mInterpreter);
 
-	for (auto&& in : bb->BBIn)
+	//First traverse: Find intersection of (Variable, VReg, PReg) allocation
+	std::unordered_set<RegisterAllocationChain> chainSet{};
+	VariableSet remainSet = bb->VariablesLiveIn;
+	for (auto&& in : bb->BBIn | std::views::filter([](auto x) { return x != nullptr; }))
 	{
-		
+		for (auto&& variableIn : remainSet)
+		{
+			auto chain = in->RegisterContext->GetAlloactionChainOf(variableIn);
+			if (!chain.has_value())
+				remainSet.Remove(variableIn);
+
+			if (!chainSet.contains(chain.value()))
+				remainSet.Remove(variableIn);			
+		}
+
+		if (remainSet.Count() == 0)
+			break;
 	}
 }
 
@@ -82,7 +96,7 @@ void RTJ::Hex::LSRA::ChooseCandidate()
 
 void RTJ::Hex::LSRA::BuildLivenessDurationPhaseOne()
 {
-	for (auto&& basicBlock : mContext->BBs | std::views::reverse)
+	for (auto&& basicBlock : mContext->BBs)
 	{
 		/* Here we can assume that all the nodes are flattened by Linearizer.
 		 * All the depth should not be greater than 3 (maybe 4?)
@@ -169,26 +183,26 @@ void RTJ::Hex::LSRA::BuildLivenessDuration()
 	BuildLivenessDurationPhaseTwo();
 }
 
-void RTJ::Hex::LSRA::BuildTopologcialSortedBB(BasicBlock* bb, BitSet& visited)
+void RTJ::Hex::LSRA::BuildTopologciallySortedBB(BasicBlock* bb, BitSet& visited)
 {
 	visited.SetOne(bb->Index);
 
 	bb->ForeachSuccessor([&](BasicBlock* successor) {
 		if (!visited.Test(successor->Index))
-			BuildTopologcialSortedBB(successor, visited);
+			BuildTopologciallySortedBB(successor, visited);
 		});
 
 	//In reverse order
 	mSortedBB.push_back(bb);
 }
 
-void RTJ::Hex::LSRA::BuildTopologicalSortedBB()
+void RTJ::Hex::LSRA::BuildTopologciallySortedBB()
 {
 	BitSet visit(mContext->BBs.size());
 	while (!visit.IsOne())
 	{
 		Int32 index = visit.PickRight();
-		BuildTopologcialSortedBB(mContext->BBs[index], visit);
+		BuildTopologciallySortedBB(mContext->BBs[index], visit);
 	}
 	std::reverse(mContext->BBs.begin(), mContext->BBs.end());
 }
@@ -261,7 +275,7 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, Co
 
 					auto&& [oldVirtualRegister, oldVariableIndex] = candidate.value();
 					auto storeInstruction = mRegContext->RequestSpill(
-						oldVirtualRegister, oldVariableIndex, operand.VirtualRegister, variable);
+						oldVirtualRegister, oldVariableIndex, operand.VirtualRegister, variable.value());
 
 					//Append instruction
 					bb->Instructions.push_back(storeInstruction);
@@ -397,6 +411,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
 {
 	ChooseCandidate();
 	BuildLivenessDuration();
+	this->BuildTopologciallySortedBB();
 	AllocateRegisters();
 	return mContext->BBs.front();
 }
@@ -510,19 +525,6 @@ void RTJ::Hex::AllocationContext::InvalidatePVAllocation(UInt16 variable)
 	}
 }
 
-void RTJ::Hex::AllocationContext::TryInvalidatePVAllocation(UInt16 variable)
-{
-	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
-	{
-		auto iterator = mVReg2PReg.find(vReg->second);
-		if (iterator != mVReg2PReg.end())
-		{
-			ReturnRegister(iterator->second);
-			mVReg2PReg.erase(iterator);
-		}
-	}
-}
-
 std::tuple<std::optional<RTJ::Hex::ConcreteInstruction>, bool> 
 RTJ::Hex::AllocationContext::RequestLoad(
 	UInt8 virtualRegister,
@@ -562,9 +564,11 @@ RTJ::Hex::AllocationContext::RequestLoad(
 	return { {}, false };
 }
 
-RT::UInt16 RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRegister)
+std::optional<RT::UInt16>  RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRegister)
 {
-	return mVReg2Local[virtualRegister];
+	if(auto location = mVReg2Local.find(virtualRegister); location != mVReg2Local.end())
+		return location->second;
+	return {};
 }
 
 RTJ::Hex::ConcreteInstruction RTJ::Hex::AllocationContext::RequestSpill(
@@ -597,4 +601,34 @@ std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetVirtualRegister(UInt16 
 	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
 		return vReg->second;
 	return {};
+}
+
+std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::GetAlloactionChainOf(UInt16 variable)
+{
+	auto vRegLocator = mLocal2VReg.find(variable);
+	if (vRegLocator == mLocal2VReg.end())
+		return {};
+
+	auto pRegLocator = mVReg2PReg.find(vRegLocator->second);
+	if (pRegLocator == mVReg2PReg.end())
+		return {};
+
+	return RegisterAllocationChain{ variable, vRegLocator->second, pRegLocator->second };
+}
+
+void RTJ::Hex::AllocationContext::MergeWith(BasicBlock* bb, AllocationContext const& another)
+{
+	auto variableIterator = mLocal2VReg.begin();
+	while (variableIterator != mLocal2VReg.end())
+	{
+		auto [local, vReg] = *variableIterator;
+		if (auto anotherLocal = another.mLocal2VReg.find(local);
+			anotherLocal != another.mLocal2VReg.end())
+		{
+			if (auto [_, anotherVReg] = *anotherLocal; anotherVReg == vReg)
+			{
+				auto pReg = mVReg2PReg.find(vReg);
+			}
+		}
+	}
 }

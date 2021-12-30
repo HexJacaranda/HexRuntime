@@ -14,6 +14,13 @@
 
 namespace RTJ::Hex
 {
+	struct RegisterAllocationChain
+	{
+		UInt16 Variable;
+		UInt8  VirtualRegister;
+		UInt8  PhysicalRegister;
+	};
+
 	using InterpreterT = NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth>;
 
 	class AllocationContext
@@ -38,13 +45,17 @@ namespace RTJ::Hex
 		void InvalidateVirtualRegister(UInt8 virtualRegister);
 		void InvalidateLocalVariable(UInt16 variable);
 		void InvalidatePVAllocation(UInt16 variable);
-		void TryInvalidatePVAllocation(UInt16 variable);
-		UInt16 GetLocal(UInt8 virtualRegister);
+		std::optional<UInt16> GetLocal(UInt8 virtualRegister);
 		std::optional<UInt8> GetVirtualRegister(UInt16 variable);
 		std::optional<UInt8> GetPhysicalRegister(UInt16 variable);
+		std::optional<RegisterAllocationChain> GetAlloactionChainOf(UInt16 variable);
 		
 		ConcreteInstruction RequestSpill(UInt8 oldVirtualRegister, UInt16 oldVariable, UInt8 newVirtualRegister, UInt16 newVariable);
 		std::tuple<std::optional<ConcreteInstruction>, bool> RequestLoad(UInt8 virtualRegister, UInt64 registerMask);
+
+		void MergeWith(BasicBlock* bb, AllocationContext const& another);
+	private:
+		
 	};
 
 	/// <summary>
@@ -76,8 +87,8 @@ namespace RTJ::Hex
 		std::optional<std::tuple<UInt8, UInt16>> RetriveSpillCandidate(BasicBlock* bb, UInt64 mask, Int32 livenessIndex);
 		void AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, ConcreteInstruction instruction);
 		
-		void BuildTopologcialSortedBB(BasicBlock* bb, BitSet& visited);
-		void BuildTopologicalSortedBB();
+		void BuildTopologciallySortedBB(BasicBlock* bb, BitSet& visited);
+		void BuildTopologciallySortedBB();
 		void ChooseCandidate();
 
 		void BuildLivenessDuration();
