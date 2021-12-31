@@ -73,6 +73,9 @@ namespace RT
 		const_iterator_type cend() const {
 			return mSet.cend();
 		}
+		iterator_type erase(iterator_type iterator) {
+			return mSet.erase(iterator);
+		}
 	public:
 		SmallSet() = default;
 		SmallSet(SmallSet const&) = default;

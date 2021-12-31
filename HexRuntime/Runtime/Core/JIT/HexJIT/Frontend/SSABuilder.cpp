@@ -174,8 +174,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(LocalVariableNode* 
 
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	TreeNode* value = nullptr;
-	if (block->BBIn.size() == 1 && block->BBIn[0] != nullptr)
-		value = ReadVariable(local, block->BBIn[0]->Index);
+	if (block->BBIn.size() == 1)
+		value = ReadVariable(local, block->BBIn.front()->Index);
 	else
 	{
 		auto phi = mJITContext->Memory->New<SSA::PhiNode>(block, local);
