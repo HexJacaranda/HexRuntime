@@ -571,7 +571,7 @@ namespace RTJ::Hex
 				std::forward<Fn>(action)(branch);
 		}
 		bool IsUnreachable()const {
-			return Index == 0 ? false : BBIn.empty();
+			return BBIn.empty();
 		}
 	};
 

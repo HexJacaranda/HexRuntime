@@ -26,7 +26,7 @@ namespace RTJ::Hex
 	class AllocationContext
 	{
 		RTMM::SegmentHeap* mHeap = nullptr;
-		std::unordered_map<UInt16, SmallSet<UInt8>> mLocal2VReg;
+		std::unordered_map<UInt16, UInt8> mLocal2VReg;
 		std::unordered_map<UInt8, UInt16> mVReg2Local;
 		std::unordered_map<UInt8, UInt8> mVReg2PReg;
 		InterpreterT* mInterpreter;

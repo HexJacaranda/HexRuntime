@@ -24,32 +24,21 @@ void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
 	//First traverse: Find intersection of (Variable, VReg, PReg) allocation
 	std::unordered_set<RegisterAllocationChain> chainSet{};
 	VariableSet remainSet = bb->VariablesLiveIn;
-	for (auto&& in : bb->BBIn)
+	for (auto&& in : bb->BBIn | std::views::filter([](auto x) { return x != nullptr; }))
 	{
-		auto variableIterator = remainSet.begin();
-		while (variableIterator != remainSet.end())
+		for (auto&& variableIn : remainSet)
 		{
-			auto variableIn = *variableIterator;
 			auto chain = in->RegisterContext->GetAlloactionChainOf(variableIn);
-			if (!chain.has_value() || !chainSet.contains(chain.value()))
-			{
-				variableIterator = remainSet.erase(variableIterator);
-				continue;
-			}
+			if (!chain.has_value())
+				remainSet.Remove(variableIn);
+
+			if (!chainSet.contains(chain.value()))
+				remainSet.Remove(variableIn);			
 		}
 
 		if (remainSet.Count() == 0)
 			break;
 	}
-
-	//For each BBIn, we need to land variable(s) to stack loaction if they aren't
-	for (auto&& in : bb->BBIn)
-	{
-
-	}
-
-	//Set allocation state
-
 }
 
 std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCandidate(
@@ -443,22 +432,8 @@ void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVir
 		* history and it will be used when we encounter the usage of
 		* v-register
 		*/
-		auto&& virtualRegisters = iterator->second;
-		if (!virtualRegisters.Contains(newVirtualRegister))
-		{
-			virtualRegisters.Add(newVirtualRegister);
-			//Check if other holds
-			if (auto otherLocation = mVReg2Local.find(newVirtualRegister);
-				otherLocation != mVReg2Local.end())
-			{
-				auto&& [_, otherLocal] = *otherLocation;
-				//Remove from hold list
-				mLocal2VReg[otherLocal].Remove(newVirtualRegister);
-				//Remove reverse mapping
-				mVReg2Local.erase(otherLocation);
-			}
-		}
-		
+		auto&& virtualRegister = iterator->second;
+
 		//Check if origin allocated virtual register is the same with new one
 		if (virtualRegister != newVirtualRegister)
 		{

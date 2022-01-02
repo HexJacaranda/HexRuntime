@@ -820,9 +820,9 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		}
 		
 		//Append to linked list will change the previous BB to current
-		if (basicBlockPrevious != nullptr && (
+		if (basicBlockPrevious == nullptr ||
 			basicBlockPrevious->BranchKind == PPKind::Conditional ||
-			basicBlockPrevious->BranchKind == PPKind::Sequential))
+			basicBlockPrevious->BranchKind == PPKind::Sequential)
 			//Logically sequential to the previous basic	
 			basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 
