@@ -5,9 +5,10 @@
 
 #define POOL mContext->Memory
 
-void RTJ::Hex::LSRA::InvalidateWithinBasicBlock()
+void RTJ::Hex::LSRA::InvalidateWithinBasicBlock(BasicBlock* bb, Int32 livenessIndex)
 {
-
+	auto&& nextSet = bb->Liveness[(std::size_t)livenessIndex + 1];
+	bb->RegisterContext->InvalidateLocalVariableExcept(nextSet);
 }
 
 void RTJ::Hex::LSRA::InvalidateAcrossBaiscBlock()
@@ -21,10 +22,26 @@ void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
 		mContext->Memory,
 		&mInterpreter);
 
-	//First traverse: Find intersection of (Variable, VReg, PReg) allocation
+	//Speical cases: fast path
+	if (bb->BBIn.size() == 0)
+	{
+		bb->RegisterContext = newContext;
+		return;
+	}
+
+	if (bb->BBIn.size() == 1)
+	{
+		//Assign and reserve only varialbeLiveIn
+		*newContext = *bb->BBIn.front()->RegisterContext;
+		newContext->InvalidateLocalVariableExcept(bb->VariablesLiveIn);
+		bb->RegisterContext = newContext;
+		return;
+	}
+
+	//First traverse: Find intersection of (Variable, PReg) allocation
 	std::unordered_set<RegisterAllocationChain> chainSet{};
 	VariableSet remainSet = bb->VariablesLiveIn;
-	for (auto&& in : bb->BBIn | std::views::filter([](auto x) { return x != nullptr; }))
+	for (auto&& in : bb->BBIn)
 	{
 		for (auto&& variableIn : remainSet)
 		{
@@ -33,12 +50,40 @@ void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
 				remainSet.Remove(variableIn);
 
 			if (!chainSet.contains(chain.value()))
-				remainSet.Remove(variableIn);			
+				remainSet.Remove(variableIn);	
+
+			if (mVariableLanded[in->Index].Contains(variableIn))
+				remainSet.Remove(variableIn);
 		}
 
 		if (remainSet.Count() == 0)
 			break;
 	}
+
+	//Second traverse: Land variables that has not been landed
+	for (auto&& in : bb->BBIn)
+	{
+		auto diffSet = in->VariablesLiveOut - remainSet;
+		for (auto&& variableToLand : diffSet)
+		{
+			if (!mVariableLanded[in->Index].Contains(variableToLand))
+			{
+				mVariableLanded[in->Index].Add(variableToLand);
+				//Land variable
+				auto pReg = in->RegisterContext->GetPhysicalRegister(variableToLand);
+				auto ins = mInterpreter.ProvideStore(variableToLand, pReg.value());
+				in->Instructions.push_back(ins);
+			}
+		}
+	}
+
+	for (auto&& chain : chainSet |
+		std::views::filter([&](auto&& x) { return remainSet.Contains(x.Variable); }))
+	{
+		newContext->LoadFromMergeContext(chain);
+	}
+
+	bb->RegisterContext = newContext;
 }
 
 std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCandidate(
@@ -221,7 +266,7 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 				[&](ConcreteInstruction ins) { this->AllocateRegisterFor(basicBlock, index, ins); });
 
 			//Clean up context according to liveness
-			InvalidateWithinBasicBlock();
+			InvalidateWithinBasicBlock(basicBlock, index);
 		}
 
 		//If we need branch instruction
@@ -274,18 +319,20 @@ void RTJ::Hex::LSRA::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, Co
 						THROW("Unable to spill variable.");
 
 					auto&& [oldVirtualRegister, oldVariableIndex] = candidate.value();
-					auto storeInstruction = mRegContext->RequestSpill(
+					auto [storeInstruction, loadInstruction] = mRegContext->RequestSpill(
 						oldVirtualRegister, oldVariableIndex, operand.VirtualRegister, variable.value());
 
-					//Append instruction
+					//Append instructions
 					bb->Instructions.push_back(storeInstruction);
+					bb->Instructions.push_back(loadInstruction);
 					/* Store the variable on register whether it's forced by spill or requested by
 					* other BB when merging the context. But be careful that when we meet the next
 					* store (not by spill) for this variable, if it's alreadly been stored, we need
-					* to remove the variable for correction. Otherwise we can avoid appending redundant 
+					* to remove the variable for correction. Otherwise we can avoid appending redundant
 					* store instruction to the end of BB
 					*/
-					mVariableLanded[bb->Index].Add(oldVariableIndex);
+					if (bb->VariablesLiveOut.Contains(oldVariableIndex))
+						mVariableLanded[bb->Index].Add(oldVariableIndex);
 				}
 				if (emitInstruction.has_value())
 					bb->Instructions.push_back(emitInstruction.value());
@@ -423,9 +470,8 @@ RTJ::Hex::AllocationContext::AllocationContext(RTMM::SegmentHeap* heap, Interpre
 
 void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction ins)
 {
-	auto iterator = mLocal2VReg.find(variableIndex);
 	//Check if there's any alreadly in state mapping
-	if (iterator != mLocal2VReg.end())
+	if (auto iterator = mLocal2VReg.find(variableIndex); iterator != mLocal2VReg.end())
 	{
 		/* We don't care whether the physical register is allocated
 		* or just on-hold. We just simply inherit the value from the
@@ -448,6 +494,14 @@ void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVir
 		//If there is non, create on-hold state
 		mVReg2Local[newVirtualRegister] = variableIndex;
 		mLocal2VReg[variableIndex] = newVirtualRegister;
+	}
+
+	//If there is direct allocation from merging, update and remove it from map
+	if (auto pRegRequest = mLocal2PReg.find(variableIndex);
+		pRegRequest != mLocal2PReg.end())
+	{
+		mVReg2PReg[newVirtualRegister] = pRegRequest->second;
+		mLocal2PReg.erase(pRegRequest);
 	}
 }
 
@@ -564,6 +618,42 @@ RTJ::Hex::AllocationContext::RequestLoad(
 	return { {}, false };
 }
 
+void RTJ::Hex::AllocationContext::LoadFromMergeContext(RegisterAllocationChain const& chain)
+{
+	mLocal2PReg[chain.Variable] = chain.PhysicalRegister;
+}
+
+void RTJ::Hex::AllocationContext::InvalidateLocalVariableExcept(VariableSet const& set)
+{
+	//Check direct allocation then?
+	auto directIterator = mLocal2PReg.begin();
+	while (directIterator != mLocal2PReg.end())
+	{
+		auto [local, pReg] = *directIterator;
+		if (!set.Contains(local))
+		{
+			directIterator = mLocal2PReg.erase(directIterator);
+			ReturnRegister(pReg);
+		}
+	}
+
+	auto iterator = mLocal2VReg.begin();
+	while (iterator != mLocal2VReg.end())
+	{
+		auto [local, vReg] = *iterator;
+		if (!set.Contains(local))
+		{
+			iterator = mLocal2VReg.erase(iterator);
+			//Return the occupied physical register if there is
+			if (auto pRegLocator = mVReg2PReg.find(vReg); pRegLocator != mVReg2PReg.end())
+			{
+				mVReg2PReg.erase(pRegLocator);
+				ReturnRegister(pRegLocator->second);
+			}
+		}
+	}
+}
+
 std::optional<RT::UInt16>  RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRegister)
 {
 	if(auto location = mVReg2Local.find(virtualRegister); location != mVReg2Local.end())
@@ -571,21 +661,20 @@ std::optional<RT::UInt16>  RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRe
 	return {};
 }
 
-RTJ::Hex::ConcreteInstruction RTJ::Hex::AllocationContext::RequestSpill(
+std::tuple<RTJ::Hex::ConcreteInstruction, RTJ::Hex::ConcreteInstruction>
+RTJ::Hex::AllocationContext::RequestSpill(
 	UInt8 oldVirtualRegister, UInt16 oldVariable, UInt8 newVirtualRegister, UInt16 newVariable)
 {
-	mVReg2Local.erase(oldVirtualRegister);
-	mLocal2VReg.erase(oldVariable);
-
-	mVReg2Local[newVirtualRegister] = newVariable;
-	mLocal2VReg[newVariable] = newVirtualRegister;
-
-	auto mapPV = mVReg2PReg.find(oldVirtualRegister);
-	auto [_, physicalRegister] = *mapPV;
-	mVReg2PReg.erase(mapPV);
-	mVReg2PReg[newVirtualRegister] = physicalRegister;
-	
-	return mInterpreter->ProvideWrite(oldVariable, physicalRegister);
+	auto pRegRequest = mVReg2PReg.find(oldVirtualRegister);
+	auto pReg = pRegRequest->second;
+	//Move physical register to new virtual register
+	mVReg2PReg[newVirtualRegister] = pReg;
+	//Remove from origin
+	mVReg2PReg.erase(pRegRequest);
+	return {
+		mInterpreter->ProvideStore(oldVariable, pReg),
+		mInterpreter->ProvideLoad(newVariable, pReg)
+	};
 }
 
 std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetPhysicalRegister(UInt16 variable)
@@ -605,6 +694,10 @@ std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetVirtualRegister(UInt16 
 
 std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::GetAlloactionChainOf(UInt16 variable)
 {
+	auto directPRegLocator = mLocal2PReg.find(variable);
+	if (directPRegLocator != mLocal2PReg.end())
+		return RegisterAllocationChain{ variable, directPRegLocator->second };
+
 	auto vRegLocator = mLocal2VReg.find(variable);
 	if (vRegLocator == mLocal2VReg.end())
 		return {};
@@ -613,22 +706,5 @@ std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::Ge
 	if (pRegLocator == mVReg2PReg.end())
 		return {};
 
-	return RegisterAllocationChain{ variable, vRegLocator->second, pRegLocator->second };
-}
-
-void RTJ::Hex::AllocationContext::MergeWith(BasicBlock* bb, AllocationContext const& another)
-{
-	auto variableIterator = mLocal2VReg.begin();
-	while (variableIterator != mLocal2VReg.end())
-	{
-		auto [local, vReg] = *variableIterator;
-		if (auto anotherLocal = another.mLocal2VReg.find(local);
-			anotherLocal != another.mLocal2VReg.end())
-		{
-			if (auto [_, anotherVReg] = *anotherLocal; anotherVReg == vReg)
-			{
-				auto pReg = mVReg2PReg.find(vReg);
-			}
-		}
-	}
+	return RegisterAllocationChain{ variable, pRegLocator->second };
 }

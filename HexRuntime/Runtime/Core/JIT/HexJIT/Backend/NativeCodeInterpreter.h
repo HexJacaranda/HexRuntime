@@ -46,7 +46,7 @@ namespace RTJ::Hex
 
 		}
 
-		ConcreteInstruction ProvideWrite(UInt16 variableIndex, UInt8 physicalRegister)
+		ConcreteInstruction ProvideStore(UInt16 variableIndex, UInt8 physicalRegister)
 		{
 			return {};
 		}

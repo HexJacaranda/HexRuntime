@@ -17,10 +17,21 @@ namespace RTJ::Hex
 	struct RegisterAllocationChain
 	{
 		UInt16 Variable;
-		UInt8  VirtualRegister;
 		UInt8  PhysicalRegister;
 	};
+}
 
+template<>
+struct std::hash<RTJ::Hex::RegisterAllocationChain>
+{
+	size_t operator()(RTJ::Hex::RegisterAllocationChain const& key)
+	{
+		return std::hash<RT::UInt32>()(*(RT::UInt32*)&key);
+	}
+};
+
+namespace RTJ::Hex
+{
 	using InterpreterT = NativeCodeInterpreter<Platform::CurrentArchitecture, Platform::CurrentWidth>;
 
 	class AllocationContext
@@ -29,6 +40,8 @@ namespace RTJ::Hex
 		std::unordered_map<UInt16, UInt8> mLocal2VReg;
 		std::unordered_map<UInt8, UInt16> mVReg2Local;
 		std::unordered_map<UInt8, UInt8> mVReg2PReg;
+		//Used when merging from context
+		std::unordered_map<UInt16, UInt8> mLocal2PReg;
 		InterpreterT* mInterpreter;
 		UInt64 mRegisterPool = 0xFFFFFFFFu;
 	public:
@@ -50,12 +63,12 @@ namespace RTJ::Hex
 		std::optional<UInt8> GetPhysicalRegister(UInt16 variable);
 		std::optional<RegisterAllocationChain> GetAlloactionChainOf(UInt16 variable);
 		
-		ConcreteInstruction RequestSpill(UInt8 oldVirtualRegister, UInt16 oldVariable, UInt8 newVirtualRegister, UInt16 newVariable);
+		std::tuple<ConcreteInstruction, ConcreteInstruction>
+			RequestSpill(UInt8 oldVirtualRegister, UInt16 oldVariable, UInt8 newVirtualRegister, UInt16 newVariable);
 		std::tuple<std::optional<ConcreteInstruction>, bool> RequestLoad(UInt8 virtualRegister, UInt64 registerMask);
 
-		void MergeWith(BasicBlock* bb, AllocationContext const& another);
-	private:
-		
+		void LoadFromMergeContext(RegisterAllocationChain const& chain);
+		void InvalidateLocalVariableExcept(VariableSet const& set);
 	};
 
 	/// <summary>
@@ -75,7 +88,7 @@ namespace RTJ::Hex
 		/// <summary>
 		/// This method invalidates variables yet we'll do a more relaxed one.
 		/// </summary>
-		void InvalidateWithinBasicBlock();
+		void InvalidateWithinBasicBlock(BasicBlock* bb, Int32 livenessIndex);
 		/// <summary>
 		/// This method invalidates variables strictly according to the liveness
 		/// </summary>
