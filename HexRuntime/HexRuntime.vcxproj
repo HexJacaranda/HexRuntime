@@ -37,6 +37,8 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeInterpreter.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPage.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPageProvider.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.h" />
@@ -103,7 +105,9 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
@@ -138,6 +142,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Runtime\Core\Runtime.natvis" />

@@ -40,7 +40,6 @@ namespace RTJ::Hex
 		std::unordered_map<UInt16, UInt8> mLocal2VReg;
 		std::unordered_map<UInt8, UInt16> mVReg2Local;
 		std::unordered_map<UInt8, UInt8> mVReg2PReg;
-		//Used when merging from context
 		std::unordered_map<UInt16, UInt8> mLocal2PReg;
 		InterpreterT* mInterpreter;
 		UInt64 mRegisterPool = 0xFFFFFFFFu;
@@ -69,6 +68,9 @@ namespace RTJ::Hex
 
 		void LoadFromMergeContext(RegisterAllocationChain const& chain);
 		void InvalidateLocalVariableExcept(VariableSet const& set);
+	public:
+		ETY = UInt8;
+		VAL ReservedVirtualRegister = 0xFFu;
 	};
 
 	/// <summary>

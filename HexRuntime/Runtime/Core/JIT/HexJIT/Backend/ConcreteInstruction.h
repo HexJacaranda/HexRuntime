@@ -16,16 +16,8 @@ namespace RTJ::Hex
 
 		//Realization phase
 		VAL Register = 0x04;		
-		VAL Immediate = 0x05;
-		VAL SIB = 0x06;
-	};
-
-	struct ScaleIndexBase
-	{
-		Int32 Displacement;
-		UInt8 Scale;
-		UInt8 Index;
-		UInt8 Base;
+		VAL Immediate32 = 0x05;
+		VAL Immediate64 = 0x06;
 	};
 
 	struct InstructionOperandFlags
@@ -38,17 +30,16 @@ namespace RTJ::Hex
 	{
 		UInt8 Kind;
 		UInt8 Flags;
+		//These kinds of values are directly supported by our model
 		union
-		{
+		{		
 			UInt8 Register;
 			UInt8 VirtualRegister;
+			UInt16 VariableIndex;
 			UInt64 Immediate64;
 			UInt32 Immediate32;
-			UInt16 VariableIndex;
-			/// <summary>
-			/// SIB support
-			/// </summary>
-			ScaleIndexBase SIB;
+			//Support for extension format
+			void* Extension;
 		};
 	public:
 		bool IsModifyingRegister()const {

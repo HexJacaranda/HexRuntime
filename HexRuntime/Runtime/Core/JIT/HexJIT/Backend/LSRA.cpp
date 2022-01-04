@@ -480,13 +480,39 @@ void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVir
 		*/
 		auto&& virtualRegister = iterator->second;
 
-		//Check if origin allocated virtual register is the same with new one
-		if (virtualRegister != newVirtualRegister)
+		if (virtualRegister == ReservedVirtualRegister)
 		{
+			if (auto pRegLocator = mLocal2PReg.find(variableIndex);
+				pRegLocator != mLocal2PReg.end())
+			{
+				auto physicalRegister = pRegLocator->second;
+				//Remove temporary mapping
+				mLocal2PReg.erase(pRegLocator);
+				//Update to new mapping
+				mVReg2PReg[newVirtualRegister] = physicalRegister;
+			}
+		}
+		else if (virtualRegister != newVirtualRegister)
+		{
+			//Check if origin allocated virtual register is the same with new one
+			// 
+			//Remove origin mapping
 			mVReg2Local.erase(virtualRegister);
-			mVReg2Local[virtualRegister] = variableIndex;
+			//Update to new mapping
+			mVReg2Local[newVirtualRegister] = variableIndex;
 			//Update virtual register
 			virtualRegister = newVirtualRegister;
+
+			//Check if there is already a physical register (renaming)
+			if (auto pRegLocator = mVReg2PReg.find(virtualRegister);
+				pRegLocator != mVReg2PReg.end())
+			{
+				auto physicalRegister = pRegLocator->second;
+				//Remove origin mapping
+				mVReg2PReg.erase(virtualRegister);
+				//Update to new mapping
+				mVReg2PReg[newVirtualRegister] = physicalRegister;
+			}
 		}
 	}
 	else
@@ -494,14 +520,6 @@ void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVir
 		//If there is non, create on-hold state
 		mVReg2Local[newVirtualRegister] = variableIndex;
 		mLocal2VReg[variableIndex] = newVirtualRegister;
-	}
-
-	//If there is direct allocation from merging, update and remove it from map
-	if (auto pRegRequest = mLocal2PReg.find(variableIndex);
-		pRegRequest != mLocal2PReg.end())
-	{
-		mVReg2PReg[newVirtualRegister] = pRegRequest->second;
-		mLocal2PReg.erase(pRegRequest);
 	}
 }
 
@@ -543,7 +561,6 @@ void RTJ::Hex::AllocationContext::UsePhysicalResigster(InstructionOperand& opera
 	//TODO: Adapt SIB
 	operand.Kind = OperandKind::Register;
 	operand.Register = mVReg2PReg[operand.VirtualRegister];
-	Bit::SetOne(usedMask, operand.Register);
 }
 
 void RTJ::Hex::AllocationContext::InvalidateVirtualRegister(UInt8 virtualRegister)
@@ -620,23 +637,13 @@ RTJ::Hex::AllocationContext::RequestLoad(
 
 void RTJ::Hex::AllocationContext::LoadFromMergeContext(RegisterAllocationChain const& chain)
 {
+	mLocal2VReg[chain.Variable] = ReservedVirtualRegister;
 	mLocal2PReg[chain.Variable] = chain.PhysicalRegister;
+	Bit::SetZero(mRegisterPool, chain.PhysicalRegister);
 }
 
 void RTJ::Hex::AllocationContext::InvalidateLocalVariableExcept(VariableSet const& set)
 {
-	//Check direct allocation then?
-	auto directIterator = mLocal2PReg.begin();
-	while (directIterator != mLocal2PReg.end())
-	{
-		auto [local, pReg] = *directIterator;
-		if (!set.Contains(local))
-		{
-			directIterator = mLocal2PReg.erase(directIterator);
-			ReturnRegister(pReg);
-		}
-	}
-
 	auto iterator = mLocal2VReg.begin();
 	while (iterator != mLocal2VReg.end())
 	{
@@ -679,6 +686,11 @@ RTJ::Hex::AllocationContext::RequestSpill(
 
 std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetPhysicalRegister(UInt16 variable)
 {
+	//Check temporary mapping
+	if (auto directPRegLocator = mLocal2PReg.find(variable);
+		directPRegLocator != mLocal2PReg.end())
+		return directPRegLocator->second;
+
 	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
 		if (auto pReg = mVReg2PReg.find(vReg->second); pReg != mVReg2PReg.end())
 			return pReg->second;
@@ -694,8 +706,8 @@ std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetVirtualRegister(UInt16 
 
 std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::GetAlloactionChainOf(UInt16 variable)
 {
-	auto directPRegLocator = mLocal2PReg.find(variable);
-	if (directPRegLocator != mLocal2PReg.end())
+	if (auto directPRegLocator = mLocal2PReg.find(variable);
+		directPRegLocator != mLocal2PReg.end())
 		return RegisterAllocationChain{ variable, directPRegLocator->second };
 
 	auto vRegLocator = mLocal2VReg.find(variable);

@@ -6,7 +6,7 @@ RTIOS2EE::Windows::ExecutablePage::ExecutablePage(Int32 Length)
 	:mIndex(0), mLength(Length) {
 	if (Length == 0)
 		mLength = 32;
-	pPage = (Int8*)VirtualAlloc(nullptr, mLength, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+	pPage = (Int8*)VirtualAlloc(nullptr, mLength, MEM_COMMIT, PAGE_READWRITE);
 }
 
 RT::Int8* RTIOS2EE::Windows::ExecutablePage::GetRawPage()

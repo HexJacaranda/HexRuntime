@@ -103,6 +103,12 @@
     <Filter Include="头文件\Runtime\Core\Platform\Register">
       <UniqueIdentifier>{acea40ac-c626-4e9d-9d1b-0760464c8e02}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\JIT\HexJIT\Backend\X86">
+      <UniqueIdentifier>{181492f5-de66-4c92-9a3d-b5afef52b071}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Runtime\Core\JIT\Page">
+      <UniqueIdentifier>{87f43824-19c4-4170-aa11-f1eb942cca61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -315,6 +321,12 @@
     <ClInclude Include="Runtime\SmallSet.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPage.h">
+      <Filter>头文件\Runtime\Core\JIT\Page</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPageProvider.h">
+      <Filter>头文件\Runtime\Core\JIT\Page</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -449,9 +461,18 @@
     <ClCompile Include="Runtime\Bit.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.cpp">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend\X86</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Runtime\Core\Runtime.natvis">
