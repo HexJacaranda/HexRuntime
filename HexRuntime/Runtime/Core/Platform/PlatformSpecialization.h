@@ -83,7 +83,7 @@ namespace RTP
 		UInt32 Type = CallingArgumentType::Integer;
 	};
 
-	template<CallingConventions convention, UInt32 platform>
+	template<CallingConventions convention, PLATFORM_TEMPLATE_ARGS>
 	class PlatformCallingConventionProvider
 	{
 	public:

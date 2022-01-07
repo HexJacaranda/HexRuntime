@@ -5,23 +5,24 @@
 
 namespace RTP
 {
-	template<UInt32 platform>
-	class PlatformCallingConventionProvider<CallingConventions::JIT, platform>
+	template<UInt32 OS>
+	class PlatformCallingConventionProvider<CallingConventions::JIT, Platform::x86, Platform::Bit64, OS>
 	{
 	public:
 		template<class RangeT>
 		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&& range)
 		{
-			//Utilize more registers 64 bit
-			if constexpr (platform & Platform::Bit32)
-			{
+			return callingConv;
+		}
+	};
 
-			}
-			else
-			{
-
-			}
-
+	template<UInt32 OS>
+	class PlatformCallingConventionProvider<CallingConventions::JIT, Platform::x86, Platform::Bit32, OS>
+	{
+	public:
+		template<class RangeT>
+		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&& range)
+		{
 			return callingConv;
 		}
 	};

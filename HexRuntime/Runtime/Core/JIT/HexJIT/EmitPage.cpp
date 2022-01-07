@@ -30,6 +30,6 @@ namespace RTJ
 
 	UInt8* EmitPage::Finalize()
 	{
-		return EmitPageProvider::SetExecutable(mRawPage);
+		return EmitPageProvider::SetExecutable(mRawPage, mIndex);
 	}
 }

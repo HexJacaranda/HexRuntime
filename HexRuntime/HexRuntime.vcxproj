@@ -105,9 +105,10 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.h" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />

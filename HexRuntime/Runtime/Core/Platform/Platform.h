@@ -24,11 +24,12 @@ namespace RTP
 		VAL Windows = 0x00100000;		
 	};
 
-	
 #ifdef LINUX
 	constexpr UInt32 CurrentOS = Platform::AnyOS;
+#define PLATFORM_LINUX
 #else
 	constexpr UInt32 CurrentOS = Platform::Windows;
+#define PLATFORM_WINDOWS
 #endif
 
 #ifdef ARM
@@ -48,4 +49,8 @@ namespace RTP
 		Fast,
 		Vector
 	};
+
+#define PLATFORM_TEMPLATE_ARGS UInt32 Architecture, UInt32 Width, UInt32 OS
+#define USE_CURRENT_PLATFORM CurrentArchitecture, CurrentWidth, CurrentOS
+
 }

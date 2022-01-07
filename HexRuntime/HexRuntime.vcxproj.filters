@@ -461,10 +461,13 @@
     <ClCompile Include="Runtime\Bit.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.cpp">
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
   </ItemGroup>

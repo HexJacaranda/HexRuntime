@@ -262,8 +262,15 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		Int32 index = 0;
 		for (Statement* stmt = basicBlock->Now; stmt != nullptr; stmt = stmt->Next, index++)
 		{
-			mInterpreter.Interpret(stmt->Now,
-				[&](ConcreteInstruction ins) { this->AllocateRegisterFor(basicBlock, index, ins); });
+			if (stmt->Now->Is(NodeKinds::MorphedCall))
+			{
+				//Do special generation
+			}
+			else 
+			{
+				mInterpreter.Interpret(stmt->Now,
+					[&](ConcreteInstruction ins) { this->AllocateRegisterFor(basicBlock, index, ins); });
+			}
 
 			//Clean up context according to liveness
 			InvalidateWithinBasicBlock(basicBlock, index);
