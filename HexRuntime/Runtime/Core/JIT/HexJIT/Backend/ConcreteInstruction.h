@@ -13,11 +13,16 @@ namespace RTJ::Hex
 		VAL VirtualRegister = 0x01;
 		VAL Local = 0x02;
 		VAL Argument = 0x03;
+		VAL BasicBlock = 0x03;
 
 		//Realization phase
-		VAL Register = 0x04;		
-		VAL Immediate32 = 0x05;
-		VAL Immediate64 = 0x06;
+		VAL Register = 0x10;	
+
+		//Directly use core type as kind
+		VAL CoreTypesRangeBase = 0x20;
+		VAL CoreTypesRangeEnd = 0x3F;
+
+		
 	};
 
 	struct InstructionOperandFlags
@@ -30,22 +35,56 @@ namespace RTJ::Hex
 	{
 		UInt8 Kind;
 		UInt8 Flags;
+		UInt8 Length;
 		//These kinds of values are directly supported by our model
 		union
 		{		
 			UInt8 Register;
 			UInt8 VirtualRegister;
+			//Fix up semantic
 			UInt16 VariableIndex;
+			Int32 BasicBlockIndex;
+			//Constant
 			UInt64 Immediate64;
 			UInt32 Immediate32;
-			//Support for extension format
-			void* Extension;
+			UInt16 Immediate16;
+			UInt8 Immediate8;
+			//To support complex operand like SIB
+			InstructionOperand* AggregatedOperands;
 		};
 	public:
 		bool IsModifyingRegister()const {
 			return Flags & InstructionOperandFlags::Modify;
 		}
 	};
+
+	template<class OperandT, ForeachFn<InstructionOperand> Fn>
+	static void ForeachOperand(OperandT&& operand, Fn&& action)
+	{
+		if (operand.Length > 1)
+		{
+			for (Int32 i = 0; i < operand.Length; ++i)
+				std::forward<Fn>(action)(operand.AggregatedOperands[i]);
+		}
+		else
+		{
+			std::forward<Fn>(action)(std::forward<OperandT>(operand));
+		}
+	}
+
+	template<class OperandT, ForeachWithIndexFn<InstructionOperand> Fn>
+	static void ForeachOperand(OperandT&& operand, Fn&& action)
+	{
+		if (operand.Length > 1)
+		{
+			for (Int32 i = 0; i < operand.Length; ++i)
+				std::forward<Fn>(action)(operand.AggregatedOperands[i], i);
+		}
+		else
+		{
+			std::forward<Fn>(action)(std::forward<OperandT>(operand), 0);
+		}
+	}
 
 	/// <summary>
 	///	Concrete instruction consists of memory restriction exposed platform instruction and

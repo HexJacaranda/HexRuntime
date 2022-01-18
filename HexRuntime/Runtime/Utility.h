@@ -148,7 +148,17 @@ namespace RT
 		}
 	};
 
-	template<class T, class Fn>
+	template<class Fn, class T>
+	concept ForeachFn = requires(Fn && action, T& element) {
+		std::forward<Fn>(action)(element);
+	};
+
+	template<class Fn, class T>
+	concept ForeachWithIndexFn = requires(Fn && action, T& element, Int32 index) {
+		std::forward<Fn>(action)(element, index);
+	};
+
+	template<class T, ForeachFn<T*> Fn>
 	static void ForeachInlined(T**& inlineArray, Int32 count, Fn&& action) {
 		if (count == 1)
 			std::forward<Fn>(action)(*(T**)&inlineArray);
@@ -156,6 +166,17 @@ namespace RT
 		{
 			for (Int32 i = 0; i < count; ++i)
 				std::forward<Fn>(action)(inlineArray[i]);
+		}
+	}
+
+	template<class T, ForeachWithIndexFn<T*> Fn>
+	static void ForeachInlined(T**& inlineArray, Int32 count, Fn&& action) {
+		if (count == 1)
+			std::forward<Fn>(action)(*(T**)&inlineArray, 0);
+		else if (count > 1)
+		{
+			for (Int32 i = 0; i < count; ++i)
+				std::forward<Fn>(action)(inlineArray[i], i);
 		}
 	}
 

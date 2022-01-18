@@ -246,7 +246,7 @@ void RTJ::Hex::SSAOptimizer::PruneFlowGraph(BasicBlock* basicBlock)
 			auto constant = conditionValue->As<ConstantNode>();
 			//Use sequential by default
 			BasicBlock* target = basicBlock->Next;
-			if (!constant->I1)
+			if (!constant->Bool)
 			{
 				target = basicBlock->BranchedBB;
 				basicBlock->BranchKind = PPKind::Unconditional;

@@ -55,3 +55,5 @@ void* operator new[](size_t size, RTMM::PrivateHeap* allocator, RTMM::TrackTagT)
 	*((RT::Int32*)memory) = size + sizeof(RT::Int32);
 	return (RT::Int32*)memory + 1;
 }
+
+RTMM::PrivateHeap* RTMM::GlobalHeap = nullptr;

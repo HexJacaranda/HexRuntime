@@ -741,6 +741,8 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 {
 	auto methodTable = new (context->Heap) MethodTable();
 
+	//Set owning type
+	methodTable->mOwningType = current;
 	//Dynamically
 	std::vector<MethodDescriptor*> overridenMethods;
 
@@ -848,6 +850,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 		descriptor->mSignature = generateSignature(methodMD.Signature);
 		descriptor->mLocals = generateLocals(methodMD);
 		descriptor->mSelf = meta->MethodTokens[i];
+		descriptor->mOwningTable = methodTable;
 
 		if (methodMD.IsVirtual())
 		{

@@ -1,22 +1,23 @@
-#include "LSRA.h"
+#include "RetargetableGenerator.h"
 #include "..\..\..\Exception\RuntimeException.h"
+#include "..\..\..\Meta\TypeDescriptor.h"
 #include <set>
 #include <ranges>
 
 #define POOL mContext->Memory
 
-void RTJ::Hex::LSRA::InvalidateWithinBasicBlock(BasicBlock* bb, Int32 livenessIndex)
+void RTJ::Hex::RetargetableGenerator::InvalidateWithinBasicBlock(BasicBlock* bb, Int32 livenessIndex)
 {
 	auto&& nextSet = bb->Liveness[(std::size_t)livenessIndex + 1];
 	bb->RegisterContext->InvalidateLocalVariableExcept(nextSet);
 }
 
-void RTJ::Hex::LSRA::InvalidateAcrossBaiscBlock()
+void RTJ::Hex::RetargetableGenerator::InvalidateAcrossBaiscBlock()
 {
 
 }
 
-void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
+void RTJ::Hex::RetargetableGenerator::MergeContext(BasicBlock* bb)
 {
 	AllocationContext* newContext = new (POOL) AllocationContext(
 		mContext->Memory,
@@ -80,13 +81,13 @@ void RTJ::Hex::LSRA::MergeContext(BasicBlock* bb)
 	for (auto&& chain : chainSet |
 		std::views::filter([&](auto&& x) { return remainSet.Contains(x.Variable); }))
 	{
-		newContext->LoadFromMergeContext(chain);
+		newContext->EstablishDirectAssignment(chain);
 	}
 
 	bb->RegisterContext = newContext;
 }
 
-std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCandidate(
+std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::RetargetableGenerator::RetriveSpillCandidate(
 	BasicBlock* bb, UInt64 mask, Int32 livenessIndex)
 {
 	auto&& liveMap = bb->Liveness;
@@ -115,7 +116,7 @@ std::optional<std::tuple<RT::UInt8, RT::UInt16>> RTJ::Hex::LSRA::RetriveSpillCan
 		set.Front());
 }
 
-void RTJ::Hex::LSRA::ChooseCandidate()
+void RTJ::Hex::RetargetableGenerator::ChooseCandidate()
 {
 	/* Trackable flag will be reused here. And our criteria of candidates are:
 	* 1. Local size <= sizeof(void*)
@@ -139,7 +140,7 @@ void RTJ::Hex::LSRA::ChooseCandidate()
 	}
 }
 
-void RTJ::Hex::LSRA::BuildLivenessDurationPhaseOne()
+void RTJ::Hex::RetargetableGenerator::BuildLivenessDurationPhaseOne()
 {
 	for (auto&& basicBlock : mContext->BBs)
 	{
@@ -176,7 +177,7 @@ void RTJ::Hex::LSRA::BuildLivenessDurationPhaseOne()
 	}
 }
 
-void RTJ::Hex::LSRA::BuildLivenessDurationPhaseTwo()
+void RTJ::Hex::RetargetableGenerator::BuildLivenessDurationPhaseTwo()
 {
 	BitSet stableMap(mContext->BBs.size());
 
@@ -222,13 +223,13 @@ void RTJ::Hex::LSRA::BuildLivenessDurationPhaseTwo()
 	}
 }
 
-void RTJ::Hex::LSRA::BuildLivenessDuration()
+void RTJ::Hex::RetargetableGenerator::BuildLivenessDuration()
 {
 	BuildLivenessDurationPhaseOne();
 	BuildLivenessDurationPhaseTwo();
 }
 
-void RTJ::Hex::LSRA::BuildTopologciallySortedBB(BasicBlock* bb, BitSet& visited)
+void RTJ::Hex::RetargetableGenerator::BuildTopologciallySortedBB(BasicBlock* bb, BitSet& visited)
 {
 	visited.SetOne(bb->Index);
 
@@ -241,7 +242,7 @@ void RTJ::Hex::LSRA::BuildTopologciallySortedBB(BasicBlock* bb, BitSet& visited)
 	mSortedBB.push_back(bb);
 }
 
-void RTJ::Hex::LSRA::BuildTopologciallySortedBB()
+void RTJ::Hex::RetargetableGenerator::BuildTopologciallySortedBB()
 {
 	BitSet visit(mContext->BBs.size());
 	while (!visit.IsOne())
@@ -252,7 +253,7 @@ void RTJ::Hex::LSRA::BuildTopologciallySortedBB()
 	std::reverse(mContext->BBs.begin(), mContext->BBs.end());
 }
 
-void RTJ::Hex::LSRA::AllocateRegisters()
+void RTJ::Hex::RetargetableGenerator::AllocateRegisters()
 {
 	for (auto&& basicBlock : mSortedBB)
 	{
@@ -265,6 +266,7 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 			if (stmt->Now->Is(NodeKinds::MorphedCall))
 			{
 				//Do special generation
+				AllocateRegisterFor(basicBlock, index, stmt->Now->As<MorphedCallNode>());
 			}
 			else 
 			{
@@ -280,6 +282,7 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 		if (basicBlock->BranchKind != PPKind::Sequential)
 		{
 			mInterpreter.InterpretBranch(basicBlock->BranchConditionValue,
+				basicBlock->BranchedBB->Index,
 				[&](ConcreteInstruction ins) { this->AllocateRegisterFor(basicBlock, index, ins); });
 
 			//Clean up context according to liveness
@@ -288,94 +291,225 @@ void RTJ::Hex::LSRA::AllocateRegisters()
 	}
 }
 
-void RTJ::Hex::LSRA::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, ConcreteInstruction instruction)
+void RTJ::Hex::RetargetableGenerator::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, ConcreteInstruction instruction)
 {
 	auto operands = instruction.GetOperands();
 	if (instruction.IsLocalLoad())
 	{
 		auto&& destinationRegister = operands[0];
 		auto&& sourceVariable = operands[1];
-		mRegContext->WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister, instruction);
+		mRegContext->WatchOnLoad(sourceVariable.VariableIndex, destinationRegister.VirtualRegister);
 		
 	}
 	else if (instruction.IsLocalStore())
 	{
 		auto&& destinationVariable = operands[0];
 		auto&& sourceRegister = operands[1];
-		mRegContext->WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister, instruction);
+		mRegContext->WatchOnStore(destinationVariable.VariableIndex, sourceRegister.VirtualRegister);
+		/* It is an attempt of storing value into stack. But we cannot tell whether it
+		*  will be carried out somewhere else. So we will remove it from landed set.
+		*/
+		mVariableLanded[bb->Index].Remove(destinationVariable.VariableIndex);
 	}
 	else
 	{
 		auto&& constraints = instruction.Instruction->AddressConstraints;
 		//Prevent spilling the same register
 		UInt64 currentUseMask = 0ull;
-		for (Int32 i = 0; i < (Int32)instruction.Instruction->ConstraintLength; ++i)
+		//Should go backward since modifying operation is arranged at first
+		for (Int32 i = (Int32)instruction.Instruction->ConstraintLength - 1; i >= 0; --i)
 		{
-			auto&& operand = operands[i];
-			//TODO: Adapt to SIB which may contains multiple register references in one operand
-			if (operand.Flags & OperandKind::VirtualRegister)
-			{
-				auto availiableMask = constraints[i].RegisterAvaliableMask & ~currentUseMask;
-				auto [emitInstruction, needSpill] = mRegContext->RequestLoad(operand.VirtualRegister, availiableMask);
-				auto variable = mRegContext->GetLocal(operand.VirtualRegister);
-				if (needSpill)
+			//Traverse complex operands
+			ForeachOperand(operands[i],
+				[&](InstructionOperand& operand, Int32 index)
 				{
-					//Get candidate and spill it
-					auto candidate = RetriveSpillCandidate(bb, ~currentUseMask, livenessIndex);
-					if (!candidate.has_value())
-						THROW("Unable to spill variable.");
+					if (operand.Flags & OperandKind::VirtualRegister)
+					{
+						auto availiableMask = constraints[i].RegisterAvaliableMask & ~currentUseMask;
+						auto [emitInstruction, needSpill] = mRegContext->RequestLoad(operand.VirtualRegister, availiableMask);
+						auto variable = mRegContext->GetLocal(operand.VirtualRegister).value();
+						if (needSpill)
+						{
+							//Firstly query if we can use memory operation instead
+							if (mInterpreter.PurposeMemoryOperation(instruction, i, variable))
+								return;
 
-					auto&& [oldVirtualRegister, oldVariableIndex] = candidate.value();
-					auto [storeInstruction, loadInstruction] = mRegContext->RequestSpill(
-						oldVirtualRegister, oldVariableIndex, operand.VirtualRegister, variable.value());
+							//Get candidate and spill it
+							auto candidate = RetriveSpillCandidate(bb, ~currentUseMask, livenessIndex);
+							if (!candidate.has_value())
+								THROW("Unable to spill variable.");
 
-					//Append instructions
-					bb->Instructions.push_back(storeInstruction);
-					bb->Instructions.push_back(loadInstruction);
-					/* Store the variable on register whether it's forced by spill or requested by
-					* other BB when merging the context. But be careful that when we meet the next
-					* store (not by spill) for this variable, if it's alreadly been stored, we need
-					* to remove the variable for correction. Otherwise we can avoid appending redundant
-					* store instruction to the end of BB
-					*/
-					if (bb->VariablesLiveOut.Contains(oldVariableIndex))
-						mVariableLanded[bb->Index].Add(oldVariableIndex);
-				}
-				if (emitInstruction.has_value())
-					bb->Instructions.push_back(emitInstruction.value());
+							auto&& [oldVirtualRegister, oldVariableIndex] = candidate.value();
+							auto [storeInstruction, loadInstruction] = mRegContext->RequestSpill(
+								oldVirtualRegister, oldVariableIndex, operand.VirtualRegister, variable);
 
-				//Update to physical register
-				mRegContext->UsePhysicalResigster(operand, currentUseMask);
+							/* Store the variable on register whether it's forced by spill or requested by
+							* other BB when merging the context. But be careful that when we meet the next
+							* store (not by spill) for this variable, if it's alreadly been stored, we need
+							* to remove the variable for correction. Thus we can avoid appending redundant
+							* store instructions.
+							*/
+							if (!mVariableLanded[bb->Index].Contains(oldVariableIndex))
+							{
+								mVariableLanded[bb->Index].Add(oldVariableIndex);
+								bb->Instructions.push_back(storeInstruction);
+							}
+							
+							bb->Instructions.push_back(loadInstruction);					
+						}
+						if (emitInstruction.has_value())
+							bb->Instructions.push_back(emitInstruction.value());
 
-				//Check if we should invalidate the relationship (v-reg, local variable)
-				if (operand.IsModifyingRegister())
-					mRegContext->InvalidateVirtualRegister(operand.VirtualRegister);
-			}
+						//Update to physical register
+						mRegContext->UsePhysicalResigster(operand, currentUseMask);
+
+						//Check if we should invalidate the relationship (v-reg, local variable)
+						if (operand.IsModifyingRegister())
+							mRegContext->InvalidateVirtualRegister(operand.VirtualRegister);
+					}
+				});
 		}
+
+		//Push the final instruction
+		bb->Instructions.push_back(instruction);
 	}
 }
 
-void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, VariableSet& liveSet)
+void RTJ::Hex::RetargetableGenerator::AllocateRegisterFor(BasicBlock* bb, Int32 livenessIndex, MorphedCallNode* call)
 {
-	auto isQualified = [this](Int16 indexValue, NodeKinds kind) -> std::optional<UInt16> {
-		if (kind == NodeKinds::LocalVariable &&
-			!mContext->LocalAttaches[indexValue].IsTrackable())
-			return {};
+	ForeachInlined(call->Arguments, call->ArgumentCount, 
+		[&](TreeNode* arg, Int32 index) 
+		{
+			auto&& passway = call->CallingConvention->ArgumentPassway[index];
+			UseSpaceForCallingConvention(bb, livenessIndex, arg, passway);
+		});
 
-		if (kind == NodeKinds::Argument &&
-			!mContext->ArgumentAttaches[indexValue].IsTrackable())
-			return {};
-
-		UInt16 index = indexValue;
-		if (kind == NodeKinds::Argument)
-			index |= 0x8000u;
-
-		return index;
-	}; 
-
-	auto use = [&](Int16 originIndexValue, NodeKinds kind)
+	if (call->Origin != nullptr && call->Origin->Is(NodeKinds::Call))
 	{
-		if (auto index = isQualified(originIndexValue, kind); index.has_value())
+		auto managedCall = call->Origin->As<CallNode>();
+		auto owningHeap = managedCall->Method->GetOwningTable()->GetOwningType()->GetAssembly()->Heap;
+		auto callingConv = GenerateCallingConvFor(owningHeap, managedCall->Method->GetSignature());
+
+		managedCall->Method->SetCallingConvention(callingConv);
+		ForeachInlined(managedCall->Arguments, managedCall->ArgumentCount, 
+			[&](TreeNode* arg, Int32 index) 
+			{
+				auto&& passway = callingConv->ArgumentPassway[index];
+				UseSpaceForCallingConvention(bb, livenessIndex, arg, passway);
+			});
+	}
+
+	//Some variables have already been landed, we'll scan the rest
+	mRegContext->WalkToLandVariable(
+		[&](UInt16 variable, UInt8 physicalRegister)
+		{
+			if (!mVariableLanded[bb->Index].Contains(variable))
+			{
+				bb->Instructions.push_back(mInterpreter.ProvideStore(variable, physicalRegister));
+				mVariableLanded[bb->Index].Add(variable);
+			}
+		});
+}
+
+void RTJ::Hex::RetargetableGenerator::UseSpaceForCallingConvention(
+	BasicBlock* bb,
+	Int32 livenessIndex,
+	TreeNode* value, 
+	RTP::AddressConstraint const& target)
+{
+	if (!value->Is(NodeKinds::Load))
+		THROW("Linearized arguments of call should always be of type Load");
+
+	auto tryInvalidateOldVariableFromRegister = [&](std::optional<UInt16> variable, UInt8 physicalRegister)
+	{
+		if (auto local = mRegContext->GetLocalByPhysicalRegister(physicalRegister);
+			local.has_value())
+		{
+			if (variable == local.value())
+				return;
+
+			/* Firstly check if this variable crosses the call.
+			*  If it's totally dead after call, then we should not store it.
+			*/
+
+			if (IsValueUnusedAfter(bb, livenessIndex, variable.value()) &&
+				!mVariableLanded[bb->Index].Contains(local.value()))
+			{
+				bb->Instructions.push_back(mInterpreter.ProvideStore(local.value(), physicalRegister));
+				mVariableLanded[bb->Index].Add(local.value());
+			}
+		}
+	};
+
+	auto occupyPhysicalRegister = [&](UInt16 variable, UInt8 physicalRegister)
+	{
+		tryInvalidateOldVariableFromRegister(variable, physicalRegister);
+		mRegContext->EstablishDirectAssignment({ variable, physicalRegister });
+	};
+
+	bool isValueRegisterTarget =
+		(target.Flags & RTP::AddressConstraintFlags::SpecificRegister) &&
+		!(target.Flags & RTP::AddressConstraintFlags::Memory);
+
+	InstructionOperand sourceOperand{};
+
+	auto load = value->As<LoadNode>();
+	auto source = load->Source;
+	if (source->Is(NodeKinds::LocalVariable))
+	{
+		UInt16 variable = source->As<LocalVariableNode>()->LocalIndex;
+		//Set to direct load at first
+		sourceOperand.Kind = OperandKind::Local;
+		if (load->LoadType == SLMode::Direct)
+		{
+			//For direct value load, check assigned physical register
+			if (isValueRegisterTarget)
+				occupyPhysicalRegister(variable, target.SingleRegister);
+		}
+	}
+	else if (source->Is(NodeKinds::Constant))
+	{
+		auto constant = source->As<ConstantNode>();
+		//Map to reserved core type range
+		sourceOperand.Kind = constant->CoreType + OperandKind::CoreTypesRangeBase;
+		//Copy all
+		sourceOperand.Immediate64 = constant->U8;
+
+		if (isValueRegisterTarget)
+			tryInvalidateOldVariableFromRegister({}, target.SingleRegister);
+	}
+
+	mInterpreter.InterpretLoad(
+		target,
+		sourceOperand,
+		[&](ConcreteInstruction const& ins)
+		{
+			bb->Instructions.push_back(ins);
+		});
+}
+
+bool RTJ::Hex::RetargetableGenerator::IsValueUnusedAfter(BasicBlock* bb, Int32 livenessIndex, UInt16 variableIndex) const
+{
+	Int32 nextIndex = livenessIndex + 1;
+	if (nextIndex >= bb->Liveness.size())
+		return false;
+	return bb->Liveness[nextIndex].Contains(variableIndex);
+}
+
+void RTJ::Hex::RetargetableGenerator::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, VariableSet& liveSet)
+{
+	auto isQualified = [this](UInt16 index) -> std::optional<UInt16> {
+		UInt16 indexValue = LocalVariableNode::GetIndex(index);
+		if (LocalVariableNode::IsArgument(index))
+			return mContext->ArgumentAttaches[indexValue].IsTrackable();
+		else
+			return mContext->LocalAttaches[indexValue].IsTrackable();
+		return {};
+	};
+
+	auto use = [&](UInt16 originIndexValue)
+	{
+		if (auto index = isQualified(originIndexValue); index.has_value())
 		{
 			auto indexValue = index.value();
 			currentBB->VariablesUse.Add(indexValue);
@@ -383,9 +517,9 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, Variab
 		}
 	};
 
-	auto kill = [&](Int16 originIndexValue, NodeKinds kind)
+	auto kill = [&](UInt16 originIndexValue)
 	{
-		if (auto index = isQualified(originIndexValue, kind); index.has_value())
+		if (auto index = isQualified(originIndexValue); index.has_value())
 		{
 			auto indexValue = index.value();
 			currentBB->VariablesDef.Add(indexValue);
@@ -399,7 +533,7 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, Variab
 	{
 		auto storeNode = node->As<StoreNode>();
 		if (auto variable = GuardedDestinationExtract(storeNode))
-			kill(variable->LocalIndex, variable->Kind);
+			kill(variable->LocalIndex);
 
 		//The source node may be direct morphed call
 		auto sourceNode = storeNode->Source;
@@ -410,7 +544,7 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, Variab
 	case NodeKinds::Load:
 	{
 		if (auto variable = GuardedSourceExtract(node->As<LoadNode>()))
-			use(variable->LocalIndex, variable->Kind);
+			use(variable->LocalIndex);
 		break;
 	}
 	case NodeKinds::MorphedCall:
@@ -433,35 +567,29 @@ void RTJ::Hex::LSRA::UpdateLiveSet(TreeNode* node, BasicBlock* currentBB, Variab
 	}
 }
 
-RTJ::Hex::LocalVariableNode* RTJ::Hex::LSRA::GuardedDestinationExtract(StoreNode* store)
+RTJ::Hex::LocalVariableNode* RTJ::Hex::RetargetableGenerator::GuardedDestinationExtract(StoreNode* store)
 {
 	auto dest = store->Destination;
 
-	if (dest->Is(NodeKinds::LocalVariable) ||
-		dest->Is(NodeKinds::Argument))
-	{
+	if (dest->Is(NodeKinds::LocalVariable))
 		return dest->As<LocalVariableNode>();
-	}
 	return nullptr;
 }
 
-RTJ::Hex::LocalVariableNode* RTJ::Hex::LSRA::GuardedSourceExtract(LoadNode* store)
+RTJ::Hex::LocalVariableNode* RTJ::Hex::RetargetableGenerator::GuardedSourceExtract(LoadNode* store)
 {
 	auto source = store->Source;
 
-	if (source->Is(NodeKinds::LocalVariable) ||
-		source->Is(NodeKinds::Argument))
-	{
+	if (source->Is(NodeKinds::LocalVariable))
 		return source->As<LocalVariableNode>();
-	}
 	return nullptr;
 }
 
-RTJ::Hex::LSRA::LSRA(HexJITContext* context) : mContext(context), mInterpreter(context->Memory)
+RTJ::Hex::RetargetableGenerator::RetargetableGenerator(HexJITContext* context) : mContext(context), mInterpreter(context->Memory)
 {
 }
 
-RTJ::Hex::BasicBlock* RTJ::Hex::LSRA::PassThrough()
+RTJ::Hex::BasicBlock* RTJ::Hex::RetargetableGenerator::PassThrough()
 {
 	ChooseCandidate();
 	BuildLivenessDuration();
@@ -475,7 +603,7 @@ RTJ::Hex::AllocationContext::AllocationContext(RTMM::SegmentHeap* heap, Interpre
 {
 }
 
-void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister, ConcreteInstruction ins)
+void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVirtualRegister)
 {
 	//Check if there's any alreadly in state mapping
 	if (auto iterator = mLocal2VReg.find(variableIndex); iterator != mLocal2VReg.end())
@@ -530,7 +658,7 @@ void RTJ::Hex::AllocationContext::WatchOnLoad(UInt16 variableIndex, UInt8 newVir
 	}
 }
 
-void RTJ::Hex::AllocationContext::WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister, ConcreteInstruction ins)
+void RTJ::Hex::AllocationContext::WatchOnStore(UInt16 variableIndex, UInt8 virtualRegister)
 {	
 	if (auto iterator = mVReg2Local.find(virtualRegister); iterator != mVReg2Local.end())
 	{
@@ -566,8 +694,12 @@ void RTJ::Hex::AllocationContext::ReturnRegister(UInt8 physicalRegister)
 void RTJ::Hex::AllocationContext::UsePhysicalResigster(InstructionOperand& operand, UInt64& usedMask)
 {
 	//TODO: Adapt SIB
-	operand.Kind = OperandKind::Register;
-	operand.Register = mVReg2PReg[operand.VirtualRegister];
+	ForeachOperand(operand,
+		[&](InstructionOperand& each)
+		{
+			each.Kind = OperandKind::Register;
+			each.Register = mVReg2PReg[each.VirtualRegister];
+		});
 }
 
 void RTJ::Hex::AllocationContext::InvalidateVirtualRegister(UInt8 virtualRegister)
@@ -582,6 +714,11 @@ void RTJ::Hex::AllocationContext::InvalidateVirtualRegister(UInt8 virtualRegiste
 
 void RTJ::Hex::AllocationContext::InvalidateLocalVariable(UInt16 variable)
 {
+	if (auto directLocator = mLocal2PReg.find(variable); directLocator != mLocal2PReg.end())
+	{
+		mLocal2PReg.erase(directLocator);
+		return;
+	}
 	if (auto iterator = mLocal2VReg.find(variable); iterator != mLocal2VReg.end())
 	{
 		auto virtualRegister = iterator->second;
@@ -642,7 +779,7 @@ RTJ::Hex::AllocationContext::RequestLoad(
 	return { {}, false };
 }
 
-void RTJ::Hex::AllocationContext::LoadFromMergeContext(RegisterAllocationChain const& chain)
+void RTJ::Hex::AllocationContext::EstablishDirectAssignment(RegisterAllocationChain const& chain)
 {
 	mLocal2VReg[chain.Variable] = ReservedVirtualRegister;
 	mLocal2PReg[chain.Variable] = chain.PhysicalRegister;
@@ -668,10 +805,37 @@ void RTJ::Hex::AllocationContext::InvalidateLocalVariableExcept(VariableSet cons
 	}
 }
 
-std::optional<RT::UInt16>  RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRegister)
+std::optional<RT::UInt16>  RTJ::Hex::AllocationContext::GetLocal(UInt8 virtualRegister) const
 {
 	if(auto location = mVReg2Local.find(virtualRegister); location != mVReg2Local.end())
 		return location->second;
+	return {};
+}
+
+std::optional<RT::UInt16> RTJ::Hex::AllocationContext::GetLocalByPhysicalRegister(UInt8 physicalRegister) const
+{
+	for (auto&& [local, pReg] : mLocal2PReg)
+		if (pReg == physicalRegister)
+			return local;
+
+	std::optional<UInt8> vReg{};
+	for (auto&& [key, pReg] : mVReg2PReg)
+	{
+		if (pReg == physicalRegister)
+		{
+			vReg = key;
+			break;
+		}
+	}
+	if (!vReg.has_value())
+		return {};
+
+	if (auto localLocator = mVReg2Local.find(vReg.value());
+		localLocator != mVReg2Local.end())
+	{
+		return localLocator->second;
+	}
+
 	return {};
 }
 
@@ -691,7 +855,7 @@ RTJ::Hex::AllocationContext::RequestSpill(
 	};
 }
 
-std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetPhysicalRegister(UInt16 variable)
+std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetPhysicalRegister(UInt16 variable) const
 {
 	//Check temporary mapping
 	if (auto directPRegLocator = mLocal2PReg.find(variable);
@@ -704,14 +868,14 @@ std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetPhysicalRegister(UInt16
 	return {};
 }
 
-std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetVirtualRegister(UInt16 variable)
+std::optional<RT::UInt8> RTJ::Hex::AllocationContext::GetVirtualRegister(UInt16 variable) const
 {
 	if (auto vReg = mLocal2VReg.find(variable); vReg != mLocal2VReg.end())
 		return vReg->second;
 	return {};
 }
 
-std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::GetAlloactionChainOf(UInt16 variable)
+std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::GetAlloactionChainOf(UInt16 variable) const
 {
 	if (auto directPRegLocator = mLocal2PReg.find(variable);
 		directPRegLocator != mLocal2PReg.end())
@@ -726,4 +890,31 @@ std::optional<RTJ::Hex::RegisterAllocationChain> RTJ::Hex::AllocationContext::Ge
 		return {};
 
 	return RegisterAllocationChain{ variable, pRegLocator->second };
+}
+
+RTP::PlatformCallingConvention* RTJ::Hex::GenerateCallingConvFor(RTMM::PrivateHeap* heap, RTM::MethodSignatureDescriptor* signature)
+{
+	auto convert = [](RTM::Type* type) -> RTP::PlatformCallingArgument {
+		auto coreType = type->GetCoreType();
+		if (CoreTypes::IsIntegerLike(coreType) || CoreTypes::IsRef(coreType))
+			return { CoreTypes::GetCoreTypeSize(coreType), RTP::CallingArgumentType::Integer };
+		else if (CoreTypes::IsFloatLike(coreType))
+			return { CoreTypes::GetCoreTypeSize(coreType), RTP::CallingArgumentType::Float };
+		else
+			return { type->GetSize(), RTP::CallingArgumentType::Struct };
+	};
+
+	RTP::PlatformCallingArgument returnArg{};
+	if (auto returnType = signature->GetReturnType())
+		returnArg = convert(returnType);
+
+	auto args = signature->GetArguments();
+	std::vector<RTP::PlatformCallingArgument> callingArgs(args.Count + 1);
+	callingArgs.front() = returnArg;
+	for (Int32 i = 0; i < args.Count; ++i)
+		callingArgs[i + 1] = convert(args[i].GetType());
+
+	return RTP::PlatformCallingConventionProvider<
+		RTP::CallingConventions::JIT,
+		USE_CURRENT_PLATFORM>(heap).GetConvention(callingArgs);
 }

@@ -87,6 +87,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
 	auto local = new (POOL) ArgumentNode(localIndex);
+
 	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
 
 	if (localIndex >= locals.Count)

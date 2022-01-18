@@ -55,6 +55,8 @@ namespace Runtime
 #define RTJE Runtime::Core::JIT::Emit
 #define RTIOS2EE Runtime::Core::Interfaces::OSToEE
 #define RTI Runtime::Core::Interfaces
+
+#define RTH Runtime::Host
 	
 #define ForcedInline __forceinline
 #define PADDING_EXT(BYTES) UInt8 __GENERATED_PADDING_FOR_EXTENSION[BYTES]

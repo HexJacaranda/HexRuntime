@@ -51,6 +51,6 @@ namespace RTP
 	};
 
 #define PLATFORM_TEMPLATE_ARGS UInt32 Architecture, UInt32 Width, UInt32 OS
-#define USE_CURRENT_PLATFORM CurrentArchitecture, CurrentWidth, CurrentOS
+#define USE_CURRENT_PLATFORM RTP::CurrentArchitecture,  RTP::CurrentWidth,  RTP::CurrentOS
 
 }

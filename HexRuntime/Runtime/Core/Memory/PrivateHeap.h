@@ -44,6 +44,8 @@ namespace RTMM
 
 	enum class TrackTagT { Null };
 	static constexpr TrackTagT TrackTag = TrackTagT::Null;
+
+	extern PrivateHeap* GlobalHeap;
 }
 
 void* operator new(size_t size, RTMM::PrivateHeap* allocator);

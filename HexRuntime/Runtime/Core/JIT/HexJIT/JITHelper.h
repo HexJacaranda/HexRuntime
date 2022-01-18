@@ -84,14 +84,14 @@ namespace RTJ::Hex::JITCall
 	JIT_CALLING_CONV(ReadBarrierForInteriorRef);
 
 	template<auto function, Int32 length>
-	static Platform::PlatformCallingConvention* GetCallingConventionOf(Platform::PlatformCallingArgument (&arguments)[length]) {
+	static Platform::PlatformCallingConvention* GetCallingConventionOf(Platform::PlatformCallingArgument(&arguments)[length]) {
 		static Platform::PlatformCallingConvention* convention =
 			Platform::PlatformCallingConventionProvider<
 			Platform::CallingConventions::JIT,
-			Platform::CurrentPlatform>::GetConvention(new Platform::PlatformCallingConvention, arguments | std::views::all);
+			USE_CURRENT_PLATFORM>(RTMM::GlobalHeap).GetConvention(arguments | std::views::all);
 
 		return convention;
 	}
 
-#define CALLING_CONV_OF(NAME) JITCall::GetCallingConventionOf<(void*)&JITCall::##NAME>(JITCall::NAME##CCArgs)
+#define CALLING_CONV_OF(NAME) JITCall::GetCallingConventionOf<(void*)&JITCall::NAME>(JITCall::NAME##CCArgs)
 }

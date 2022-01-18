@@ -109,6 +109,9 @@
     <Filter Include="头文件\Runtime\Core\JIT\Page">
       <UniqueIdentifier>{87f43824-19c4-4170-aa11-f1eb942cca61}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Host">
+      <UniqueIdentifier>{dad5146e-9d36-44ad-9471-c38dfa7e932d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -288,7 +291,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\IR.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.h">
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h">
@@ -326,6 +329,9 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPageProvider.h">
       <Filter>头文件\Runtime\Core\JIT\Page</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Host\RuntimeHost.h">
+      <Filter>头文件\Runtime\Host</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -449,7 +455,7 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.cpp">
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp">

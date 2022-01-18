@@ -132,6 +132,12 @@ namespace RTC
 		inline static bool IsValidCoreType(UInt8 coreType) {
 			return coreType <= Delegate;
 		}
+		inline static bool IsIntegerLike(UInt8 coreType) {
+			return coreType <= U8;
+		}
+		inline static bool IsFloatLike(UInt8 coreType) {
+			return R2 <= coreType && coreType <= R8;
+		}
 		static Int32 GetCoreTypeSize(UInt8 coreType) {
 			if (coreType <= Char)
 				return SizeOfSpecialCoreType[coreType];

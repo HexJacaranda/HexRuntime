@@ -18,7 +18,7 @@ void RTJ::Hex::SSABuilder::DecideSSATrackability()
 	 */
 
 	auto trackableSign = [](UInt8 type) {
-		if (type < CoreTypes::Struct || type == CoreTypes::Ref)
+		if (CoreTypes::IsPrimitive(type) || type == CoreTypes::Ref)
 			return LocalAttachedFlags::Trackable;
 		return 0u;
 	};
@@ -45,7 +45,8 @@ void RTJ::Hex::SSABuilder::InitializeLocalsAndArguments()
 	*/
 	constexpr Int32 basicBlockIndex = 0;
 	for (Int32 i = 0; i < mArgumentDefinition.size(); ++i)
-		mArgumentDefinition[i][basicBlockIndex] = new (POOL) SSA::ValueDef(&SSA::UndefinedValueNode::Instance(), new (POOL) ArgumentNode(i));
+		mArgumentDefinition[i][basicBlockIndex] = 
+		new (POOL) SSA::ValueDef(&SSA::UndefinedValueNode::Instance(), new (POOL) ArgumentNode(i));
 
 	//Method to get default value node
 	auto getDefaultValue = [&](Int32 index) -> TreeNode* {
@@ -260,7 +261,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 			auto index = -1;
 
 			LocalVariableNode* local = nullptr;
-			if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
+			if (kind == NodeKinds::LocalVariable)
 			{
 				local = store->Destination->As<LocalVariableNode>();
 				index = local->LocalIndex;
@@ -283,7 +284,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 				auto index = -1;
 
 				LocalVariableNode* local = nullptr;
-				if (kind == NodeKinds::LocalVariable || kind == NodeKinds::Argument)
+				if (kind == NodeKinds::LocalVariable)
 				{
 					local = load->Source->As<LocalVariableNode>();
 					index = local->LocalIndex;

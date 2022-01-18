@@ -41,7 +41,7 @@ namespace RTM
 	class TypeDescriptor :public Descriptor<RTME::TypeMD>
 	{
 		friend class MetaManager;
-		MDToken mSelf;
+		MDToken mSelf = NullToken;
 
 		RTO::StringObject* mTypeName = nullptr;
 		RTO::StringObject* mFullQualifiedName = nullptr;

@@ -1,6 +1,6 @@
 #pragma once
 #include "RuntimeAlias.h"
-
+#include <ranges>
 namespace RT
 {
 	/// <summary>
@@ -8,11 +8,12 @@ namespace RT
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	template<class T>
-	struct ObservableArray
+	struct ObservableArray : public std::ranges::view_interface<ObservableArray<T>>
 	{
 		T* Values;
 		Int32 Count;
 	public:
+		ObservableArray(T* values, Int32 count): Values(values), Count(count){}
 		ForcedInline T* begin()const { return Values; }
 		ForcedInline T* end()const { return Values + Count; }
 		ForcedInline T& operator[](Int32 index) { return Values[index]; }

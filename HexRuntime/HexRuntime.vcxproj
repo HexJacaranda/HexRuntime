@@ -33,7 +33,7 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\ConcreteInstruction.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeInterpreter.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.h" />
@@ -83,6 +83,7 @@
     <ClInclude Include="Runtime\Core\Platform\X86Register.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Endianness.h" />
+    <ClInclude Include="Runtime\Host\RuntimeHost.h" />
     <ClInclude Include="Runtime\LinkList.h" />
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
@@ -104,7 +105,7 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LSRA.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.h" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
@@ -251,6 +252,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

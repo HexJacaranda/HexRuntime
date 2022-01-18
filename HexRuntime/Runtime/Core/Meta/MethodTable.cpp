@@ -36,7 +36,12 @@ RT::Int32 RTM::MethodTable::GetCount() const
     return  mVirtualMethodCount + mInstanceMethodCount + mStaticMethodCount;
 }
 
-RTM::MethodDescriptor* RTM::MethodTable::GetMethodBy(MDToken methodDefToken)
+RTM::TypeDescriptor* RTM::MethodTable::GetOwningType() const
+{
+    return mOwningType;
+}
+
+RTM::MethodDescriptor* RTM::MethodTable::GetMethodBy(MDToken methodDefToken) const
 {
     if (methodDefToken == NullToken ||
         methodDefToken < mBaseMethodToken ||
@@ -46,7 +51,7 @@ RTM::MethodDescriptor* RTM::MethodTable::GetMethodBy(MDToken methodDefToken)
     return mMethods[methodDefToken - mBaseMethodToken];
 }
 
-RT::Int32 RTM::MethodTable::GetMethodIndexBy(MDToken methodDefToken)
+RT::Int32 RTM::MethodTable::GetMethodIndexBy(MDToken methodDefToken) const
 {
     if (methodDefToken == NullToken ||
         methodDefToken < mBaseMethodToken ||

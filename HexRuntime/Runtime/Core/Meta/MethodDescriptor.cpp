@@ -35,6 +35,11 @@ RT::MDToken RTM::MethodDescriptor::GetDefToken() const
 	return mSelf;
 }
 
+RTM::MethodTable* RTM::MethodDescriptor::GetOwningTable() const
+{
+	return mOwningTable;
+}
+
 RTO::StringObject* RTM::MethodDescriptor::GetName() const
 {
 	return mManagedName;
@@ -63,6 +68,16 @@ bool RTM::MethodDescriptor::IsFinal() const
 bool RTM::MethodDescriptor::IsGeneric() const
 {
 	return mColdMD->IsGeneric();
+}
+
+void RTM::MethodDescriptor::SetCallingConvention(RTP::PlatformCallingConvention* callingConv)
+{
+	mCallingConv = callingConv;
+}
+
+RTP::PlatformCallingConvention* RTM::MethodDescriptor::GetCallingConvention() const
+{
+	return mCallingConv;
 }
 
 RTM::TypeDescriptor* RTM::MethodArgumentDescriptor::GetType()

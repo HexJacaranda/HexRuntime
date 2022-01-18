@@ -41,10 +41,26 @@ namespace RTJ::Hex
 		/// <param name="branchValue">when this is null, it indicates an unconditional branch</param>
 		/// <param name="instructionGenerationEvent"></param>
 		template<InstructionGenerationEventT Fn>
-		void InterpretBranch(TreeNode* branchValue, Fn&& instructionGenerationEvent)
+		void InterpretBranch(TreeNode* branchValue, Int32 basicBlockIndex, Fn&& instructionGenerationEvent)
 		{
 
 		}
+
+		/// <summary>
+		/// For source, only variable index and constant is allowed
+		/// </summary>
+		/// <param name="physicalRegister"></param>
+		/// <param name="source"></param>
+		/// <param name="loadMode"></param>
+		template<InstructionGenerationEventT Fn>
+		void InterpretLoad(
+				RTP::AddressConstraint const& destinationAddress,
+				InstructionOperand const& sourceOperand,
+				Fn&& instructionGenerationEvent)
+		{
+
+		}
+			
 
 		ConcreteInstruction ProvideStore(UInt16 variableIndex, UInt8 physicalRegister)
 		{
@@ -56,7 +72,14 @@ namespace RTJ::Hex
 			return {};
 		}
 
-		bool PurposeMemoryOperation(ConcreteInstruction const& origin, ConcreteInstruction& out)
+		/// <summary>
+		/// This should modify the operand and other information of instruction if possible
+		/// </summary>
+		/// <param name="toModify"></param>
+		/// <param name="index"></param>
+		/// <param name="variable"></param>
+		/// <returns></returns>
+		bool PurposeMemoryOperation(ConcreteInstruction& toModify, Int32 index, UInt16 variable)
 		{
 			return {};
 		}

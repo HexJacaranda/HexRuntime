@@ -9,10 +9,13 @@ namespace RTP
 	class PlatformCallingConventionProvider<CallingConventions::JIT, Platform::x86, Platform::Bit64, OS>
 	{
 	public:
+		PlatformCallingConventionProvider(RTMM::PrivateHeap* heap) {
+
+		}
 		template<class RangeT>
-		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&& range)
+		PlatformCallingConvention* GetConvention(RangeT&& range)
 		{
-			return callingConv;
+			return nullptr;
 		}
 	};
 
@@ -20,10 +23,13 @@ namespace RTP
 	class PlatformCallingConventionProvider<CallingConventions::JIT, Platform::x86, Platform::Bit32, OS>
 	{
 	public:
+		PlatformCallingConventionProvider(RTMM::PrivateHeap* heap) {
+
+		}
 		template<class RangeT>
-		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&& range)
+		PlatformCallingConvention* GetConvention(RangeT&& range)
 		{
-			return callingConv;
+			return nullptr;
 		}
 	};
 }

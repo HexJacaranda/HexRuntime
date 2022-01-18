@@ -27,7 +27,6 @@ namespace RTJ::Hex
 	enum class NodeKinds : UInt8
 	{
 		Constant,
-		Argument,
 		LocalVariable,
 		Call,
 		Load,
@@ -155,21 +154,31 @@ namespace RTJ::Hex
 
 	struct LocalVariableNode : TreeNode
 	{
-		LocalVariableNode(Int16 localIndex)
+		static constexpr UInt16 ArgumentFlag = 0x8000u;
+		LocalVariableNode(UInt16 localIndex)
 			:TreeNode(NodeKinds::LocalVariable),
 			LocalIndex(localIndex) {}
-		LocalVariableNode(NodeKinds kind, Int16 localIndex)
-			:TreeNode(kind),
-			LocalIndex(localIndex) {}
 
-		Int16 LocalIndex = 0;
+		UInt16 LocalIndex = 0;
+	
+		inline bool IsArgument()const {
+			return LocalIndex & ArgumentFlag;
+		}
+		static inline bool IsArgument(UInt16 value) {
+			return value & ArgumentFlag;
+		}
+		static inline UInt16 GetIndex(UInt16 value) {
+			return value & 0x7FFFu;
+		}
+		inline UInt16 GetIndex()const {
+			return LocalIndex & 0x7FFFu;
+		}
 	};
 
 	struct ArgumentNode : LocalVariableNode
 	{
-		ArgumentNode(Int16 argumentIndex): 
-			LocalVariableNode(NodeKinds::Argument,argumentIndex) {
-		}
+		ArgumentNode(UInt16 localIndex) :
+			LocalVariableNode(localIndex | ArgumentFlag) {}
 	};
 
 	struct CallNode : TreeNode

@@ -86,7 +86,6 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenLoad(TreeNo
 	case NodeKinds::Constant:
 	case NodeKinds::Null:
 	case NodeKinds::LocalVariable:
-	case NodeKinds::Argument:
 		return {};
 	default:
 		Flatten(source, generatedLocal, requestJITVariable);
@@ -102,7 +101,6 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenStore(TreeN
 	switch (destination->Kind)
 	{
 	case NodeKinds::LocalVariable:
-	case NodeKinds::Argument:
 		break;
 	default:
 	{
@@ -127,7 +125,6 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenStore(TreeN
 	switch (source->Kind)
 	{
 	case NodeKinds::LocalVariable:
-	case NodeKinds::Argument:
 		break;
 	case NodeKinds::MorphedCall:
 	{

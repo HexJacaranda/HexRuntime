@@ -37,7 +37,7 @@ namespace RTJ::Hex
 			return {};
 		}
 
-		bool PurposeMemoryOperation(ConcreteInstruction const& origin, ConcreteInstruction& out)
+		bool PurposeMemoryOperation(ConcreteInstruction& toModify, Int32 index, UInt16 variable)
 		{
 			return {};
 		}

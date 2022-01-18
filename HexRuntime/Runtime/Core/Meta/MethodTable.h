@@ -4,6 +4,11 @@
 
 namespace RTM
 {
+	class TypeDescriptor;
+}
+
+namespace RTM
+{
 	/// <summary>
 	/// Partitioned by three parts
 	/// virtual, instance, static
@@ -11,7 +16,7 @@ namespace RTM
 	class MethodTable
 	{
 		friend class MetaManager;
-
+		
 		Int32 mVirtualMethodCount;
 		Int32 mInstanceMethodCount;
 		Int32 mStaticMethodCount;
@@ -19,6 +24,7 @@ namespace RTM
 		MethodDescriptor** mOverridenRegion;
 		MethodDescriptor** mMethods;
 		MDToken mBaseMethodToken;
+		TypeDescriptor* mOwningType;
 	public:
 		ObservableArray<MethodDescriptor*> GetVirtualMethods()const;
 		ObservableArray<MethodDescriptor*> GetNonVirtualMethods()const;
@@ -27,7 +33,8 @@ namespace RTM
 		ObservableArray<MethodDescriptor*> GetMethods()const;
 		ObservableArray<MethodDescriptor*> GetOverridenRegion()const;
 		Int32 GetCount()const;
-		MethodDescriptor* GetMethodBy(MDToken methodDefToken);
-		Int32 GetMethodIndexBy(MDToken methodDefToken);
+		MethodDescriptor* GetMethodBy(MDToken methodDefToken)const;
+		Int32 GetMethodIndexBy(MDToken methodDefToken)const;
+		TypeDescriptor* GetOwningType()const;
 	};
 }

@@ -1,19 +1,23 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
 #include "..\..\Utility.h"
+#include "..\Memory\PrivateHeap.h"
 #include "Platform.h"
 #include <array>
 #include <ranges>
 
 namespace RTP
 {
-	struct AddressConstraint
+	struct AddressConstraintFlags
 	{
+	public:
 		ETY = UInt16;
 
 		VAL Memory = 0x0001;
 		VAL Register = 0x0002;
 		VAL Immediate = 0x0004;
+		//Used for calling convention marking
+		VAL SpecificRegister = 0x0008;
 
 		VAL Width32 = 0x0010;
 		VAL Width64 = 0x0020;
@@ -24,8 +28,13 @@ namespace RTP
 		VAL Width128 = 0x0040;
 		VAL Width256 = 0x0080;
 		VAL Width512 = 0x0100;
-
-		UInt64 RegisterAvaliableMask;
+	};
+	struct AddressConstraint
+	{
+		union {
+			UInt64 RegisterAvaliableMask;
+			UInt8 SingleRegister;
+		};		
 		/// <summary>
 		/// Reserved for register mask
 		/// </summary>
@@ -33,9 +42,10 @@ namespace RTP
 		UInt16 Flags;	
 	};
 
-#define REG AddressConstraint::Register
-#define MEM AddressConstraint::Memory
-#define IMM AddressConstraint::Immediate
+#define REG AddressConstraintFlags::Register
+#define SREG AddressConstraintFlags::SpecificRegister
+#define MEM AddressConstraintFlags::Memory
+#define IMM AddressConstraintFlags::Immediate
 
 #define ADR(RM, WIDTH, REGISTER_MASK) AddressConstraint { RM | AddressConstraint::Width##WIDTH, REGISTER_MASK  }
 
@@ -59,9 +69,9 @@ namespace RTP
 	struct PlatformCallingConvention
 	{ 
 		Int32 ArgumentCount;
-		/* For address constraint here, theoretically only REG and MEM can be supported by common platforms. 
-		* Specially, REG | MEM indicates that it's placed on stack and address passed in register (See some 
-		* calling convetion in X86-X64)
+		/* For address constraint here, theoretically only SREG and MEM can be supported by common platforms. 
+		* Specially, SREG | MEM indicates that it's placed on stack and address passed in register (See some 
+		* calling convetions in X86-64)
 		*/
 		AddressConstraint* ArgumentPassway;
 		AddressConstraint ReturnPassway;
@@ -69,17 +79,17 @@ namespace RTP
 	
 	class CallingArgumentType
 	{
-	public:
+	public: 
 		ETY = UInt32;
 
 		VAL Integer = 0x00000000;
 		VAL Float = 0x00000001;
-		VAL SIMD = 0x00000002;
+		VAL Struct = 0x00000002;
 	};
 
 	struct PlatformCallingArgument
 	{
-		Int32 LayoutSize;
+		Int32 LayoutSize = 0;
 		UInt32 Type = CallingArgumentType::Integer;
 	};
 
@@ -87,8 +97,11 @@ namespace RTP
 	class PlatformCallingConventionProvider
 	{
 	public:
+		PlatformCallingConventionProvider(RTMM::PrivateHeap* heap) {
+
+		}
 		template<class RangeT>
-		static PlatformCallingConvention* GetConvention(PlatformCallingConvention* callingConv, RangeT&&)
+		PlatformCallingConvention* GetConvention(RangeT&&)
 		{
 			return nullptr;
 		}
