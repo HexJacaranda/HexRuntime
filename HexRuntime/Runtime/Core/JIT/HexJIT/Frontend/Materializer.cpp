@@ -4,6 +4,8 @@
 #include <ranges>
 
 #define POOL (mJITContext->Memory)
+#define MORPH_ARG(HELPER) (new (POOL) MorphedCallNode(node, &JITCall::HELPER, CALLING_CONV_OF(HELPER), argument))
+#define MORPH_ARGS(HELPER, NUMS) (new (POOL) MorphedCallNode(node, &JITCall::HELPER, CALLING_CONV_OF(HELPER), arguments, NUMS))
 
 RTJ::Hex::Morpher::Morpher(HexJITContext* context) :
 	mJITContext(context)
@@ -36,7 +38,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 		callingConv = CALLING_CONV_OF(ManagedVirtualCall);
 	}
 
-	return (new (POOL) MorphedCallNode(node, nativeMethod, callingConv, methodConstant))
+	auto argument = new (POOL) LoadNode(SLMode::Direct, methodConstant);
+
+	return (new (POOL) MorphedCallNode(node, nativeMethod, callingConv, argument))
 		->SetType(node->TypeInfo);
 }
 
@@ -44,9 +48,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
 {
 	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
 	methodConstant->Pointer = node->Method;
-
-	return (new (POOL) MorphedCallNode(node, &JITCall::NewObject, CALLING_CONV_OF(NewObject), methodConstant))
-		->SetType(node->TypeInfo);
+	auto argument = new (POOL) LoadNode(SLMode::Indirect, methodConstant);
+	return MORPH_ARG(NewObject)->SetType(node->TypeInfo);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
@@ -56,11 +59,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 		//Single-dimensional
 		auto arguments = new (POOL) TreeNode * [2]
 		{ 
-			new (POOL) ConstantNode(node->ElementType), 
-			node->Dimension 
+			new (POOL) LoadNode(SLMode::Direct, new (POOL) ConstantNode(node->ElementType)),
+			node->Dimension
 		};
-		return (new (POOL) MorphedCallNode(node, &JITCall::NewSZArray, CALLING_CONV_OF(NewSZArray), arguments, 2))
-			->SetType(node->TypeInfo);
+		return MORPH_ARGS(NewSZArray, 2)->SetType(node->TypeInfo);
 	}
 	else
 	{
@@ -68,44 +70,56 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 		//TODO: Maybe we should generate scoped stack allocation for the third arguments
 		auto arguments = new (POOL) TreeNode * [3]
 		{
-			new (POOL) ConstantNode(node->ElementType),
-			new (POOL) ConstantNode(node->DimensionCount),
+			new (POOL) LoadNode(SLMode::Direct, new (POOL) ConstantNode(node->ElementType)),
+			new (POOL) LoadNode(SLMode::Direct, new (POOL) ConstantNode(node->DimensionCount)),
 			nullptr
 		};
 
-		return (new (POOL) MorphedCallNode(node, &JITCall::NewArrayFast, CALLING_CONV_OF(NewArray), arguments, 2))
-			->SetType(node->TypeInfo);
+		return MORPH_ARGS(NewArrayFast, 2)->SetType(node->TypeInfo);
 	}
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 {
-	if (node->Destination->Is(NodeKinds::InstanceField))
+	if (node->Destination->Is(NodeKinds::OffsetOf) &&
+		CoreTypes::IsRef(node->Destination->TypeInfo->GetCoreType()))
 	{
-		//A trick that utilizes the sequential layout of StoreNode
-		auto arguments = &node->Destination;
-			
-	   /* new (POOL) TreeNode* [2]
-		{
-			node->Destination,
-			node->Source
-		};*/
+		auto fieldRef = new (POOL) LoadNode(SLMode::Indirect, node->Destination);
 
-		auto writeBarrierNode = new (POOL) MorphedCallNode(node, &JITCall::WriteBarrierForRef, CALLING_CONV_OF(WriteBarrierForRef), arguments, 2);
-		InsertCall(writeBarrierNode);
+		auto arguments = new (POOL) TreeNode * [2]{
+			fieldRef,
+			node->Source
+		};
+
+		//Replace store directly with write barrier since store is always a stmt
+		return MORPH_ARGS(WriteBarrierForRef, 2);
 	}
 	return node;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 {
-	if (node->Source->Is(NodeKinds::InstanceField))
+	if (node->Source->Is(NodeKinds::OffsetOf) &&
+		CoreTypes::IsRef(node->Source->TypeInfo->GetCoreType()))
 	{
-		auto readBarrierNode = new(POOL) MorphedCallNode(node, &JITCall::ReadBarrierForRef, CALLING_CONV_OF(ReadBarrierForRef), node);
-		readBarrierNode->SetType(node->TypeInfo);
-		return readBarrierNode;
+		auto argument = new (POOL) LoadNode(SLMode::Indirect, node->Source);
+		return MORPH_ARG(ReadBarrierForRef)->SetType(node->TypeInfo);
 	}
 	return node;
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(ArrayElementNode* node)
+{
+	auto arrayOffset = new (POOL) ArrayOffsetOfNode(node->Array, node->Index, sizeof(RTO::ArrayObject), node->TypeInfo->GetLayoutSize());
+	arrayOffset->SetType(node->TypeInfo);
+	return arrayOffset;
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
+{
+	auto offset = new (POOL) OffsetOfNode(node->Source->As<LocalVariableNode>(), node->Field->GetOffset());
+	offset->SetType(node->TypeInfo);
+	return offset;
 }
 
 RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
@@ -144,6 +158,12 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
 						break;
 					case NodeKinds::Store:
 						node = Morph(node->As<StoreNode>());
+						break;
+					case NodeKinds::InstanceField:
+						node = Morph(node->As<InstanceFieldNode>());
+						break;
+					case NodeKinds::Array:
+						node = Morph(node->As<ArrayElementNode>());
 						break;
 					}
 				});

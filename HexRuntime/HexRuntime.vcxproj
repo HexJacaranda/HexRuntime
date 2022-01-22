@@ -33,8 +33,8 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\ConcreteInstruction.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeInterpreter.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPage.h" />
@@ -88,6 +88,7 @@
     <ClInclude Include="Runtime\Logging.h" />
     <ClInclude Include="Runtime\LoggingConfiguration.h" />
     <ClInclude Include="Runtime\ObservableArray.h" />
+    <ClInclude Include="Runtime\PlatformFeature.h" />
     <ClInclude Include="Runtime\Range.h" />
     <ClInclude Include="Runtime\RuntimeAlias.h" />
     <ClInclude Include="Runtime\SmallSet.h" />
@@ -105,9 +106,11 @@
     <ClCompile Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\Emitter\X86Emitter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.h" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />

@@ -72,29 +72,34 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
-	auto local = new (POOL) LocalVariableNode(localIndex);
 	auto&& locals = GetRawContext()->MethDescriptor->GetLocalVariables();
+	auto localType = locals[localIndex].GetType();
+
+	auto local = new (POOL) LocalVariableNode(localIndex);
+	local->SetType(localType);
 
 	if (localIndex >= locals.Count)
 		THROW("Local variable index out of range.");
 
 	//Keep uniformity for convenience of traversal in SSA building
 	return (new (POOL) LoadNode(SLMode, local))
-		->SetType(locals[localIndex].GetType());
+		->SetType(localType);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 {
 	auto localIndex = ReadAs<Int16>();
-	auto local = new (POOL) ArgumentNode(localIndex);
-
 	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
+	auto localType = locals[localIndex].GetType();
+
+	auto local = new (POOL) ArgumentNode(localIndex);
+	local->SetType(localType);
 
 	if (localIndex >= locals.Count)
 		THROW("Argument index out of range.");
 	//Keep uniformity for convenience of traversal in SSA building
 	return (new (POOL) LoadNode(SLMode, local))
-		->SetType(locals[localIndex].GetType());	
+		->SetType(localType);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
@@ -163,17 +168,19 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 	if (!fieldType->IsAssignableFrom(value->TypeInfo))
 		THROW("Type check failed.");
 
+	TreeNode* destination = nullptr;
 	if (field->IsStatic())
 	{
 		//Static field store
-		return new (POOL) StoreNode(new (POOL) StaticFieldNode(field), value);
+		destination = new (POOL) StaticFieldNode(field);
 	}
 	else
 	{
 		//Instance field store
 		auto object = mEvalStack.Pop();
-		return new (POOL) StoreNode(new (POOL) InstanceFieldNode(field, object), value);
+		destination = new (POOL) InstanceFieldNode(field, object);
 	}
+	return new (POOL) StoreNode(destination->SetType(fieldType), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
@@ -187,7 +194,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 	if (!value->CheckEquivalentWith(type))
 		THROW("Type check failed.");
 
-	return new (POOL) StoreNode(new (POOL) ArgumentNode(argumentIndex), value);
+	auto argument = new (POOL) ArgumentNode(argumentIndex);
+	return new (POOL) StoreNode(argument->SetType(type), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
@@ -201,7 +209,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 	if (!type->IsAssignableFrom(value->TypeInfo))
 		THROW("Type check failed.");
 
-	return new (POOL) StoreNode(new (POOL) LocalVariableNode(localIndex), value);
+	auto local = new (POOL) LocalVariableNode(localIndex);
+	return new (POOL) StoreNode(local->SetType(type), value);
 }
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
@@ -210,8 +219,9 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
 	auto index = mEvalStack.Pop();
 	auto array = mEvalStack.Pop();
 
+	auto elementNode = new (POOL) ArrayElementNode(array, index);
 	return new (POOL) StoreNode(
-		new (POOL) ArrayElementNode(array, index),
+		elementNode->SetType(array->TypeInfo->GetTypeArguments()[0]),
 		value);
 }
 
@@ -821,9 +831,9 @@ RTJ::Hex::BasicBlock* RTJ::Hex::ILTransformer::PartitionToBB(Statement* unpartit
 		}
 		
 		//Append to linked list will change the previous BB to current
-		if (basicBlockPrevious == nullptr ||
+		if (basicBlockPrevious != nullptr && (
 			basicBlockPrevious->BranchKind == PPKind::Conditional ||
-			basicBlockPrevious->BranchKind == PPKind::Sequential)
+			basicBlockPrevious->BranchKind == PPKind::Sequential))
 			//Logically sequential to the previous basic	
 			basicBlockCurrent->BBIn.push_back(basicBlockPrevious);
 

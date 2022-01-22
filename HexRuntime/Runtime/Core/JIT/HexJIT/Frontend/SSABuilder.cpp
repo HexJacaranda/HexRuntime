@@ -2,10 +2,6 @@
 #include "..\..\..\Meta\CoreTypes.h"
 #include "..\..\..\Meta\MethodDescriptor.h"
 
-#define IMPORT_LOCAL(LOCAL, INDEX, KIND) \
-	auto INDEX = LOCAL->LocalIndex; \
-	auto KIND = LOCAL->Kind
-
 #define NEW(TYPE) mJITContext->Memory->New<TYPE>
 #define POOL mJITContext->Memory
 
@@ -37,15 +33,12 @@ void RTJ::Hex::SSABuilder::DecideSSATrackability()
 
 void RTJ::Hex::SSABuilder::InitializeLocalsAndArguments()
 {
-	mArgumentDefinition = std::move(DefinitionMap(mJITContext->ArgumentAttaches.size()));
-	mLocalDefinition = std::move(DefinitionMap(mJITContext->LocalAttaches.size()));
-
 	/* Currently we don't support skipping initialization of locals (maybe later)
 	* So UndefinedValue won't occur in local loading
 	*/
 	constexpr Int32 basicBlockIndex = 0;
-	for (Int32 i = 0; i < mArgumentDefinition.size(); ++i)
-		mArgumentDefinition[i][basicBlockIndex] = 
+	for (Int32 i = 0; i < mJITContext->ArgumentAttaches.size(); ++i)
+		mVariableDefinition[(UInt16)i | LocalVariableNode::ArgumentFlag][basicBlockIndex] =
 		new (POOL) SSA::ValueDef(&SSA::UndefinedValueNode::Instance(), new (POOL) ArgumentNode(i));
 
 	//Method to get default value node
@@ -66,36 +59,33 @@ void RTJ::Hex::SSABuilder::InitializeLocalsAndArguments()
 		return &NullNode::Instance();
 	};
 
-	for (Int32 i = 0; i < mLocalDefinition.size(); ++i)
-		mLocalDefinition[i][basicBlockIndex] = new (POOL) SSA::ValueDef(getDefaultValue(i), new (POOL) LocalVariableNode(i));
+	for (Int32 i = 0; i < mJITContext->LocalAttaches.size(); ++i)
+		mVariableDefinition[(UInt16)i][basicBlockIndex] =
+		new (POOL) SSA::ValueDef(getDefaultValue(i), new (POOL) LocalVariableNode(i));
 }
 
 bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)
 {
-	IMPORT_LOCAL(local, index, kind);
-	if (kind == NodeKinds::LocalVariable)
-		return mJITContext->LocalAttaches[index].IsTrackable();
-	else
+	auto index = local->GetIndex();
+
+	if (local->IsArgument())
 		return mJITContext->ArgumentAttaches[index].IsTrackable();
+	else
+		return mJITContext->LocalAttaches[index].IsTrackable();
 }
 
 void RTJ::Hex::SSABuilder::WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value)
 {
-	IMPORT_LOCAL(local, variableIndex, kind);
-
 	auto use = new (POOL) SSA::ValueDef(value, local);
-	if (kind == NodeKinds::LocalVariable)
-		mLocalDefinition[variableIndex][blockIndex] = use;
-	else
-		mArgumentDefinition[variableIndex][blockIndex] = use;
+	mVariableDefinition[local->LocalIndex][blockIndex] = use;
 }
 
 bool RTJ::Hex::SSABuilder::IsUseUndefined(TreeNode* node)
 {
-	if (node->Is(NodeKinds::Use))
+	if (node->Is(NodeKinds::ValueUse))
 	{
-		auto use = node->As<SSA::Use>();
-		if (use->Value->Is(NodeKinds::UndefinedValue))
+		auto use = node->As<SSA::ValueUse>();
+		if (use->Def->Value->Is(NodeKinds::UndefinedValue))
 			return true;
 	}
 	return false;
@@ -152,15 +142,10 @@ RTJ::Hex::SSA::ValueUse* RTJ::Hex::SSABuilder::UseDef(SSA::ValueDef* def)
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(LocalVariableNode* local, Int32 blockIndex)
 {
-	IMPORT_LOCAL(local, variableIndex, kind);
 	TreeNode* ret = nullptr;
-
 	SSA::ValueDef* def = nullptr;
-	if (kind == NodeKinds::LocalVariable)
-		def = mLocalDefinition[variableIndex][blockIndex];
-	else
-		def = mArgumentDefinition[variableIndex][blockIndex];
 
+	def = mVariableDefinition[local->LocalIndex][blockIndex];
 	if (def != nullptr)
 		ret = UseDef(def);
 	else
@@ -171,8 +156,6 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariable(LocalVariableNode* local,
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(LocalVariableNode* local, Int32 blockIndex)
 {
-	IMPORT_LOCAL(local, variableIndex, kind);
-
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	TreeNode* value = nullptr;
 	if (block->BBIn.size() == 1 && block->BBIn[0] != nullptr)
@@ -203,7 +186,6 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TrySimplifyChoice(SSA::PhiNode* origin
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::AddPhiOperands(LocalVariableNode* local, Int32 blockIndex, SSA::PhiNode* phiNode)
 {
-	IMPORT_LOCAL(local, variableIndex, kind);
 	BasicBlock* block = mJITContext->BBs[blockIndex];
 	for (auto&& predecessor : block->BBIn)
 	{

@@ -83,6 +83,10 @@ namespace RTJ::Hex
 		/// </summary>
 		std::vector<BasicBlock*> BBs;
 		/// <summary>
+		/// Topologically sorted basic block
+		/// </summary>
+		std::vector<BasicBlock*> TopologicallySortedBBs;
+		/// <summary>
 		/// Shared space for evaluation stack and tree traversal
 		/// </summary>
 		struct 
@@ -90,5 +94,14 @@ namespace RTJ::Hex
 			Int8* Space;
 			Int32 Count;
 		} Traversal;
+
+		RTM::Type* GetLocalType(UInt16 localIndex)
+		{
+			UInt16 index = LocalVariableNode::GetIndex(localIndex);
+			if (LocalVariableNode::IsArgument(localIndex))
+				return ArgumentAttaches[index].GetType();
+			else
+				return LocalAttaches[index].GetType();
+		}
 	};
 }

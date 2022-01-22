@@ -65,6 +65,8 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 	Int8 waitStatus,
 	bool allowWaitOnEntry)
 {
+	if (typeReference == NullToken)
+		return nullptr;
 	auto&& typeRef = context->TypeRefs[typeReference];
 	auto typeDefAssembly = GetAssemblyFromToken(context, typeRef.AssemblyToken);
 
@@ -186,6 +188,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromTokenInternal(
 				finalValue->Waiter.notify_all();
 			}		
 		}
+		return instantiationType;
 	}
 	else if (typeRef.DefKind == RTME::MDRecordKinds::GenericParameter)
 	{
@@ -658,6 +661,7 @@ RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOA
 		field.mColdMD = fieldMD;
 		field.mName = GetStringFromToken(context, fieldMD->NameToken);
 		field.mFieldType = GetTypeFromTokenInternal(context, fieldMD->TypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+		field.mOwningTable = fieldTable;
 	}
 
 	//Compute layout
@@ -1042,6 +1046,7 @@ RTO::StringObject* RTM::MetaManager::GetStringFromToken(AssemblyContext* context
 		[&](auto session)
 		{
 			importer->PreImportString(session, stringReference, &stringMD);
+			//TODO: From GC
 			string = (RTO::StringObject*)new (context->Heap) UInt8[sizeof(RTO::StringObject) + (stringMD.Count + 1) * sizeof(UInt16)];
 			new (string) RTO::StringObject(stringMD.Count);
 			stringMD.CharacterSequence = string->GetContent();
@@ -1063,6 +1068,13 @@ RTM::FieldDescriptor* RTM::MetaManager::GetFieldFromToken(AssemblyContext* conte
 	auto&& memberRef = context->MemberRefs[fieldReference];
 	auto type = GetTypeFromToken(context, memberRef.TypeRefToken);
 	return type->GetFieldTable()->GetFieldBy(memberRef.MemberDefToken);
+}
+
+RTM::TypeDescriptor* RTM::MetaManager::InstantiateRefType(TypeDescriptor * origin)
+{
+	auto type = new (origin->GetAssembly()->Heap) TypeDescriptor;
+	auto ref = GetIntrinsicTypeFromCoreType(CoreTypes::Ref);
+	return nullptr;
 }
 
 RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreType)

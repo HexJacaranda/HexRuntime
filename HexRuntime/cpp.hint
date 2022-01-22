@@ -10,3 +10,13 @@
 #define MSK
 #define RTJ
 #define RTH
+#define INST(NAME)
+#define INST_IMPL(NAME)
+#define PINST
+#define ADR_REG(MSK, WIDTH) RTP::AddressConstraint { MSK, WIDTH | REG }
+#define REG_SET
+#define INST_G_IMPL(NAME)
+#define NI
+#define RTM
+#define VAL
+#define MR_USE_INS(MR_INST, RM_INST) if (MR) { USE_INS(MR_INST); } else { USE_INS(RM_INST); }

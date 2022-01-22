@@ -11,7 +11,7 @@
 
 namespace Runtime
 {
-	using Logger = std::shared_ptr<spdlog::async_logger>;
+	using LoggerT = std::shared_ptr<spdlog::async_logger>;
 
 #define GET_LOGGER_METHOD static std::shared_ptr<spdlog::async_logger> GetLogger(\
 	std::vector<spdlog::sink_ptr>& sinks,\

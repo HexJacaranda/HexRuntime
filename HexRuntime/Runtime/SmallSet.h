@@ -24,16 +24,16 @@ namespace RT
 		}
 		void Remove(U const& value)
 		{
-			auto location = std::upper_bound(RANGE(mSet), value);
+			auto location = std::lower_bound(RANGE(mSet), value);
 			if (location != mSet.end() && *location == value)
 				mSet.erase(location);
 		}
 		void Add(U const& value)
 		{
-			auto location = std::upper_bound(RANGE(mSet), value);
+			auto location = std::lower_bound(RANGE(mSet), value);
 			if (location != mSet.end() && *location == value)
 				return;
-			mSet.insert(location, value);
+			mSet.insert(location, value);		
 		}
 		Int32 Count()const
 		{
@@ -72,6 +72,9 @@ namespace RT
 		}
 		const_iterator_type cend() const {
 			return mSet.cend();
+		}
+		iterator_type erase(const_iterator_type origin) {
+			return mSet.erase(origin);
 		}
 	public:
 		SmallSet() = default;

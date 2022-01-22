@@ -58,6 +58,7 @@ void JIT_NATIVE RTJ::Hex::JITCall::ManagedInterfaceCall(RTM::MethodDescriptor* m
 
 void JIT_NATIVE RTJ::Hex::JITCall::WriteBarrierForRef(RTO::ObjectRef* field, RTO::Object* fieldValue)
 {
+	*field = fieldValue;
 }
 
 void JIT_NATIVE RTJ::Hex::JITCall::WriteBarrierForInteriorRef(InteriorPointer* source, InteriorPointer interiorPtr)
@@ -66,7 +67,7 @@ void JIT_NATIVE RTJ::Hex::JITCall::WriteBarrierForInteriorRef(InteriorPointer* s
 
 RTO::ObjectRef JIT_NATIVE RTJ::Hex::JITCall::ReadBarrierForRef(RTO::ObjectRef* field)
 {
-	return RTO::ObjectRef();
+	return *field;
 }
 
 RTC::InteriorPointer JIT_NATIVE RTJ::Hex::JITCall::ReadBarrierForInteriorRef(InteriorPointer* source)

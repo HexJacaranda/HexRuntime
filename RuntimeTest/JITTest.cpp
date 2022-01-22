@@ -12,10 +12,13 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/SSAReducer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/Linearizer.h"
-
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Materializer.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/LivenessAnalyzer.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/X86CodeInterpreter.h"
 #include <format>
 
 using namespace RTJ;
+using namespace RTJ::Hex;
 using namespace RTC;
 using namespace RT;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -66,6 +69,12 @@ namespace RuntimeTest
 				return bb;
 			else
 				return PassThrough<FlowTs...>();
+		}
+
+		void ViewIR(BasicBlock* bb) 
+		{
+			auto content = JITDebug::PrintIR(bb);
+			Logger::WriteMessage(content.c_str());
 		}
 
 		void SetUpMethod(std::wstring_view name)
@@ -125,6 +134,7 @@ namespace RuntimeTest
 		{
 			SetUpMethod(L"PreTest");
 			auto bb = PassThrough<Hex::ILTransformer>();
+			ViewIR(bb);
 
 			Assert::IsNotNull(bb, L"Basic block is null");
 			Assert::IsNotNull(bb->BranchConditionValue, L"Basic block condition value is null");
@@ -133,16 +143,45 @@ namespace RuntimeTest
 		TEST_METHOD(LinearizingTest)
 		{
 			SetUpMethod(L"LinearizeTest");
-			auto bb = PassThrough<Hex::ILTransformer, Hex::Linearizer>();
-			Assert::AreEqual(2, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
 
-			Hex::ForeachStatement(bb, [](Hex::TreeNode* node, bool isCond) {
-				if (!isCond)
+			Assert::AreEqual(2, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
+			auto assertArgument = [](TreeNode* arg) {
+				if (!arg->Is(NodeKinds::Load))
+					Assert::Fail(L"Argument node after linearization should be of type Load");
+				auto load = arg->As<LoadNode>();
+				switch (load->Source->Kind)
 				{
-					if (!node->Is(Hex::NodeKinds::Store) &&
-						!node->Is(Hex::NodeKinds::MorphedCall))
-						Assert::Fail(L"Nodes other than Store/MorphedCall occurs");
+				case NodeKinds::Constant:
+				case NodeKinds::LocalVariable:
+					break;
+				default:
+					Assert::Fail(L"The loading value of argument should be either constant or variable.");
 				}
+			};
+
+			ForeachStatement(bb,
+				[&](TreeNode* node, bool isCond)
+				{
+					if (!isCond)
+					{
+						if (!node->Is(NodeKinds::Store) &&
+							!node->Is(NodeKinds::MorphedCall))
+							Assert::Fail(L"Nodes other than Store/MorphedCall occurs");
+						if (node->Is(NodeKinds::MorphedCall))
+						{
+							//Check argument
+							auto call = node->As<MorphedCallNode>();
+							ForeachInlined(call->Arguments, call->ArgumentCount, assertArgument);
+
+							if (call->Origin->Is(NodeKinds::Call))
+							{
+								auto originCall = call->Origin->As<CallNode>();
+								ForeachInlined(originCall->Arguments, originCall->ArgumentCount, assertArgument);
+							}
+						}
+					}
 				});
 		}
 
@@ -150,12 +189,14 @@ namespace RuntimeTest
 		{
 			SetUpMethod(L"SSABuildTest");
 			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder>();
+			ViewIR(bb);
 		}
 
 		TEST_METHOD(SSAOptimizingTest)
 		{
 			SetUpMethod(L"SSAOptimizationTest");
 			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAOptimizer>();
+			ViewIR(bb);
 
 			Assert::AreEqual(Hex::PPKind::Unconditional, bb->BranchKind, L"First bb should be unconditional");
 			Assert::AreEqual(bb->BranchedBB, bb->Next, L"Branch should be next BB");
@@ -164,7 +205,11 @@ namespace RuntimeTest
 		TEST_METHOD(SSAReducingTest)
 		{
 			SetUpMethod(L"SSAOptimizationTest");
-			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAOptimizer, Hex::SSAReducer>();
+			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAReducer>();
+			ViewIR(bb);
+
+			auto content = JITDebug::PrintIR(bb);
+			Logger::WriteMessage(content.c_str());
 
 			for (Hex::BasicBlock* bbIterator = bb;
 				bbIterator != nullptr;
@@ -191,6 +236,14 @@ namespace RuntimeTest
 						});
 				}
 			}
+		}
+
+		TEST_METHOD(X86CodeGen)
+		{
+			SetUpMethod(L"CodeGenTest1");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 		}
 	};
 

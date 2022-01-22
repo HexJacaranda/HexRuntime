@@ -132,6 +132,8 @@ namespace RTM
 		MethodDescriptor* GetMethodFromToken(AssemblyContext* context, MDToken methodReference);
 		FieldDescriptor* GetFieldFromToken(AssemblyContext* context, MDToken fieldReference);
 
+		TypeDescriptor* InstantiateRefType(TypeDescriptor* origin);
+
 		TypeDescriptor* GetIntrinsicTypeFromCoreType(UInt8 coreType);
 	};
 

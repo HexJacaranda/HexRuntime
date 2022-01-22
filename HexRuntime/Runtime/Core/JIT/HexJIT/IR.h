@@ -19,7 +19,8 @@ namespace RTM
 
 namespace RTJ::Hex
 {
-	class AllocationContext;
+	class RegisterAllocationContext;
+	class EmitPage;
 }
 
 namespace RTJ::Hex
@@ -54,7 +55,9 @@ namespace RTJ::Hex
 		UndefinedValue,
 		//Morph
 
-		MorphedCall
+		MorphedCall,
+		OffsetOf,
+		ArrayOffsetOf
 	};
 
 	struct TreeNode
@@ -239,13 +242,14 @@ namespace RTJ::Hex
 	{
 		LoadNode(UInt8 loadType, TreeNode* source)
 			:UnaryNode(NodeKinds::Load),
-			Source(source)
+			Source(source),
+			LoadType(loadType)
 		{}
 		/// <summary>
 		/// Only allows array element, field, argument and local
 		/// </summary>
 		TreeNode* Source = nullptr;
-		UInt8 LoadType = SLMode::Indirect;
+		UInt8 LoadType = SLMode::Direct;
 	};
 
 	struct ArrayElementNode : BinaryNode
@@ -487,6 +491,32 @@ namespace RTJ::Hex
 		TreeNode* Origin;	
 	};
 
+	struct OffsetOfNode : UnaryNode
+	{
+		OffsetOfNode(TreeNode* base, Int32 offset) :
+			UnaryNode(NodeKinds::OffsetOf),
+			Base(base),
+			Offset(offset) {}
+
+		TreeNode* Base;
+		Int32 Offset;
+	};
+
+	struct ArrayOffsetOfNode : BinaryNode
+	{
+		ArrayOffsetOfNode(TreeNode* base, TreeNode* index, Int32 offset, Int32 scale) :
+			BinaryNode(NodeKinds::OffsetOf),
+			Array(base),
+			Index(index),
+			BaseOffset(offset),
+			Scale(scale) {}
+
+		TreeNode* Array;
+		TreeNode* Index;
+		Int32 BaseOffset;
+		Int32 Scale;
+	};
+
 	struct Statement
 	{
 		Statement(TreeNode* target, Int32 offset, Int32 endOffset)
@@ -556,13 +586,13 @@ namespace RTJ::Hex
 		TreeNode* BranchConditionValue = nullptr;
 		BasicBlock* BranchedBB = nullptr;
 
-		AllocationContext* RegisterContext = nullptr;
+		RegisterAllocationContext* RegisterContext = nullptr;
 		VariableSet VariablesLiveIn;
 		VariableSet VariablesLiveOut;
 		VariableSet VariablesUse;
 		VariableSet VariablesDef;
 		LivenessMapT Liveness;
-		std::vector<ConcreteInstruction> Instructions;
+		EmitPage* EmitPage = nullptr;
 	public:
 		std::vector<BasicBlock*> BBIn;
 	public:
@@ -580,7 +610,7 @@ namespace RTJ::Hex
 				std::forward<Fn>(action)(branch);
 		}
 		bool IsUnreachable()const {
-			return BBIn.empty();
+			return BBIn.empty() && Prev != nullptr;
 		}
 	};
 
@@ -687,8 +717,6 @@ namespace RTJ::Hex
 
 #define CASE_UNARY \
 			case NodeKinds::Load: \
-			case NodeKinds::Use: \
-			case NodeKinds::ValueDef: \
 			case NodeKinds::Convert: \
 			case NodeKinds::Cast: \
 			case NodeKinds::Box: \
@@ -696,19 +724,25 @@ namespace RTJ::Hex
 			case NodeKinds::InstanceField: \
 			case NodeKinds::UnaryArithmetic: \
 			case NodeKinds::Duplicate: \
-			case NodeKinds::Phi:
+			case NodeKinds::Phi: \
+			case NodeKinds::OffsetOf:
 
 #define CASE_BINARY \
 			case NodeKinds::Store: \
 			case NodeKinds::Array: \
 			case NodeKinds::Compare: \
-			case NodeKinds::BinaryArithmetic:
+			case NodeKinds::BinaryArithmetic: \
+			case NodeKinds::ArrayOffsetOf:
 
 #define CASE_MULTIPLE \
-			case NodeKinds::MorphedCall: \
 			case NodeKinds::Call: \
 			case NodeKinds::New: \
 			case NodeKinds::NewArray:
+
+#define CASE_POTENTIAL_CIRCULAR_REF \
+			case NodeKinds::Use: \
+			case NodeKinds::ValueDef: \
+			case NodeKinds::ValueUse:
 
 	template<class Fn>
 	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
@@ -752,13 +786,25 @@ namespace RTJ::Hex
 				pushStack(&proxy->Value);
 				break;
 			}
+			case NodeKinds::MorphedCall:
+			{
+				auto call = current->As<MorphedCallNode>();
+				pushStack(&call->Origin);
+			}
 			//Multiple access 
 			CASE_MULTIPLE
 			{
 				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
-				for (Int32 i = 0; i < proxy->Count; ++i)
-					pushStack(&proxy->Values[i]);
+				ForeachInlined(proxy->Values, proxy->Count, 
+					[&](TreeNode*& node) 
+					{
+						pushStack(&node);
+					});
 				break;
+			}
+			CASE_POTENTIAL_CIRCULAR_REF
+			{
+
 			}
 			}
 		}
@@ -799,13 +845,25 @@ namespace RTJ::Hex
 				pushStack(&proxy->Value);
 				break;
 			}
+			case NodeKinds::MorphedCall:
+			{
+				auto call = current->As<MorphedCallNode>();
+				pushStack(&call->Origin);
+			}
 			//Multiple access 
 			CASE_MULTIPLE
 			{
 				MultipleNodeAccessProxy* proxy = (MultipleNodeAccessProxy*)current;
-				for (Int32 i = 0; i < proxy->Count; ++i)
-					pushStack(&proxy->Values[i]);
+				ForeachInlined(proxy->Values, proxy->Count,
+					[&](TreeNode*& node)
+					{
+						pushStack(&node);
+					});
 				break;
+			}
+			CASE_POTENTIAL_CIRCULAR_REF
+			{
+
 			}
 			}
 		}
@@ -832,4 +890,12 @@ namespace RTJ::Hex
 				std::forward<Fn>(action)(bbIterator->BranchConditionValue, true);
 		}
 	}
+
+	class JITDebug
+	{
+		static void PrintNodeContent(std::wstringstream& output, TreeNode* node);
+		static void PrintNode(std::wstringstream& output, std::wstring const& prefix, TreeNode* node, bool isLast);
+	public:
+		static std::wstring PrintIR(BasicBlock* basicBlock);
+	};
 }

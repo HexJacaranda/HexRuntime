@@ -7,6 +7,7 @@
 namespace RTM
 {
 	class TypeDescriptor;
+	class FieldTable;
 }
 
 namespace RTM
@@ -16,11 +17,14 @@ namespace RTM
 		friend class MetaManager;
 		RTO::StringObject* mName;
 		TypeDescriptor* mFieldType;
+		FieldTable* mOwningTable;
 	public:
 		TypeDescriptor* GetType()const;
 		RTO::StringObject* GetName()const;
+		FieldTable* GetOwningTable()const;
 
 		bool IsStatic()const;
 		bool IsThreadLocal()const;
+		Int32 GetOffset()const;
 	};
 }

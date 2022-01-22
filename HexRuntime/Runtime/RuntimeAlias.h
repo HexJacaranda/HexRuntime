@@ -61,7 +61,7 @@ namespace Runtime
 #define ForcedInline __forceinline
 #define PADDING_EXT(BYTES) UInt8 __GENERATED_PADDING_FOR_EXTENSION[BYTES]
 
-#define SIMD256
+#define RTAssert assert
 }
 
 //Overrides for mimalloc

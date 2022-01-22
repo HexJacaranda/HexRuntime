@@ -9,7 +9,7 @@ namespace Runtime
 		static std::shared_ptr<spdlog::details::thread_pool> defaultPool;
 	public:
 		template<class U>
-		static Logger Get()
+		static LoggerT Get()
 		{
 			std::vector<spdlog::sink_ptr> sinks;
 #ifdef RTDEBUG
@@ -21,7 +21,7 @@ namespace Runtime
 		}
 	};
 
-#define USE_LOGGER(TYPE) Logger mLogger
+#define USE_LOGGER(TYPE) LoggerT mLogger
 
 #define INJECT_LOGGER(TYPE) mLogger = LoggerFactory::Get<TYPE##SpecificLogger>()
 

@@ -24,6 +24,8 @@ namespace RTJ::Hex
 		TreeNode* Morph(NewArrayNode* node);
 		TreeNode* Morph(StoreNode* node);
 		TreeNode* Morph(LoadNode* node);
+		TreeNode* Morph(ArrayElementNode* node);
+		TreeNode* Morph(InstanceFieldNode* node);
 	public:
 		BasicBlock* PassThrough();
 	};

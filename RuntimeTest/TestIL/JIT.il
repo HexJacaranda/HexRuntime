@@ -119,8 +119,33 @@
             .ret
 
             .label TRUE_BR
-
+              
             .ldarg y
+            .ret
+        }
+    }
+
+    .method public instance void CodeGenTest1() managed
+    {
+        .local
+        {
+            int32 a
+            int32 b
+            int32 c
+        }
+        .code
+        {
+            .ldc int32 1
+            .stloc a
+
+            .ldloc b
+            .stloc a
+
+            .ldloc b
+            .ldloc c
+            .add
+            .stloc a
+
             .ret
         }
     }

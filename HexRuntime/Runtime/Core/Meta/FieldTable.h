@@ -21,6 +21,7 @@ namespace RTM
 	class FieldTable
 	{
 		friend class MetaManager;
+		friend class FieldDescriptor;
 
 		FieldsLayout* mLayout;
 		Int32 mFieldCount;

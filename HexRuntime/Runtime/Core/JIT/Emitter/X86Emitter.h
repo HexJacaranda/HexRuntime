@@ -33,6 +33,7 @@ namespace RTJE::X86
 		static constexpr Int8 Empty = 0b000;
 	};
 
+
 	class AddressingMode
 	{
 	public:

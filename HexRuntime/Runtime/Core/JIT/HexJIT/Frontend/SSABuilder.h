@@ -16,9 +16,8 @@ namespace RTJ::Hex
 		BasicBlock* mTarget = nullptr;
 		HexJITContext* mJITContext;
 
-		using DefinitionMap = std::vector<std::unordered_map<Int16, SSA::ValueDef*>>;
-		DefinitionMap mLocalDefinition;
-		DefinitionMap mArgumentDefinition;
+		using DefinitionMap = std::unordered_map<UInt16, std::unordered_map<Int32, SSA::ValueDef*>>;
+		DefinitionMap mVariableDefinition;
 		std::unordered_map<SSA::PhiNode*, SSA::Use*> mPhiUsage;
 	private:
 		/// <summary>

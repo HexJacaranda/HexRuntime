@@ -2,6 +2,7 @@
 #include "..\..\..\..\RuntimeAlias.h"
 #include "..\..\..\..\LinkList.h"
 #include "..\..\..\Platform\PlatformSpecialization.h"
+#include "..\..\..\Meta\CoreTypes.h"
 
 namespace RTJ::Hex
 {
@@ -12,17 +13,15 @@ namespace RTJ::Hex
 		//Virtual phase
 		VAL VirtualRegister = 0x01;
 		VAL Local = 0x02;
-		VAL Argument = 0x03;
 		VAL BasicBlock = 0x03;
 
 		//Realization phase
 		VAL Register = 0x10;	
+		VAL Compound = 0x11;
 
 		//Directly use core type as kind
 		VAL CoreTypesRangeBase = 0x20;
 		VAL CoreTypesRangeEnd = 0x3F;
-
-		
 	};
 
 	struct InstructionOperandFlags
@@ -33,12 +32,9 @@ namespace RTJ::Hex
 
 	struct InstructionOperand
 	{
-		UInt8 Kind;
-		UInt8 Flags;
-		UInt8 Length;
 		//These kinds of values are directly supported by our model
 		union
-		{		
+		{
 			UInt8 Register;
 			UInt8 VirtualRegister;
 			//Fix up semantic
@@ -52,9 +48,32 @@ namespace RTJ::Hex
 			//To support complex operand like SIB
 			InstructionOperand* AggregatedOperands;
 		};
+
+		UInt8 Kind;
+		UInt8 Flags;
+		UInt8 Length;
 	public:
 		bool IsModifyingRegister()const {
 			return Flags & InstructionOperandFlags::Modify;
+		}
+		InstructionOperand ForVirtualRegister(UInt8 value) {
+			InstructionOperand ret{};
+			ret.Kind = OperandKind::VirtualRegister;
+			ret.VirtualRegister = value;
+			return ret;
+		}
+		InstructionOperand ForLocal(UInt16 value) {
+			InstructionOperand ret{};
+			ret.Kind = OperandKind::Local;
+			ret.VariableIndex = value;
+			return ret;
+		}
+		InstructionOperand ForImmediate(Int32 value)
+		{
+			InstructionOperand ret{};
+			ret.Kind = OperandKind::CoreTypesRangeBase + CoreTypes::I4;
+			ret.Immediate32 = *(UInt32*)&value;
+			return ret;
 		}
 	};
 
@@ -120,9 +139,9 @@ namespace RTJ::Hex
 		InstructionOperand* GetOperands()const {
 			return (InstructionOperand*)((Int)Operands & ~FlagMask);
 		}
-		ConcreteInstruction* SetFlag(Int flag) {
+		ConcreteInstruction& SetFlag(Int flag) {
 			Operands = (InstructionOperand*)((Int)Operands | flag);
-			return this;
+			return *this;
 		}
 		Int GetFlag()const {
 			return (Int)Operands & FlagMask;

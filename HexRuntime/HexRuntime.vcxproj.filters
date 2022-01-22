@@ -112,6 +112,9 @@
     <Filter Include="头文件\Runtime\Host">
       <UniqueIdentifier>{dad5146e-9d36-44ad-9471-c38dfa7e932d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\JIT\X86">
+      <UniqueIdentifier>{7a4e5839-a9a7-4435-8b69-c0657efa347c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -291,9 +294,6 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\IR.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
@@ -315,9 +315,6 @@
     <ClInclude Include="Runtime\Core\Platform\X86Register.h">
       <Filter>头文件\Runtime\Core\Platform\Register</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeInterpreter.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Bit.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
@@ -332,6 +329,15 @@
     </ClInclude>
     <ClInclude Include="Runtime\Host\RuntimeHost.h">
       <Filter>头文件\Runtime\Host</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\PlatformFeature.h">
+      <Filter>头文件\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -467,14 +473,20 @@
     <ClCompile Include="Runtime\Bit.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\NativeCodeEncoder.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp">
       <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp">
+      <Filter>源文件\JIT\X86</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
