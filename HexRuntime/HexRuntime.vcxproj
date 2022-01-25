@@ -31,12 +31,11 @@
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\ExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\Page\WindowsExecutablePage.h" />
     <ClInclude Include="Runtime\Core\JIT\Emitter\X86Emitter.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\ConcreteInstruction.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPage.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPageProvider.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.h" />
@@ -47,6 +46,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\IR.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITDebugView.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITFlow.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\JITHelper.h" />
     <ClInclude Include="Runtime\Core\JIT\ILEmitter.h" />
@@ -108,10 +108,11 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITDebugView.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />

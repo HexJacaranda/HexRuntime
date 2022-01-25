@@ -6,7 +6,6 @@
 #include "..\..\..\Utility.h"
 #include "..\..\Meta\CoreTypes.h"
 #include "..\..\Platform\PlatformSpecialization.h"
-#include "Backend\ConcreteInstruction.h"
 #include "..\..\..\SmallSet.h"
 #include <vector>
 
@@ -20,6 +19,10 @@ namespace RTM
 namespace RTJ::Hex
 {
 	class RegisterAllocationContext;
+}
+
+namespace RTJ
+{
 	class EmitPage;
 }
 
@@ -153,6 +156,26 @@ namespace RTJ::Hex
 			UInt32 StringToken;
 			void* Pointer;
 		};
+	};
+
+	/// <summary>
+	/// To access right bytes of constant
+	/// </summary>
+	union ConstantStorage
+	{
+		Boolean Bool;
+		Int8 I1;
+		Int16 I2;
+		Int32 I4;
+		Int64 I8;
+		UInt8 U1;
+		UInt16 U2;
+		UInt32 U4;
+		UInt64 U8;
+		Float R4;
+		Double R8;
+		UInt32 StringToken;
+		void* Pointer;
 	};
 
 	struct LocalVariableNode : TreeNode
@@ -453,6 +476,22 @@ namespace RTJ::Hex
 			TreeNode* Value;
 		};	
 	};
+
+	static bool ValueIs(TreeNode* value, NodeKinds kind)
+	{
+		if (value == nullptr)
+			return false;
+		
+		return ((UnaryNodeAccessProxy*)value)->Value->Is(kind);
+	}
+
+	template<class T>
+	static T* ValueAs(TreeNode* value)
+	{
+		if (value == nullptr)
+			return nullptr;
+		return ((UnaryNodeAccessProxy*)value)->Value->As<T>();
+	}
 
 	/*--------------------------------Morphed Section--------------------------------*/
 
@@ -890,12 +929,4 @@ namespace RTJ::Hex
 				std::forward<Fn>(action)(bbIterator->BranchConditionValue, true);
 		}
 	}
-
-	class JITDebug
-	{
-		static void PrintNodeContent(std::wstringstream& output, TreeNode* node);
-		static void PrintNode(std::wstringstream& output, std::wstring const& prefix, TreeNode* node, bool isLast);
-	public:
-		static std::wstring PrintIR(BasicBlock* basicBlock);
-	};
 }

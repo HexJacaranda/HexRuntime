@@ -4,6 +4,25 @@
 
 namespace RTJ
 {
+	EmitPage::EmitPage() :EmitPage(16)
+	{
+	}
+
+	EmitPage::EmitPage(Int32 length): mLength(length)
+	{
+		mRawPage = EmitPageProvider::Allocate(length);
+	}
+
+	EmitPage::~EmitPage()
+	{
+		if (mRawPage != nullptr)
+		{
+			mLength = 0;
+			mIndex = 0;
+			EmitPageProvider::Free(mRawPage);
+		}
+	}
+
 	Int32 EmitPage::CurrentOffset() const
 	{
 		return mIndex;
@@ -26,6 +45,11 @@ namespace RTJ
 	void EmitPage::Commit(Int32 length)
 	{
 		mIndex += length;
+	}
+
+	UInt8* EmitPage::GetRaw() const
+	{
+		return mRawPage;
 	}
 
 	UInt8* EmitPage::Finalize()

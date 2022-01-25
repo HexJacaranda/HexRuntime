@@ -297,9 +297,6 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\Linearizer.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\PlatformSpecializer.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\Platform\Platform.h">
       <Filter>头文件\Runtime\Core\Platform</Filter>
     </ClInclude>
@@ -308,9 +305,6 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h">
       <Filter>头文件\Runtime\Core\Platform\CallingConventionProviders</Filter>
-    </ClInclude>
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\ConcreteInstruction.h">
-      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Platform\X86Register.h">
       <Filter>头文件\Runtime\Core\Platform\Register</Filter>
@@ -337,6 +331,12 @@
       <Filter>头文件\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\JITDebugView.h">
+      <Filter>头文件\Runtime\Core\JIT\HexJIT</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
     </ClInclude>
   </ItemGroup>
@@ -461,9 +461,6 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RetargetableGenerator.cpp">
-      <Filter>源文件\JIT</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
@@ -483,9 +480,15 @@
       <Filter>源文件\JIT\X86</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\JIT</Filter>
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\JITDebugView.cpp">
+      <Filter>源文件\JIT</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -112,6 +112,10 @@ namespace RTJ::Hex
 			liveSet.Remove(index);
 		};
 
+		/* Need to go from top since Load is deeper than Store.
+		* And for expression like a (kill) = a (use) + b. We need to maintain 
+		* 'a' in liveSet
+		*/
 		TraverseTree(
 			mContext->Traversal.Space,
 			mContext->Traversal.Count,

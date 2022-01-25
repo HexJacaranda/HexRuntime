@@ -1,14 +1,14 @@
 #pragma once
 #include "RuntimeAlias.h"
 
-#define AVX
-#define AVX2
-#define SSE
+#define CPU_FEATURE_AVX
+#define CPU_FEATURE_AVX2
+#define CPU_FEATURE_SSE
 
-#ifdef AVX2
+#ifdef CPU_FEATURE_AVX2
 constexpr auto SIMDWidth = 256;
 #else
-#ifdef AVX
+#ifdef CPU_FEATURE_AVX
 constexpr auto SIMDWidth = 256;
 #endif
 #endif

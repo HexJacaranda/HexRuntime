@@ -35,7 +35,6 @@ namespace RTJ::Hex
 		{
 			//Set register free
 			ReturnRegister(regLocator->second);
-			mReg2Var.erase(regLocator->second);
 			mVar2Reg.erase(regLocator);
 		}
 	}
@@ -45,10 +44,14 @@ namespace RTJ::Hex
 		auto old = TryGetRegister(variable);
 		if (old.has_value())
 		{
-			mReg2Var.erase(old.value());
-			mReg2Var[newRegister] = variable;
+			ReturnRegister(old.value());
 			mVar2Reg[variable] = newRegister;
 		}
+	}
+
+	void RegisterAllocationContext::Establish(UInt16 variable, UInt8 allocatedRegister)
+	{
+		mVar2Reg[variable] = allocatedRegister;
 	}
 
 	std::tuple<std::optional<UInt8>, bool>
@@ -73,5 +76,9 @@ namespace RTJ::Hex
 			//No register available
 			return { {}, true };
 		}
+	}
+	std::unordered_map<UInt16, UInt8> const& RegisterAllocationContext::GetMapping() const
+	{
+		return mVar2Reg;
 	}
 }

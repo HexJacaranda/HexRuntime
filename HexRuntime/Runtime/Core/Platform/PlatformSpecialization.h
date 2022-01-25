@@ -15,26 +15,6 @@ namespace RTP
 
 		VAL Memory = 0x0001;
 		VAL Register = 0x0002;
-		VAL Immediate = 0x0004;
-		//Used for calling convention only
-		VAL SpecificRegister = 0x0008;
-
-		/// <summary>
-		/// Width Bit
-		/// </summary>
-		VAL Width8 = 0x0010;
-		VAL Width16 = 0x0011;
-		VAL Width32 = 0x0012;
-		VAL Width64 = 0x0013;
-
-		/// <summary>
-		/// For SIMD
-		/// </summary>		
-		VAL Width128 = 0x0014;
-		VAL Width256 = 0x0015;
-		VAL Width512 = 0x0016;
-
-		VAL Compound = 0x7000;
 	};
 
 	struct AddressConstraint
@@ -53,48 +33,12 @@ namespace RTP
 		union {
 			UInt64 RegisterAvaliableMask;
 			UInt8 SingleRegister;
-			AddressConstraint* SubConstraints = nullptr;
 		};		
 		/// <summary>
 		/// Reserved for register mask
 		/// </summary>
-		PADDING_EXT(5);
-		UInt8 CompundLength = 0;
+		PADDING_EXT(6);
 		UInt16 Flags = 0;
-	};
-
-#define REG_C RTP::AddressConstraintFlags::Register
-#define SREG_C RTP::AddressConstraintFlags::SpecificRegister
-#define MEM_C RTP::AddressConstraintFlags::Memory
-#define IMM_C RTP::AddressConstraintFlags::Immediate
-
-#define W8 RTP::AddressConstraintFlags::Width8
-#define W16 RTP::AddressConstraintFlags::Width16
-#define W32 RTP::AddressConstraintFlags::Width32
-#define W64 RTP::AddressConstraintFlags::Width64
-
-#define ADR_MEM(WIDTH) RTP::AddressConstraint { WIDTH | MEM_C }
-#define ADR_REG(MSK, WIDTH) RTP::AddressConstraint { MSK, WIDTH | REG_C }
-#define ADR_REG_MEM(MSK, WIDTH) RTP::AddressConstraint { MSK, WIDTH | REG_C | MEM_C }
-
-#define OPCD(OP_VAL) {OP_VAL}, 1
-#define OPCD_2(OP_VAL1, OP_VAL2) { OP_VAL1, OP_VAL2 }, 2
-#define OPCD_3(OP_VAL1, OP_VAL2, OP_VAL3) { OP_VAL1, OP_VAL2, OP_VAL3 }, 3
-#define OPCD_4(OP_VAL1, OP_VAL2, OP_VAL3, OP_VAL4) { OP_VAL1, OP_VAL2, OP_VAL3, OP_VAL4 }, 4
-
-	struct PlatformInstruction
-	{
-		/// <summary>
-		/// Now we can only support opcode of addresses up to 3.
-		/// The flag which is zero will be the end if there're less than 3 operands
-		/// </summary>
-		std::array<AddressConstraint, 3> AddressConstraints;
-		/// <summary>
-		/// Currently up to 4 bytes opcode
-		/// </summary>
-		std::array<UInt8, 4> Opcodes;
-		UInt8 OpcodeLength;
-		UInt8 ConstraintLength;
 	};
 
 #define PINST RTP::PlatformInstruction

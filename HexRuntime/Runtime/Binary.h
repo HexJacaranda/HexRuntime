@@ -21,6 +21,10 @@ namespace RTC
 		static void WriteByLittleEndianness(Int8* Target, IntT Value);
 		template<class IntT>
 		static void WriteByBigEndianness(Int8* Target, IntT Value);
+		template<class IntT>
+		static void WriteByLittleEndianness(UInt8* Target, IntT Value);
+		template<class IntT>
+		static void WriteByBigEndianness(UInt8* Target, IntT Value);
 	};
 
 	template<class IntT>
@@ -52,6 +56,39 @@ namespace RTC
 				case sizeof(UInt16) : *(UInt16*)Target = SwapInt16(Value); break;
 				case sizeof(UInt32) : *(UInt32*)Target = SwapInt32(Value); break;
 				case sizeof(UInt64) : *(UInt64*)Target = SwapInt64(Value); break;
+			}
+		}
+	}
+
+	template<class IntT>
+	inline void Binary::WriteByLittleEndianness(UInt8* Target, IntT Value)
+	{
+		if (Host == Endianness::Little)
+			*(IntT*)Target = Value;
+		else
+		{
+			switch (sizeof(IntT))
+			{
+				case sizeof(UInt8) : *Target = *(UInt8*)&Value; break;
+					case sizeof(UInt16) : *(UInt16*)Target = SwapInt16(Value); break;
+						case sizeof(UInt32) : *(UInt32*)Target = SwapInt32(Value); break;
+							case sizeof(UInt64) : *(UInt64*)Target = SwapInt64(Value); break;
+			}
+		}
+	}
+	template<class IntT>
+	inline void Binary::WriteByBigEndianness(UInt8* Target, IntT Value)
+	{
+		if (Host == Endianness::Big)
+			*(IntT*)Target = Value;
+		else
+		{
+			switch (sizeof(IntT))
+			{
+				case sizeof(UInt8) : *Target = *(UInt8*)&Value; break;
+					case sizeof(UInt16) : *(UInt16*)Target = SwapInt16(Value); break;
+						case sizeof(UInt32) : *(UInt32*)Target = SwapInt32(Value); break;
+							case sizeof(UInt64) : *(UInt64*)Target = SwapInt64(Value); break;
 			}
 		}
 	}

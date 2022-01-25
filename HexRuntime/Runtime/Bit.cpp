@@ -31,7 +31,7 @@ bool RT::Bit::SetOne(UInt64& value, UInt8 bitIndex)
 
 bool RT::Bit::TestAllZero(UInt64* value, Int32 count)
 {
-#ifdef AVX
+#ifdef CPU_FEATURE_AVX
 	for (Int32 i = 0; i < count; i += 4)
 	{
 		__m256i origin = _mm256_loadu_si256((__m256i*)(value + i));
@@ -51,7 +51,7 @@ bool RT::Bit::TestAllZero(UInt64* value, Int32 count)
 
 bool RT::Bit::TestAllOne(UInt64* value, Int32 count)
 {
-#ifdef AVX
+#ifdef CPU_FEATURE_AVX
 	__m256i allOne = _mm256_set1_epi64x(0xFFFFFFFFFFFFFFFFll);
 	for (Int32 i = 0; i < count; i += 4)
 	{

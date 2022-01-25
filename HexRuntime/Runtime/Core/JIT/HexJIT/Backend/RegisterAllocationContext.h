@@ -9,7 +9,6 @@ namespace RTJ::Hex
 	class RegisterAllocationContext
 	{
 		std::unordered_map<UInt16, UInt8> mVar2Reg;
-		std::unordered_map<UInt8, UInt16> mReg2Var;
 		UInt64 mRegisterPool = 0xFFFFFFFFFFFFFFFFull;
 	public:
 		std::optional<UInt8> TryGetFreeRegister(UInt64 mask);
@@ -17,6 +16,8 @@ namespace RTJ::Hex
 		std::optional<UInt8> TryGetRegister(UInt16 variable) const;
 		void TryInvalidateFor(UInt16 variable);
 		void TransferRegisterFor(UInt16 variable, UInt8 newRegister);
+		void Establish(UInt16 variable, UInt8 allocatedRegister);
 		std::tuple<std::optional<UInt8>, bool> AllocateRegisterFor(UInt16 variable, UInt64 mask) const;
+		std::unordered_map<UInt16, UInt8> const& GetMapping()const;
 	};
 }

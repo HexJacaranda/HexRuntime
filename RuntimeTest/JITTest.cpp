@@ -15,6 +15,7 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Materializer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/LivenessAnalyzer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/X86CodeInterpreter.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/JITDebugView.h"
 #include <format>
 
 using namespace RTJ;
@@ -73,7 +74,7 @@ namespace RuntimeTest
 
 		void ViewIR(BasicBlock* bb) 
 		{
-			auto content = JITDebug::PrintIR(bb);
+			auto content = JITDebugView::ViewIR(bb);
 			Logger::WriteMessage(content.c_str());
 		}
 
@@ -207,9 +208,6 @@ namespace RuntimeTest
 			SetUpMethod(L"SSAOptimizationTest");
 			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAReducer>();
 			ViewIR(bb);
-
-			auto content = JITDebug::PrintIR(bb);
-			Logger::WriteMessage(content.c_str());
 
 			for (Hex::BasicBlock* bbIterator = bb;
 				bbIterator != nullptr;

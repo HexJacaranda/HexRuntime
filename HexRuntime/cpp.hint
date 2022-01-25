@@ -20,3 +20,5 @@
 #define RTM
 #define VAL
 #define MR_USE_INS(MR_INST, RM_INST) if (MR) { USE_INS(MR_INST); } else { USE_INS(RM_INST); }
+#define CASE_POTENTIAL_CIRCULAR_REF
+#define NREG
