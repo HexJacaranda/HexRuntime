@@ -115,6 +115,9 @@
     <Filter Include="源文件\JIT\X86">
       <UniqueIdentifier>{7a4e5839-a9a7-4435-8b69-c0657efa347c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\Runtime\Core\ExecutionEngine">
+      <UniqueIdentifier>{8ce9b860-a6c4-48d6-ae7b-9dd6fd4ca34d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Runtime\Binary.h">
@@ -338,6 +341,9 @@
     </ClInclude>
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.h">
       <Filter>头文件\Runtime\Core\JIT\HexJIT\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\ExecutionEngine\StackCrawling.h">
+      <Filter>头文件\Runtime\Core\ExecutionEngine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

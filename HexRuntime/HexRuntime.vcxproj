@@ -23,6 +23,7 @@
     <ClInclude Include="Runtime\Bit.h" />
     <ClInclude Include="Runtime\Core\Accessibility.h" />
     <ClInclude Include="Runtime\Core\Exception\RuntimeException.h" />
+    <ClInclude Include="Runtime\Core\ExecutionEngine\StackCrawling.h" />
     <ClInclude Include="Runtime\Core\Interfaces\OSFile.h" />
     <ClInclude Include="Runtime\Core\Interfaces\OSMemory.h" />
     <ClInclude Include="Runtime\Core\InteriorPointer.h" />

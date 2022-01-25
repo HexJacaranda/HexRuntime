@@ -45,6 +45,7 @@ namespace Runtime
 #define RTO Runtime::Core::ManagedObject
 #define RTM Runtime::Core::Meta
 #define RTME Runtime::Core::Meta::EE
+#define RTEE Runtime::Core::EE
 
 #define RTMM Runtime::Core::Memory
 
