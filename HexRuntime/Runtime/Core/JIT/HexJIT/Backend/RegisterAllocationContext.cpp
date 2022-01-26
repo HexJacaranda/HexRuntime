@@ -52,6 +52,7 @@ namespace RTJ::Hex
 	void RegisterAllocationContext::Establish(UInt16 variable, UInt8 allocatedRegister)
 	{
 		mVar2Reg[variable] = allocatedRegister;
+		Bit::SetZero(mRegisterPool, allocatedRegister);
 	}
 
 	std::tuple<std::optional<UInt8>, bool>

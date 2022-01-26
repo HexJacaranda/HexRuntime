@@ -176,6 +176,55 @@ namespace RTJ::Hex
 		Double R8;
 		UInt32 StringToken;
 		void* Pointer;
+
+		static ConstantStorage From(Int8 value)
+		{
+			ConstantStorage ret{};
+			ret.I1 = value;
+			return ret;
+		}
+		static ConstantStorage From(Int16 value)
+		{
+			ConstantStorage ret{};
+			ret.I2 = value;
+			return ret;
+		}
+		static ConstantStorage From(Int32 value)
+		{
+			ConstantStorage ret{};
+			ret.I4 = value;
+			return ret;
+		}
+		static ConstantStorage From(Int64 value)
+		{
+			ConstantStorage ret{};
+			ret.I8 = value;
+			return ret;
+		}
+		static ConstantStorage From(UInt8 value)
+		{
+			ConstantStorage ret{};
+			ret.U1 = value;
+			return ret;
+		}
+		static ConstantStorage From(UInt16 value)
+		{
+			ConstantStorage ret{};
+			ret.U2 = value;
+			return ret;
+		}
+		static ConstantStorage From(UInt32 value)
+		{
+			ConstantStorage ret{};
+			ret.U4 = value;
+			return ret;
+		}
+		static ConstantStorage From(UInt64 value)
+		{
+			ConstantStorage ret{};
+			ret.U8 = value;
+			return ret;
+		}
 	};
 
 	struct LocalVariableNode : TreeNode
@@ -622,16 +671,28 @@ namespace RTJ::Hex
 		/// <summary>
 		/// Stores the condition expression.
 		/// </summary>
-		TreeNode* BranchConditionValue = nullptr;
+		union 
+		{
+			TreeNode* BranchConditionValue = nullptr;
+			TreeNode* ReturnValue;
+		};		
 		BasicBlock* BranchedBB = nullptr;
 
 		RegisterAllocationContext* RegisterContext = nullptr;
+		/// <summary>
+		/// Liveness
+		/// </summary>
+		/// <returns></returns>
 		VariableSet VariablesLiveIn;
 		VariableSet VariablesLiveOut;
 		VariableSet VariablesUse;
 		VariableSet VariablesDef;
 		LivenessMapT Liveness;
-		EmitPage* EmitPage = nullptr;
+
+		Int32 PhysicalOffset = 0;
+		Int32 NativeCodeSize = 0;
+
+		EmitPage* NativeCode = nullptr;
 	public:
 		std::vector<BasicBlock*> BBIn;
 	public:
@@ -650,6 +711,10 @@ namespace RTJ::Hex
 		}
 		bool IsUnreachable()const {
 			return BBIn.empty() && Prev != nullptr;
+		}
+
+		static bool ReachableFn(BasicBlock* bb) {
+			return !bb->IsUnreachable();
 		}
 	};
 

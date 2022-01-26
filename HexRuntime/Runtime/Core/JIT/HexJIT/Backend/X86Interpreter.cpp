@@ -1,17 +1,19 @@
 #include "X86CodeInterpreter.h"
+#include "StackFrameGenerator.h"
 #include "..\..\..\..\Bit.h"
 
-#define USE_INS(NAME) \
+#define USE_INS(NAME) { \
 				instruction.Opcode = NativePlatformInstruction::NAME.data(); \
 				instruction.Length = NativePlatformInstruction::NAME.size(); \
-				instruction.Flags = NativePlatformInstruction::NAME##_FLG
+				instruction.Flags = NativePlatformInstruction::NAME##_FLG; }
 
 #define NREG RTP::Register::X86::RegisterSet<RTP::CurrentWidth>
+#define NREG64 RTP::Register::X86::RegisterSet<RTP::Platform::Bit64>
 
 //TODO: Report
-#define USE_DISP(OPERAND, VAR) (OPERAND).Kind = OperandPreference::Displacement; \
+#define USE_DISP(OPERAND, VAR)  {(OPERAND).Kind = OperandPreference::Displacement; \
 								(OPERAND).Displacement.Base = NREG::BP; \
-								(OPERAND).RefVariable = VAR
+								(OPERAND).RefVariable = VAR;}
 
 #define USE_MASK (mask & mGenContext.RegisterMask)
 #define MARK_UNSPILLABLE(REG) session.Borrow((REG))
@@ -21,7 +23,7 @@
 #define ST_VAR (mGenContext.StoringVariable)
 #define RE_REG (mGenContext.ResultRegister)
 
-#define MR_USE_INS(MR_INST, RM_INST) \
+#define MR_USE_INS(MR_INST, RM_INST) {\
 		if (MR) \
 		{ \
 			USE_INS(MR_INST); \
@@ -29,7 +31,7 @@
 		else \
 		{ \
 			USE_INS(RM_INST); \
-		} 
+		} }
 
 #define POOL mContext->Memory
 
@@ -37,19 +39,49 @@
 #undef REG
 #endif // REG
 
-#define REG(R) Operand::FromRegister(R)
+#define REG(R) Operand::FromRegister(NREG::R)
+#define REGV(R) Operand::FromRegister(R)
+#define MSK_REG(R) (1ull << R)
+
 #define DISP(R, OFFSET) Operand::FromDisplacement(R, OFFSET)
+#define IMM8_I(IMM_VAL) Operand::FromImmediate((Int8)IMM_VAL, CoreTypes::I1)
+#define IMM16_I(IMM_VAL) Operand::FromImmediate((Int16)IMM_VAL, CoreTypes::I2)
+#define IMM32_I(IMM_VAL) Operand::FromImmediate((Int32)IMM_VAL, CoreTypes::I4)
+
+#define IMM8_U(IMM_VAL) Operand::FromImmediate((UInt8)IMM_VAL, CoreTypes::U1)
+#define IMM16_U(IMM_VAL) Operand::FromImmediate((UInt16)IMM_VAL, CoreTypes::U2)
+#define IMM32_U(IMM_VAL) Operand::FromImmediate((UInt32)IMM_VAL, CoreTypes::U4)
 
 #define ASM(INST, ...) \
 		{ \
 			Instruction instruction{}; \
 			USE_INS(INST); \
+			instruction.CoreType = ASMDefaultCoreType; \
 			Emit(instruction, __VA_ARGS__); \
 		} 
+
+#define ASM_C(INST, CORE_TYPE,...) \
+		{ \
+			Instruction instruction{}; \
+			USE_INS(INST); \
+			instruction.CoreType = CoreTypes::CORE_TYPE; \
+			Emit(instruction, __VA_ARGS__); \
+		} 
+
+#define REP_TRK(NAME) (mGenContext.NAME##Track).Offset
+#define REP_TRK_SIZE(NAME) (mGenContext.NAME##Track).Size
+
+#define IS_TRK(NAME) (mGenContext.NAME##Track).Size == Tracking::RequestTracking
+#define TRK(NAME) (mGenContext.NAME##Track).Size = Tracking::RequestTracking; \
+				  REP_TRK(NAME) = {}
+
 
 
 namespace RTJ::Hex::X86
 {
+	static constexpr UInt8 ASMDefaultCoreType = 
+		RTP::CurrentWidth == RTP::Platform::Bit64 ? CoreTypes::I8 : CoreTypes::I4;
+
 	void X86NativeCodeGenerator::CodeGenFor(StoreNode* store)
 	{
 		RegisterConflictSession session{ &mGenContext };
@@ -306,6 +338,8 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::MarkVariableLanded(UInt16 variable, BasicBlock* bb)
 	{
 		if (bb == nullptr) bb = mCurrentBB;
+		//Mark
+		mContext->GetLocalBase(variable)->Flags |= LocalAttachedFlags::ShouldGenerateLayout;
 		mVariableLanded[bb->Index].Add(variable);
 	}
 
@@ -333,36 +367,75 @@ namespace RTJ::Hex::X86
 			EmitStoreR2M(
 				nativeReg.value(),
 				variable,
-				mContext->GetLocalType(variable)->GetCoreType(),
-				bb->EmitPage);			
+				mContext->GetLocalType(variable)->GetCoreType());			
 		}
 	}
 
 	X86NativeCodeGenerator::X86NativeCodeGenerator(HexJITContext* context) :
-		mContext(context)
-	{
-		
-	}
+		mContext(context) {}
 
-	void X86NativeCodeGenerator::CodeGenForBranch(BasicBlock* basicBlock)
+	void X86NativeCodeGenerator::CodeGenForBranch(BasicBlock* basicBlock, Int32 estimatedOffset)
 	{
 		switch (basicBlock->BranchKind)
 		{
 		case PPKind::Ret:
-			CodeGenForReturn(basicBlock);
+			CodeGenForReturn(basicBlock, estimatedOffset);
 			break;
 		case PPKind::Conditional:
-			THROW("Not implemented");
+			CodeGenForJcc(basicBlock, estimatedOffset);
 			break;
 		case PPKind::Unconditional:
-			THROW("Not implemented");
+			CodeGenForJmp(basicBlock, estimatedOffset);
 			break;
 		}
 	}
 
-	void X86NativeCodeGenerator::CodeGenForReturn(BasicBlock* basicBlock)
-	{
+	void X86NativeCodeGenerator::CodeGenForReturn(BasicBlock* basicBlock, Int32 estimatedOffset)
+	{	
+		CodeGenForJmp(basicBlock, estimatedOffset);
+	}
 
+	void X86NativeCodeGenerator::CodeGenForJmp(BasicBlock* basicBlock, Int32 estimatedOffset)
+	{
+		//Set emit page
+		mEmitPage = basicBlock->NativeCode;
+		//Track immediate
+		TRK(Immediate);
+		/*Actually we need to jump to the epilogue code for clean up procedure*/
+		if (std::numeric_limits<Int8>::min() <= estimatedOffset &&
+			std::numeric_limits<Int8>::max() >= estimatedOffset)
+		{
+			ASM(JMP_I1, IMM8_I(DebugEstimateOffset8));
+		}
+		else
+		{
+			ASM(JMP_I4, IMM32_I(DebugEstimateOffset32));
+		}
+
+		Int32 targetIndex = basicBlock->BranchedBB == nullptr ? EpilogueBBIndex : basicBlock->BranchedBB->Index;
+		mJmpOffsetFix[basicBlock->Index] = { REP_TRK(Immediate).value(),  (UInt8)REP_TRK_SIZE(Immediate), targetIndex };
+	}
+
+	void X86NativeCodeGenerator::CodeGenForJcc(BasicBlock* basicBlock, Int32 estimatedOffset)
+	{
+		THROW("Not implemented");
+		//Set emit page
+		mEmitPage = basicBlock->NativeCode;
+		TRK(Immediate);
+
+		Operand imm{};
+		/*Actually we need to jump to the epilogue code for clean up procedure*/
+		if (std::numeric_limits<Int8>::min() <= estimatedOffset &&
+			std::numeric_limits<Int8>::max() >= estimatedOffset)
+		{
+			imm = IMM8_I(DebugEstimateOffset8);
+		}
+		else
+		{
+			imm = IMM32_I(DebugEstimateOffset32);
+		}
+
+		TreeNode* value = basicBlock->BranchConditionValue;	
 	}
 
 	void X86NativeCodeGenerator::SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType)
@@ -395,7 +468,7 @@ namespace RTJ::Hex::X86
 		}
 	}
 
-	Operand X86NativeCodeGenerator::UseImmediate(ConstantNode* constant, bool forceRegister)
+	Operand X86NativeCodeGenerator::UseImmediate(ConstantNode* constant, bool forceRegister, UInt64 additionalMask)
 	{
 		//Clean up context
 		RE_REG = {};
@@ -419,7 +492,7 @@ namespace RTJ::Hex::X86
 				forceRegister)
 			{
 				//For int64 immediate, use intermediate register
-				auto newRegister = AllocateRegisterAndGenerateCodeFor(NREG::Common, coreType);
+				auto newRegister = AllocateRegisterAndGenerateCodeFor(NREG::Common & additionalMask, coreType);
 				//Update result register
 				RE_REG = newRegister;
 
@@ -448,36 +521,245 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::Prepare()
 	{
 		mVariableLanded = std::move(std::vector<VariableSet>(mContext->BBs.size()));
+		InitializeContextFromCallingConv();
 	}
 
+	void X86NativeCodeGenerator::Finalize()
+	{
+		auto stackInfo = StackFrameGenerator(mContext).Generate();
+		GeneratePrologue(stackInfo);
+		GenerateEpilogue(stackInfo);
+		FixUpDisplacement();
+		GenerateBranch();
+		AssemblyCode();
+	}
+
+	void X86NativeCodeGenerator::FixUpDisplacement()
+	{
+		for (auto&& [variable, maps] : mVariableDispFix)
+		{
+			auto varBase = mContext->GetLocalBase(variable);
+			if (varBase->Offset == LocalVariableAttachedBase::InvalidOffset)
+				THROW("Unexpected usage of local variable. Please check if ShouldGenerateLayout is set.");
+			for (auto&& [bb, offsets] : maps)
+				for (auto offset : offsets)
+					RewritePageImmediate(mEmitPage, offset, varBase->Offset);
+		}
+	}
+
+	void X86NativeCodeGenerator::GenerateBranch()
+	{
+		/*Here we will generate branch for each BB if possible*/
+		//Estimate the worst situation: Opcode + Imm32
+		constexpr Int32 JumpInstructionSizeEstimation = 1 + 4;
+		std::unordered_map<Int32, Int32> estimatedOffset{};
+		{
+			Int32 current = mProloguePage->CurrentOffset();
+			//Compute estimated offset first
+			for (auto&& bb : mContext->BBs | std::views::filter(BasicBlock::ReachableFn))
+			{
+				estimatedOffset[bb->Index] = current;
+				current += bb->NativeCodeSize;
+				//This also applys for last Return BB and epilogue since both are nullptr
+				if (bb->BranchedBB == bb->Next)
+					continue;
+				switch (bb->BranchKind)
+				{
+				case PPKind::Ret:
+				case PPKind::Unconditional:
+				case PPKind::Conditional:
+					current += JumpInstructionSizeEstimation;
+				}
+			}
+			//Set epilogue
+			estimatedOffset[EpilogueBBIndex] = current;
+		}
+
+		{
+			Int32 current = mProloguePage->CurrentOffset();
+			for (auto&& bb : mContext->BBs |
+				std::views::filter(BasicBlock::ReachableFn))
+			{
+				if (bb->BranchedBB == bb->Next)
+					continue;
+
+				bb->PhysicalOffset = current;
+				//Select BB index
+				Int32 index = bb->BranchedBB == nullptr ? EpilogueBBIndex : bb->BranchedBB->Index;
+				CodeGenForBranch(bb, estimatedOffset[index]);
+
+				//Update next
+				bb->NativeCodeSize = bb->NativeCode->CurrentOffset();
+				current += bb->NativeCode->CurrentOffset();
+			}
+		}
+	}
+
+	void X86NativeCodeGenerator::AssemblyCode()
+	{
+		EmitPage* finalPage = nullptr;
+		{
+			Int32 totalCodeSize = mProloguePage->CurrentOffset() + mEpiloguePage->CurrentOffset();
+			for (auto&& bb : mContext->BBs |
+				std::views::filter(BasicBlock::ReachableFn))
+				totalCodeSize += bb->NativeCodeSize;
+
+			finalPage = new EmitPage(totalCodeSize);
+		}
+
+		Int32 epilogueOffset = 0;
+		//Copy code to final page
+		{
+			Int32 current = 0;
+			auto copyToFinal = [&](EmitPage* page)
+			{
+				UInt8* address = finalPage->Prepare(page->CurrentOffset());
+				std::memcpy(address, page->GetRaw(), page->CurrentOffset());
+				finalPage->Commit(page->CurrentOffset());
+
+				Int32 retOffset = current;
+				current += page->CurrentOffset();
+				return retOffset;
+			};
+
+			copyToFinal(mProloguePage);
+			for (auto&& bb : mContext->BBs |
+				std::views::filter(BasicBlock::ReachableFn))
+			{
+				bb->PhysicalOffset = copyToFinal(bb->NativeCode);
+			}
+			epilogueOffset = copyToFinal(mEpiloguePage);
+		}
+
+		//Fix up jump offset
+		{
+			for (auto&& [bbIndex, fixUp] : mJmpOffsetFix)
+			{
+				Int32 finalOffset = mContext->BBs[bbIndex]->PhysicalOffset + fixUp.Offset;
+
+				Int32 targetOffset = 0;
+				if (fixUp.BasicBlock == EpilogueBBIndex)
+					targetOffset = epilogueOffset;
+				else
+					targetOffset = mContext->BBs[fixUp.BasicBlock]->PhysicalOffset;
+
+				switch (fixUp.Size)
+				{
+				case 1:
+					RewritePageImmediate(finalPage, finalOffset, (Int8)targetOffset); break;
+				case 2:
+					RewritePageImmediate(finalPage, finalOffset, (Int16)targetOffset); break;
+				case 4:
+					RewritePageImmediate(finalPage, finalOffset, (Int32)targetOffset); break;
+				case 8:
+					RewritePageImmediate(finalPage, finalOffset, (Int64)targetOffset); break;
+				default:
+					THROW("Unknown immediate size");
+				}
+				
+			}
+		}
+
+		//Set to executable
+		finalPage->Finalize();
+		mContext->NativeCode = finalPage;
+	}
+
+	void X86NativeCodeGenerator::InitializeContextFromCallingConv()
+	{
+		auto bb = mContext->BBs.front();
+		bb->RegisterContext = mRegContext = new RegisterAllocationContext();
+	
+		auto callingConv = GenerateCallingConvFor(mContext->Context->Assembly->Heap, 
+			mContext->Context->MethDescriptor->GetSignature()); 
+		mContext->Context->MethDescriptor->SetCallingConvention(callingConv);
+
+		for (Int32 i = 0; i < callingConv->ArgumentCount; i++)
+		{
+			UInt16 index = LocalVariableNode::ArgumentFlag | i;
+			UInt8 coreType = mContext->GetLocalType(index)->GetCoreType();
+			auto&& arg = callingConv->ArgumentPassway[i];
+			if (!arg.HasMemory() && arg.HasRegister())
+				mRegContext->Establish(index, arg.SingleRegister);
+		}
+	}
+
+	void X86NativeCodeGenerator::GeneratePrologue(RTEE::StackFrameInfo* info)
+	{
+		mEmitPage = mProloguePage = new EmitPage(16);
+		//Do not generate for empty stack
+		if (info->StackSize == 0)
+			return;
+
+		ASM(PUSH_R_IU, REG(BP));
+		ASM(MOV_RM_IU, REG(BP), REG(SP));
+		if (info->StackSize <= std::numeric_limits<UInt8>::max())
+			ASM_C(SUB_MI_I1, I1, REG(SP), IMM8_U(info->StackSize))
+		else if (info->StackSize <= std::numeric_limits<UInt16>::max())
+			ASM_C(SUB_MI_IU, I2, REG(SP), IMM16_U(info->StackSize))
+		else
+			ASM(SUB_MI_IU, REG(SP), IMM32_U(info->StackSize))
+	}
+
+	void X86NativeCodeGenerator::GenerateEpilogue(RTEE::StackFrameInfo* info)
+	{
+		mEmitPage = mEpiloguePage = new EmitPage(16);
+		if (info->StackSize > 0)
+		{
+			ASM(MOV_RM_IU, REG(SP), REG(BP));
+			ASM(POP_R_IU, REG(BP));
+		}
+		ASM(RET);
+	}
 
 	void X86NativeCodeGenerator::StartCodeGeneration()
 	{
-		for (auto&& bb : mContext->TopologicallySortedBBs)
-		{
-			mCurrentBB = bb;
-			mCurrentBB->EmitPage = mEmitPage = new EmitPage();
-			mLiveness = 0;
+		Prepare();
 
+		for (auto&& bb : mContext->BBs)
+		{
+			//Set up context
+			{
+				mCurrentBB = bb;
+				mEmitPage = mCurrentBB->NativeCode = new EmitPage(16);
+				mLiveness = 0;
+			}
+
+			//Merge register context from BBIn
 			MergeContext();
+
+			//Generate code for BB
 			for (auto stmt = bb->Now; stmt != nullptr; stmt = stmt->Next, mLiveness++)
 				if (stmt->Now != nullptr)
 					CodeGenFor(stmt->Now);
+			
+			switch (bb->BranchKind)
+			{
+				case PPKind::Conditional:
+					PreCodeGenForJcc(bb->BranchConditionValue); break;
+				case PPKind::Ret:
+					PreCodeGenForRet(bb->ReturnValue); break;
+			}
 
-			if (bb->BranchKind != PPKind::Sequential)
-				CodeGenForBranch(bb);
+			//Compute code size
+			bb->NativeCodeSize = mEmitPage->CurrentOffset();
 		}
+
+		Finalize();
 	}
 
 	BasicBlock* X86NativeCodeGenerator::PassThrough()
 	{
-		Prepare();
 		StartCodeGeneration();
 		return mContext->BBs.front();
 	}
 
 	void X86NativeCodeGenerator::MergeContext()
 	{
+		//Some procedure has already set the context
+		if (mCurrentBB->RegisterContext != nullptr)
+			return;
+
 		//Special case
 		if (mCurrentBB->BBIn.size() == 1)
 		{
@@ -605,9 +887,9 @@ namespace RTJ::Hex::X86
 		return {};
 	}
 
-	void X86NativeCodeGenerator::Emit(Instruction instruction, EmitPage* page)
+	void X86NativeCodeGenerator::Emit(Instruction instruction)
 	{
-		WritePage(page, instruction.Opcode, instruction.Length);
+		WritePage(mEmitPage, instruction.Opcode, instruction.Length);
 	}
 
 	Instruction X86NativeCodeGenerator::RetriveBinaryInstruction(
@@ -617,6 +899,7 @@ namespace RTJ::Hex::X86
 		OperandPreference sourcePreference)
 	{
 		Instruction instruction{};
+		instruction.CoreType = coreType;
 		bool MR = IsAdvancedAddressing(destPreference);
 		bool immLoad = sourcePreference == OperandPreference::Immediate;
 		switch (semGroup)
@@ -627,14 +910,8 @@ namespace RTJ::Hex::X86
 			{
 			case CoreTypes::I1:
 			case CoreTypes::U1:
-				if (immLoad)
-				{
-					USE_INS(MOV_RI_I1);
-				}
-				else
-				{
-					MR_USE_INS(MOV_MR_I1, MOV_RM_I1);
-				}			
+				if (immLoad) USE_INS(MOV_RI_I1)
+				else MR_USE_INS(MOV_MR_I1, MOV_RM_I1)
 				break;
 			case CoreTypes::I2:
 			case CoreTypes::I4:
@@ -644,7 +921,7 @@ namespace RTJ::Hex::X86
 			case CoreTypes::U8:
 				if (immLoad)
 				{
-					USE_INS(MOV_RI_IU);
+					USE_INS(MOV_RI_IU)
 					break;
 				}
 			case CoreTypes::Ref:
@@ -667,14 +944,8 @@ namespace RTJ::Hex::X86
 			{
 			case CoreTypes::I1:
 			case CoreTypes::U1:
-				if (immLoad)
-				{
-					USE_INS(ADD_MI_I1);
-				}
-				else
-				{
-					MR_USE_INS(ADD_MR_I1, ADD_RM_I1);
-				}
+				if (immLoad) USE_INS(ADD_MI_I1)
+				else MR_USE_INS(ADD_MR_I1, ADD_RM_I1)
 				break;
 			case CoreTypes::I2:
 			case CoreTypes::I4:
@@ -682,14 +953,8 @@ namespace RTJ::Hex::X86
 			case CoreTypes::U2:
 			case CoreTypes::U4:
 			case CoreTypes::U8:
-				if (immLoad)
-				{
-					USE_INS(ADD_MI_IU);
-				}
-				else
-				{
-					MR_USE_INS(ADD_MR_IU, ADD_RM_IU);
-				}
+				if (immLoad) USE_INS(ADD_MI_IU)
+				else MR_USE_INS(ADD_MR_IU, ADD_RM_IU)
 				break;
 			case CoreTypes::R4:
 				if (immLoad) THROW("Unsupported ADD M <- I/R <- I for R4");
@@ -704,31 +969,72 @@ namespace RTJ::Hex::X86
 			}
 			break;
 		}
+		case SemanticGroup::CMP:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				if (immLoad) USE_INS(CMP_MI_I1)
+				else MR_USE_INS(CMP_MR_I1, CMP_RM_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad) USE_INS(CMP_MI_IU)
+				else MR_USE_INS(CMP_MR_IU, CMP_RM_IU)
+					break;
+			case CoreTypes::R4:
+				if (immLoad) THROW("Unsupported CMP M <- I/R <- I for R4");
+				if (MR) THROW("Unsupported CMP M <- R for R4");
+				USE_INS(COMISS_RM);
+				break;
+			case CoreTypes::R8:
+				if (immLoad) THROW("Unsupported CMP M <- I/R <- I for R8");
+				if (MR) THROW("Unsupported CMP M <- R for R8");
+				USE_INS(COMISD_RM);
+				break;
+			}
+			break;
+		}
 		}
 		return instruction;
 	}
 
-	void X86NativeCodeGenerator::CodeGenFor(BinaryArithmeticNode* binary)
+	void X86NativeCodeGenerator::CodeGenForBinary(BinaryNodeAccessProxy* binary)
 	{
+		switch (binary->Kind)
+		{
+		case NodeKinds::BinaryArithmetic:
+		case NodeKinds::Compare:
+			break;
+		default:
+			THROW("Unsupported binary node");
+		}
+
 		//Clean up context
 		RE_REG = {};
 		RegisterConflictSession session{ &mGenContext };
 
-		UInt8 coreType = binary->TypeInfo->GetCoreType();
+		//From operand (In case of operation like Compare)
+		UInt8 coreType = binary->Second->TypeInfo->GetCoreType();
 		//Assume constant folding is done
 		ConstantNode* constant = nullptr;
 		LocalVariableNode* locals[2] = { nullptr, nullptr };
 		Int32 localCount = 0;
 
-		if (binary->Left->Is(NodeKinds::Constant))
-			constant = binary->Left->As<ConstantNode>();
+		if (binary->First->Is(NodeKinds::Constant))
+			constant = binary->First->As<ConstantNode>();
 		else
-			locals[localCount++] = ValueAs<LocalVariableNode>(binary->Left);
+			locals[localCount++] = ValueAs<LocalVariableNode>(binary->First);
 
-		if (binary->Right->Is(NodeKinds::Constant))
-			constant = binary->Right->As<ConstantNode>();
+		if (binary->Second->Is(NodeKinds::Constant))
+			constant = binary->Second->As<ConstantNode>();
 		else
-			locals[localCount++] = ValueAs<LocalVariableNode>(binary->Right);
+			locals[localCount++] = ValueAs<LocalVariableNode>(binary->Second);
 
 		//Select register mask
 		auto regMask = NREG::Common;
@@ -805,10 +1111,21 @@ namespace RTJ::Hex::X86
 			}		
 		}
 	
+		SemanticGroup group{};
+		switch (binary->Kind)
+		{
+		case NodeKinds::BinaryArithmetic:
+		{
+			auto binaryArithmetic = binary->As<BinaryArithmeticNode>();
+			group = (SemanticGroup)((UInt8)SemanticGroup::ADD + (binaryArithmetic->Opcode - OpCodes::Add));
+			break;
+		}
+		case NodeKinds::Compare: 
+			group = SemanticGroup::CMP; break;
+		}
 		//Choose instruction
-		SemanticGroup group = (SemanticGroup)((UInt8)SemanticGroup::ADD + (binary->Opcode - OpCodes::Add));
-
 		RTAssert(destination.Kind == OperandPreference::Register);
+
 		//Update result register
 		RE_REG = destination.Register;
 		Instruction instruction = RetriveBinaryInstruction(group, coreType, OperandPreference::Register, source.Kind);
@@ -820,6 +1137,54 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::CodeGenFor(UnaryArithmeticNode* unaryNode)
 	{
 		RE_REG = {};
+	}
+
+	void X86NativeCodeGenerator::PreCodeGenForJcc(TreeNode* conditionValue)
+	{
+
+	}
+
+	void X86NativeCodeGenerator::PreCodeGenForRet(TreeNode* returnValue)
+	{
+		if (returnValue != nullptr)
+		{
+			auto returnPassReg = GetCallingConv()->ReturnPassway.SingleRegister;
+			switch (returnValue->Kind)
+			{
+			case NodeKinds::Load:
+			{
+				RTAssert(ValueIs(returnValue, NodeKinds::LocalVariable));
+				auto variable = ValueAs<LocalVariableNode>(returnValue);
+				auto coreType = variable->TypeInfo->GetCoreType();
+
+				if (RTP::CurrentWidth == RTP::Platform::Bit32 && (
+					coreType == CoreTypes::I8 || coreType == CoreTypes::U8))
+				{
+					//TODO: Support long / ulong in 32bit
+					THROW("Not implemented");
+				}
+
+				//TODO: Support complex struct returning
+				if (coreType == CoreTypes::Struct)
+					THROW("Not implemented");
+
+				//Make use of AllocateRegisterAndGenerateCodeFor
+				AllocateRegisterAndGenerateCodeFor(
+					variable->LocalIndex,
+					MSK_REG(returnPassReg),
+					coreType);
+			}
+			break;
+			case NodeKinds::Constant:
+			{
+				//Make use of UseImmediate
+				UseImmediate(returnValue->As<ConstantNode>(), true, MSK_REG(returnPassReg));
+			}
+			break;
+			default:
+				THROW("Return type not supported");
+			}
+		}
 	}
 
 	UInt16 X86NativeCodeGenerator::RetriveLongLived(UInt16 left, UInt16 right)
@@ -836,12 +1201,18 @@ namespace RTJ::Hex::X86
 		return left;
 	}
 
+	RTP::PlatformCallingConvention* Hex::X86::X86NativeCodeGenerator::GetCallingConv() const
+	{
+		return mContext->Context->MethDescriptor->GetCallingConvention();
+	}
+
 	void X86NativeCodeGenerator::CodeGenFor(TreeNode* node)
 	{
 		switch (node->Kind)
 		{
+		case NodeKinds::Compare:
 		case NodeKinds::BinaryArithmetic:
-			return CodeGenFor(node->As<BinaryArithmeticNode>());
+			return CodeGenForBinary(node->As<BinaryNodeAccessProxy>());
 		case NodeKinds::UnaryArithmetic:
 			return CodeGenFor(node->As<UnaryArithmeticNode>());
 		case NodeKinds::Store:
@@ -851,7 +1222,7 @@ namespace RTJ::Hex::X86
 		}
 	}
 
-	void X86NativeCodeGenerator::EmitLoadM2R(UInt8 nativeRegister, UInt16 variable, UInt8 coreType, EmitPage* page)
+	void X86NativeCodeGenerator::EmitLoadM2R(UInt8 nativeRegister, UInt16 variable, UInt8 coreType)
 	{
 		auto ins = RetriveBinaryInstruction(
 			SemanticGroup::MOV, 
@@ -862,10 +1233,10 @@ namespace RTJ::Hex::X86
 		Operand source{};
 		USE_DISP(source, variable);
 
-		Emit(ins, Operand::FromRegister(nativeRegister), source, page);
+		Emit(ins, Operand::FromRegister(nativeRegister), source);
 	}
 
-	void X86NativeCodeGenerator::EmitLoadR2R(UInt8 toRegister, UInt8 fromRegister, UInt8 coreType, EmitPage* page)
+	void X86NativeCodeGenerator::EmitLoadR2R(UInt8 toRegister, UInt8 fromRegister, UInt8 coreType)
 	{
 		auto ins = RetriveBinaryInstruction(
 			SemanticGroup::MOV,
@@ -873,10 +1244,10 @@ namespace RTJ::Hex::X86
 			OperandPreference::Register,
 			OperandPreference::Register);
 
-		Emit(ins, Operand::FromRegister(toRegister), Operand::FromRegister(fromRegister), page);
+		Emit(ins, Operand::FromRegister(toRegister), Operand::FromRegister(fromRegister));
 	}
 
-	void X86NativeCodeGenerator::EmitStoreR2M(UInt8 nativeRegister, UInt16 variable, UInt8 coreType, EmitPage* page)
+	void X86NativeCodeGenerator::EmitStoreR2M(UInt8 nativeRegister, UInt16 variable, UInt8 coreType)
 	{
 		auto ins = RetriveBinaryInstruction(
 			SemanticGroup::MOV,
@@ -887,34 +1258,61 @@ namespace RTJ::Hex::X86
 		Operand dest{};
 		USE_DISP(dest, variable);
 
-		Emit(ins, dest, Operand::FromRegister(nativeRegister), page);
+		Emit(ins, dest, Operand::FromRegister(nativeRegister));
 	}
 
-	void X86NativeCodeGenerator::Emit(Instruction instruction, Operand const& left, Operand const& right, EmitPage* page)
+	void X86NativeCodeGenerator::Emit(Instruction instruction, Operand const& left, Operand const& right)
 	{
-		if (page == nullptr) page = mEmitPage;
 		constexpr Int32 InvalidPos = -1;
 		constexpr bool x64 = RTP::CurrentWidth == RTP::Platform::Bit64;
-		auto coreType = instruction.CoreType;
-		bool useOperand64 = CoreTypes::GetCoreTypeSize(coreType) == sizeof(UInt64) &&
-			(CoreTypes::IsIntegerLike(coreType) || CoreTypes::IsRef(coreType));
-		bool useOperand16 = CoreTypes::GetCoreTypeSize(coreType) == sizeof(UInt16) && CoreTypes::IsIntegerLike(coreType);
 
-		UInt8 REX = 0;
-		if (x64 && useOperand16)
-			REX = 0x66;
-		if (x64 && useOperand64)
-			REX = 0x40;
-		
-		Int32 rexPos = InvalidPos;
-		if (REX > 0)
+		//REX Prefix determination
+		UInt8 REX = 0u;
+		UInt8 Operand16Prefix = 0u;
+		auto coreType = instruction.CoreType;
+		switch (coreType)
 		{
-			//Write REX prefiex
-			rexPos = WritePage(page, REX);
+		case CoreTypes::Ref:
+			if (!x64) break;
+		case CoreTypes::I8:
+		case CoreTypes::U8:
+			REX |= 0x48; break;
+		case CoreTypes::I2:
+		case CoreTypes::U2:
+		{
+			Operand16Prefix = 0x66;
+			REX |= 0x40; break;
+		}			
 		}
+
+		bool use64Reg = false;
+		auto contains64Reg = [](Operand const& operand) {
+			if (operand.Kind == OperandPreference::Register && (
+				NREG64::R8 <= operand.Register &&
+				operand.Register <= NREG64::R15))
+			{
+				return true;
+			}
+			return false;
+		};
+
+		use64Reg |= contains64Reg(left);
+		use64Reg |= contains64Reg(right);
+
+		if (use64Reg)
+			REX |= 0x40;
+		
+		//Write 66H to use 16bit operand
+		if (Operand16Prefix > 0u)
+			WritePage(mEmitPage, Operand16Prefix);
+
+		Int32 rexPos = InvalidPos;
+		//Write REX prefiex
+		if (REX > 0u)
+			rexPos = WritePage(mEmitPage, REX);
 		
 		//Write opcodes
-		Int32 opcodeRegBytePos = WritePage(page, instruction.Opcode, instruction.Length) + instruction.Length - 1;
+		Int32 opcodeRegBytePos = WritePage(mEmitPage, instruction.Opcode, instruction.Length) + instruction.Length - 1;
 		//Prepare for register reencoding
 		UInt8 opcodeRegByte = instruction.Opcode[instruction.Length - 1];
 
@@ -943,7 +1341,7 @@ namespace RTJ::Hex::X86
 			UInt8 registerToEncode = realRegister & LegacyRegisterMask;
 			if (realRegister & ~LegacyRegisterMask)
 			{
-				if (useOperand64)
+				if (REX > 0)
 					REX |= 1u << rexBit;
 				else
 					THROW("Illegal 64bit register in context");
@@ -1025,6 +1423,10 @@ namespace RTJ::Hex::X86
 				break;
 			}
 			}
+
+			//Requires magic register value encoding
+			if (instruction.Flags & InstructionFlags::MagicRegUse)
+				modRM |= ((instruction.GetMagicRegisterValue()) << 3);
 			return modRM;
 		};
 
@@ -1042,8 +1444,8 @@ namespace RTJ::Hex::X86
 
 		auto handleIOperand = [&](const Operand& operand)
 		{
-			ImmediateCoreType = right.ImmediateCoreType;
-			Immediate = *(ConstantStorage*)&right.Immediate;
+			ImmediateCoreType = operand.ImmediateCoreType;
+			Immediate = operand.Immediate;
 		};
 		
 		switch (operandType)
@@ -1084,23 +1486,53 @@ namespace RTJ::Hex::X86
 				handleIOperand(right);
 			}
 			break;
+		case M_F:
+			RTAssert(left.IsRegister() || left.IsAdvancedAddressing());
+			{
+				ModRM = handleMOperand(left);
+			}
+			break;
+		case R_F:
+			RTAssert(left.IsRegister());
+			{
+				ModRM = handleROperand(left);
+			}
+			break;
+		case I_F:
+			RTAssert(left.IsImmediate());
+			{
+				handleIOperand(left);
+			}
+			break;
 		default:
 			THROW("Invalid operand type");
 		}
 
 		//Do write
 		if (ModRM.has_value())
-			WritePage(page, ModRM.value());
+			WritePage(mEmitPage, ModRM.value());
 
 		if (SIB.has_value())
-			WritePage(page, SIB.value());
+			WritePage(mEmitPage, SIB.value());
 
 		//Cannot occur at the same time
 		if (Disp8.has_value())
-			WritePage(page, Disp8.value());
+		{
+			if (IS_TRK(Displacement))			
+			{
+				REP_TRK(Displacement) = mEmitPage->CurrentOffset();
+				REP_TRK_SIZE(Displacement) = sizeof(UInt8);
+			}
+			WritePage(mEmitPage, Disp8.value());
+		}
 		else if (Disp32.has_value())
 		{
-			Int32 offset = WritePage(page, Disp32.value());
+			if (IS_TRK(Displacement))
+			{
+				REP_TRK(Displacement) = mEmitPage->CurrentOffset();
+				REP_TRK_SIZE(Displacement) = sizeof(UInt32);
+			}
+			Int32 offset = WritePage(mEmitPage, Disp32.value());
 			//Add fix up
 			if (trackingVariable.has_value())
 				mVariableDispFix[trackingVariable.value()][mCurrentBB->Index].push_back(offset);
@@ -1110,16 +1542,22 @@ namespace RTJ::Hex::X86
 		{
 			auto&& imm = Immediate.value();
 			Int32 size = CoreTypes::GetCoreTypeSize(ImmediateCoreType);
+
+			if (IS_TRK(Immediate))
+			{
+				REP_TRK(Immediate) = mEmitPage->CurrentOffset();
+				REP_TRK_SIZE(Immediate) = ImmediateCoreType;
+			}
 			switch (size)
 			{
 			case 1:
-				WritePageImmediate(page, imm.U1); break;
+				WritePageImmediate(mEmitPage, imm.U1); break;
 			case 2:
-				WritePageImmediate(page, imm.U2); break;
+				WritePageImmediate(mEmitPage, imm.U2); break;
 			case 4:
-				WritePageImmediate(page, imm.U4); break;
+				WritePageImmediate(mEmitPage, imm.U4); break;
 			case 8:
-				WritePageImmediate(page, imm.U8); break;
+				WritePageImmediate(mEmitPage, imm.U8); break;
 			default:
 				THROW("Unsupported immediate size");
 			}
@@ -1127,11 +1565,40 @@ namespace RTJ::Hex::X86
 
 		//Rewrite
 		if (rexPos != InvalidPos)
-			RewritePage(page, rexPos, REX);
-		RewritePage(page, opcodeRegBytePos, opcodeRegByte);
+			RewritePage(mEmitPage, rexPos, REX);
+		RewritePage(mEmitPage, opcodeRegBytePos, opcodeRegByte);
 	}
-	void X86NativeCodeGenerator::Emit(Instruction instruction, Operand const& operand, EmitPage* page)
+
+	void X86NativeCodeGenerator::Emit(Instruction instruction, Operand const& operand)
 	{
+		Emit(instruction, operand, Operand::Empty());
+	}
+
+	RTP::PlatformCallingConvention* GenerateCallingConvFor(RTMM::PrivateHeap* heap, RTM::MethodSignatureDescriptor* signature)
+	{
+		auto convert = [](RTM::Type* type) -> RTP::PlatformCallingArgument {
+			auto coreType = type->GetCoreType();
+			if (CoreTypes::IsIntegerLike(coreType) || CoreTypes::IsRef(coreType))
+				return { CoreTypes::GetCoreTypeSize(coreType), RTP::CallingArgumentType::Integer };
+			else if (CoreTypes::IsFloatLike(coreType))
+				return { CoreTypes::GetCoreTypeSize(coreType), RTP::CallingArgumentType::Float };
+			else
+				return { type->GetSize(), RTP::CallingArgumentType::Struct };
+		};
+
+		RTP::PlatformCallingArgument returnArg{};
+		if (auto returnType = signature->GetReturnType())
+			returnArg = convert(returnType);
+
+		auto args = signature->GetArguments();
+		std::vector<RTP::PlatformCallingArgument> callingArgs(args.Count + 1);
+		callingArgs.front() = returnArg;
+		for (Int32 i = 0; i < args.Count; ++i)
+			callingArgs[i + 1] = convert(args[i].GetType());
+
+		return RTP::PlatformCallingConventionProvider<
+			RTP::CallingConventions::JIT,
+			USE_CURRENT_PLATFORM>(heap).GetConvention(callingArgs);
 	}
 }
 

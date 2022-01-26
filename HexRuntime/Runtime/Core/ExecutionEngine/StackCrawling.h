@@ -14,6 +14,7 @@ namespace RTEE
 	{
 		Int32 Offset;
 		RTM::TypeDescriptor* Type;
+		UInt16 VariableIndex;
 	};
 
 	/// <summary>
@@ -21,7 +22,9 @@ namespace RTEE
 	/// </summary>
 	struct StackFrameInfo
 	{
-		ObservableArray<StackFrameSlot> Variables;
+		StackFrameSlot* Slots;
+		Int32 SlotCount;
+		Int32 StackSize;
 	};
 
 	enum class RuntimeStackFrameKinds

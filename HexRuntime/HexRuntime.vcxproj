@@ -78,6 +78,7 @@
     <ClInclude Include="Runtime\Core\Object\Object.h" />
     <ClInclude Include="Runtime\Core\Object\ObjectStorage.h" />
     <ClInclude Include="Runtime\Core\Object\StringObject.h" />
+    <ClInclude Include="Runtime\Core\Platform\CallingConventionProviderUse.h" />
     <ClInclude Include="Runtime\Core\Platform\JITConventionProvider.h" />
     <ClInclude Include="Runtime\Core\Platform\Platform.h" />
     <ClInclude Include="Runtime\Core\Platform\PlatformSpecialization.h" />
@@ -110,6 +111,7 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\LivenessAnalyzer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />

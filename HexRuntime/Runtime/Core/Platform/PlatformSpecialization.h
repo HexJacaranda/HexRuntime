@@ -12,36 +12,30 @@ namespace RTP
 	{
 	public:
 		ETY = UInt16;
-
+		VAL Invalid = 0x0000;
 		VAL Memory = 0x0001;
 		VAL Register = 0x0002;
 	};
 
 	struct AddressConstraint
 	{
-		AddressConstraint(UInt64 mask, UInt16 flags) :
-			RegisterAvaliableMask(mask),
-			Flags(flags) {}
 		AddressConstraint(UInt8 single, UInt16 flags) :
 			SingleRegister(single),
 			Flags(flags) {}
 		AddressConstraint(UInt16 flags) :
-			Flags(flags),
-			RegisterAvaliableMask(0) {}
+			Flags(flags) {}
 		AddressConstraint() {}
 
-		union {
-			UInt64 RegisterAvaliableMask;
-			UInt8 SingleRegister;
-		};		
-		/// <summary>
-		/// Reserved for register mask
-		/// </summary>
-		PADDING_EXT(6);
+		UInt8 SingleRegister = 0;
 		UInt16 Flags = 0;
-	};
 
-#define PINST RTP::PlatformInstruction
+		bool HasMemory()const {
+			return Flags & AddressConstraintFlags::Memory;
+		}
+		bool HasRegister()const {
+			return Flags & AddressConstraintFlags::Register;
+		}
+	};
 
 	struct PlatformCallingConvention
 	{ 

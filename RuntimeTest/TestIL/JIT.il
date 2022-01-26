@@ -125,7 +125,7 @@
         }
     }
 
-    .method public instance void CodeGenTest1() managed
+    .method public static void CodeGenTest1() managed
     {
         .local
         {
@@ -135,6 +135,12 @@
         }
         .code
         {
+            .ldc int32 2
+            .stloc b
+            
+            .ldc int32 3
+            .stloc c
+
             .ldc int32 1
             .stloc a
 
@@ -147,6 +153,17 @@
             .stloc a
 
             .ret
+        }
+    }
+
+    .method public static int32 CodeGenTest2(int32 x, int32 y, int32 z, int32 v) managed
+    {
+        .code
+        {
+           .ldarg z
+           .ldarg v
+           .add
+           .ret
         }
     }
 }

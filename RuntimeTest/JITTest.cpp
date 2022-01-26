@@ -16,7 +16,9 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/LivenessAnalyzer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/X86CodeInterpreter.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/JITDebugView.h"
+#include "../HexRuntime/Runtime/Core/Object/Object.h"
 #include <format>
+#include <fstream>
 
 using namespace RTJ;
 using namespace RTJ::Hex;
@@ -147,7 +149,7 @@ namespace RuntimeTest
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
 
-			Assert::AreEqual(2, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
+			Assert::AreEqual(4, (Int32)context->LocalAttaches.size(), L"Two JIT variables expected");
 			auto assertArgument = [](TreeNode* arg) {
 				if (!arg->Is(NodeKinds::Load))
 					Assert::Fail(L"Argument node after linearization should be of type Load");
@@ -236,12 +238,46 @@ namespace RuntimeTest
 			}
 		}
 
-		TEST_METHOD(X86CodeGen)
+		TEST_METHOD(CodeGenTest1)
 		{
+			using Fn = int(*)();
+
 			SetUpMethod(L"CodeGenTest1");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			{
+				auto code = (const char*)context->NativeCode->GetRaw();
+				std::fstream fstream{ "CodeGenTest1.bin", std::ios::out | std::ios::binary };
+				fstream.write(code, context->NativeCode->CurrentOffset());
+				fstream.close();
+			}
+
+			Fn method = (Fn)context->NativeCode->GetRaw();
+
+			Assert::AreEqual(5, method());
+		}
+
+		TEST_METHOD(CodeGenTest2)
+		{
+			using Fn = int(*)(int, int, int, int);
+
+			SetUpMethod(L"CodeGenTest2");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			{
+				auto code = (const char*)context->NativeCode->GetRaw();
+				std::fstream fstream{ "CodeGenTest2.bin", std::ios::out | std::ios::binary };
+				fstream.write(code, context->NativeCode->CurrentOffset());
+				fstream.close();
+			}
+
+			Fn method = (Fn)context->NativeCode->GetRaw();
+
+			Assert::AreEqual(5, method(0, 0, 2, 3));
 		}
 	};
 

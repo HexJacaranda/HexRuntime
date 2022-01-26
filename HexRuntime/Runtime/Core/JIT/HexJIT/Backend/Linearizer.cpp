@@ -11,7 +11,7 @@
 			} \
 			if (localNode != nullptr) \
 			{	\
-				auto loadNode = new (POOL) LoadNode(SLMode::Direct, localNode); \
+				auto loadNode = (new (POOL) LoadNode(SLMode::Direct, localNode))->SetType(localNode->TypeInfo); \
 				REPLACE = loadNode; \
 			} \
 		}
@@ -23,6 +23,8 @@
 				ORIGIN_SEQ.Append(_statements); \
 		}
 
+#define REQ_JIT_VAR(TYPE) (new (POOL) LocalVariableNode(RequestJITVariable(TYPE)))->SetType(TYPE)
+
 RTJ::Hex::Linearizer::Linearizer(HexJITContext* context) : mJITContext(context)
 {
 }
@@ -30,11 +32,16 @@ RTJ::Hex::Linearizer::Linearizer(HexJITContext* context) : mJITContext(context)
 RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 {
 	auto&& bbHead = mJITContext->BBs[0];
-	auto layDown = [&](TreeNode*& root) {
-		TreeNode* _ = nullptr;
-		auto stmts = Flatten(root, _, false);
+	auto layDown = [&](TreeNode*& root, bool requestVariable = false) {
+		TreeNode* localNode = nullptr;
+		auto stmts = Flatten(root, localNode, requestVariable);
 		if (!stmts.IsEmpty())
 			LinkedList::AppendRangeTwoWay(mStmtHead, mPreviousStmt, stmts.GetHead(), stmts.GetTail());
+		if (localNode != nullptr)
+		{
+			auto loadNode = (new (POOL) LoadNode(SLMode::Direct, localNode))->SetType(localNode->TypeInfo);
+			root = loadNode;
+		}
 	};
 
 	for (BasicBlock* bbIterator = bbHead;
@@ -51,7 +58,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 			layDown(mCurrentStmt->Now);
 		}
 		if (bbIterator->BranchConditionValue != nullptr)
-			layDown(bbIterator->BranchConditionValue);
+			layDown(bbIterator->BranchConditionValue, true);
 
 		bbIterator->Now = mStmtHead;
 	}
@@ -108,8 +115,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(ArrayOffse
 	if (requestJITVariable)
 	{
 		auto refType = Meta::MetaData->InstantiateRefType(node->TypeInfo);
-		generatedLocal = new LocalVariableNode(RequestJITVariable(refType));
-		generatedLocal->SetType(refType);
+		generatedLocal = REQ_JIT_VAR(refType);
 	}
 
 	return ret;
@@ -125,8 +131,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(OffsetOfNo
 	if (requestJITVariable)
 	{
 		auto refType = Meta::MetaData->InstantiateRefType(node->TypeInfo);
-		generatedLocal = new LocalVariableNode(RequestJITVariable(refType));
-		generatedLocal->SetType(refType);
+		generatedLocal = REQ_JIT_VAR(refType);
 	}
 
 	return ret;
@@ -209,7 +214,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenUnary(TreeN
 	{
 		if (single->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(single->TypeInfo));
+		generatedLocal = REQ_JIT_VAR(single->TypeInfo);
 		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
 	}
 
@@ -235,7 +240,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenBinary(Tree
 	{
 		if (single->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(single->TypeInfo));
+		generatedLocal = REQ_JIT_VAR(single->TypeInfo);
 		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
 	}
 
@@ -282,7 +287,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenMultiple(Tr
 	{
 		if (call->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(call->TypeInfo));
+		generatedLocal = REQ_JIT_VAR(call->TypeInfo);
 
 		//Append itself
 		methodSequence.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
@@ -306,7 +311,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(MorphedCal
 	{
 		if (node->TypeInfo == nullptr)
 			THROW("Cannot require JIT variable from void");
-		generatedLocal = new (POOL) LocalVariableNode(RequestJITVariable(node->TypeInfo));
+		generatedLocal = REQ_JIT_VAR(node->TypeInfo);
 
 		//Append itself
 		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));

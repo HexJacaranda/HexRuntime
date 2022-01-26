@@ -791,7 +791,7 @@ RTM::MethodTable* RTM::MetaManager::GenerateMethodTable(Type* current, INJECT(IM
 			}
 
 			argument.mColdMD = &argumentMD;
-			argument.mType = GetTypeFromTokenInternal(context, signatureMD.ReturnTypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
+			argument.mType = GetTypeFromTokenInternal(context, argumentMD.TypeRefToken, USE_LOADING_CONTEXT, USE_INSTANTIATION_CONTEXT);
 			argument.mManagedName = GetStringFromToken(context, argumentMD.NameToken);
 		}
 		return signature;

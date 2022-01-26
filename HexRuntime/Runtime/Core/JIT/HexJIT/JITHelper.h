@@ -5,7 +5,7 @@
 #include "..\..\Meta\MethodDescriptor.h"
 #include "..\..\Meta\TypeDescriptor.h"
 #include "..\..\Object\ArrayObject.h"
-#include "..\..\Platform\PlatformSpecialization.h"
+#include "..\..\Platform\CallingConventionProviderUse.h"
 
 namespace RTJ::Hex::JITCall
 {

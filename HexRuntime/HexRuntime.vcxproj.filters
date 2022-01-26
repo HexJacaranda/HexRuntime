@@ -345,6 +345,9 @@
     <ClInclude Include="Runtime\Core\ExecutionEngine\StackCrawling.h">
       <Filter>头文件\Runtime\Core\ExecutionEngine</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Core\Platform\CallingConventionProviderUse.h">
+      <Filter>头文件\Runtime\Core\Platform</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -496,6 +499,9 @@
     </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.cpp">
+      <Filter>源文件\JIT</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
