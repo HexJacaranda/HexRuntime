@@ -116,7 +116,7 @@ namespace RuntimeTest
 		TEST_CLASS_INITIALIZE(InitializeMetaManager)
 		{
 			Meta::MetaData = new Meta::MetaManager();
-			assembly = Meta::MetaData->StartUp(Text("..\\..\\RuntimeTest\\TestIL\\JIT"));
+			assembly = Meta::MetaData->StartUp(Text("JIT"));
 		}
 
 		TEST_CLASS_CLEANUP(CleanUpMetaManager)

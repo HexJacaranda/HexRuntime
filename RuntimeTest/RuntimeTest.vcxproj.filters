@@ -43,17 +43,19 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="TestIL\JIT">
-      <Filter>Resource Files\LibraryBinary</Filter>
-    </None>
-    <None Include="TestIL\Core">
-      <Filter>Resource Files\LibraryBinary</Filter>
-    </None>
     <None Include="TestIL\JIT.json">
       <Filter>Resource Files\BuildSource</Filter>
     </None>
     <None Include="TestIL\JIT.il">
       <Filter>Resource Files\BuildSource</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="TestIL\Core">
+      <Filter>Resource Files\LibraryBinary</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="TestIL\JIT">
+      <Filter>Resource Files\LibraryBinary</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>

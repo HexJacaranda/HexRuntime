@@ -181,8 +181,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="TestIL\Core" />
-    <None Include="TestIL\JIT" />
+    <CopyFileToFolders Include="TestIL\Core">
+      <FileType>Document</FileType>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="TestIL\JIT">
+      <FileType>Document</FileType>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </CopyFileToFolders>
     <None Include="TestIL\JIT.il" />
     <None Include="TestIL\JIT.json" />
   </ItemGroup>
