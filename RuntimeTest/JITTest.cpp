@@ -80,6 +80,14 @@ namespace RuntimeTest
 			Logger::WriteMessage(content.c_str());
 		}
 
+		void DumpNativeCode(const char* name)
+		{
+			auto code = (const char*)context->NativeCode->GetRaw();
+			std::fstream fstream{ name, std::ios::out | std::ios::binary };
+			fstream.write(code, context->NativeCode->CurrentOffset());
+			fstream.close();
+		}
+
 		void SetUpMethod(std::wstring_view name)
 		{
 			auto type = Meta::MetaData->GetTypeFromDefinitionToken(assembly, 0u);
@@ -247,15 +255,9 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
-			{
-				auto code = (const char*)context->NativeCode->GetRaw();
-				std::fstream fstream{ "CodeGenTest1.bin", std::ios::out | std::ios::binary };
-				fstream.write(code, context->NativeCode->CurrentOffset());
-				fstream.close();
-			}
+			DumpNativeCode("CodeGenTest1.bin");
 
 			Fn method = (Fn)context->NativeCode->GetRaw();
-
 			Assert::AreEqual(5, method());
 		}
 
@@ -268,15 +270,9 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
-			{
-				auto code = (const char*)context->NativeCode->GetRaw();
-				std::fstream fstream{ "CodeGenTest2.bin", std::ios::out | std::ios::binary };
-				fstream.write(code, context->NativeCode->CurrentOffset());
-				fstream.close();
-			}
+			DumpNativeCode("CodeGenTest2.bin");
 
 			Fn method = (Fn)context->NativeCode->GetRaw();
-
 			Assert::AreEqual(5, method(0, 0, 2, 3));
 		}
 	};
