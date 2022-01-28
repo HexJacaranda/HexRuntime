@@ -166,4 +166,65 @@
            .ret
         }
     }
+
+    .method public static int32 CodeGenTest3(int32 x, int32 y, int32 z, int32 v) managed
+    {
+        .local
+        {
+            int32 x0
+            int32 x1
+            int32 x2
+            int32 x3
+            int32 x4
+            int32 x5
+            int32 x6
+            int32 x7
+            int32 x8
+            int32 x9
+            int32 x10
+            int32 x11
+            int32 x12
+            int32 x13
+            int32 x14
+            int32 x15
+        }
+        .code
+        {
+            .ldc int32 0
+            .stloc x0
+            .ldc int32 1
+            .stloc x1
+            .ldc int32 2
+            .stloc x2
+            .ldc int32 3
+            .stloc x3
+            .ldc int32 4
+            .stloc x4
+            .ldc int32 5
+            .stloc x5
+            .ldc int32 6
+            .stloc x6
+            .ldc int32 7
+            .stloc x7
+            .ldc int32 8
+            .stloc x8
+            .ldc int32 9
+            .stloc x9
+            .ldc int32 10
+            .stloc x10
+            .ldc int32 11
+            .stloc x11
+            .ldc int32 12
+            .stloc x12
+            .ldc int32 13
+            .stloc x13
+            .ldc int32 14
+            .stloc x14
+            .ldc int32 15
+            .stloc x15
+
+            .ldloc x0
+            .ret
+        }
+    }
 }

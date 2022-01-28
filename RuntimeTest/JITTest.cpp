@@ -275,6 +275,22 @@ namespace RuntimeTest
 			Fn method = (Fn)context->NativeCode->GetRaw();
 			Assert::AreEqual(5, method(0, 0, 2, 3));
 		}
+
+		TEST_METHOD(CodeGenTest3)
+		{
+			using Fn = int(__fastcall*)(int, int, int, int);
+
+			SetUpMethod(L"CodeGenTest3");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			DumpNativeCode("CodeGenTest3.bin");
+
+			Fn method = (Fn)context->NativeCode->GetRaw();
+			Int32 ret = method(0, 0, 2, 3);
+			Assert::AreEqual(0, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest::assembly = nullptr;

@@ -10,6 +10,7 @@ namespace RTJ::Hex
 	{
 		std::unordered_map<UInt16, UInt8> mVar2Reg;
 		UInt64 mRegisterPool = 0xFFFFFFFFFFFFFFFFull;
+		UInt64 mUseMask = 0ull;
 	public:
 		std::optional<UInt8> TryGetFreeRegister(UInt64 mask);
 		void ReturnRegister(UInt8 nativeReg);
@@ -19,5 +20,6 @@ namespace RTJ::Hex
 		void Establish(UInt16 variable, UInt8 allocatedRegister);
 		std::tuple<std::optional<UInt8>, bool> AllocateRegisterFor(UInt16 variable, UInt64 mask) const;
 		std::unordered_map<UInt16, UInt8> const& GetMapping()const;
+		UInt64 GetUsedRegisterRecord()const;
 	};
 }

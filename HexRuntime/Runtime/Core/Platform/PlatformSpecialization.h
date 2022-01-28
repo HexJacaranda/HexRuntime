@@ -37,6 +37,23 @@ namespace RTP
 		}
 	};
 
+	struct RegisterStateFlags
+	{
+		ETY = UInt16;
+		VAL Volatile = 0b0;
+		VAL NonVolatile = 0b1;
+
+		VAL Whole = 0b000;
+		VAL LowerHalf = 0b100;
+		VAL UpperHalf = 0b010;
+	};
+
+#define RVOL_F RTP::RegisterStateFlags::Volatile
+#define RNVOL_F RTP::RegisterStateFlags::NonVolatile
+#define RWHO_F RTP::RegisterStateFlags::Whole
+
+	using RegisterState = UInt16;
+
 	struct PlatformCallingConvention
 	{ 
 		Int32 ArgumentCount;
@@ -46,6 +63,8 @@ namespace RTP
 		*/
 		AddressConstraint* ArgumentPassway;
 		AddressConstraint ReturnPassway;
+		/* Should be accessed like RegisterStates[Register] */
+		const RegisterState* RegisterStates;
 	};
 	
 	class CallingArgumentType

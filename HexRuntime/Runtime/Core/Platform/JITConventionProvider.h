@@ -9,8 +9,31 @@ namespace RTP
 	template<UInt32 OS>
 	class PlatformCallingConventionProvider<CallingConventions::JIT, Platform::x86, Platform::Bit64, OS>
 	{
-		RTMM::PrivateHeap* mHeap;
 		using RegSet = Register::X86::RegisterSet<Platform::Bit64>;
+		/// <summary>
+		/// TODO: Currently use X64 calling convention
+		/// </summary>
+		static constexpr std::array<RegisterState, RegSet::RegisterCount> States =
+		{
+			RVOL_F | RWHO_F, //REG AX = 0x00;
+			RVOL_F | RWHO_F, //REG CX = 0x01;
+			RVOL_F | RWHO_F, //REG DX = 0x02;
+			RNVOL_F | RWHO_F, //REG BX = 0x03;
+			RNVOL_F | RWHO_F, //REG SP = 0x04;
+			RNVOL_F | RWHO_F, //REG BP = 0x05;
+			RNVOL_F | RWHO_F, //REG SI = 0x06;
+			RNVOL_F | RWHO_F, //REG DI = 0x07;
+			RVOL_F | RWHO_F,//REG R8 = 0x08;
+			RVOL_F | RWHO_F,//REG R9 = 0x09;
+			RVOL_F | RWHO_F,//REG R10 = 0x0A;
+			RVOL_F | RWHO_F,//REG R11 = 0x0B;
+			RNVOL_F | RWHO_F,//REG R12 = 0x0C;
+			RNVOL_F | RWHO_F,//REG R13 = 0x0D;
+			RNVOL_F | RWHO_F,//REG R14 = 0x0E;
+			RNVOL_F | RWHO_F,//REG R15 = 0x0F;
+		};
+
+		RTMM::PrivateHeap* mHeap;		
 	public:
 		PlatformCallingConventionProvider(RTMM::PrivateHeap* heap) :
 			mHeap(heap) {}
@@ -95,7 +118,7 @@ namespace RTP
 				index++;
 			}
 			callingConv->ArgumentCount = index;
-
+			callingConv->RegisterStates = States.data();
 			return callingConv;
 		}
 	};

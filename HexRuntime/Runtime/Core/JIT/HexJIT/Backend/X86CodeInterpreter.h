@@ -327,7 +327,7 @@ namespace RTJ::Hex::X86
 
 	template<class T>
 	static void RewritePageImmediate(EmitPage* emitPage, Int32 offset, T value) {
-		UInt8* address = emitPage->GetRaw();
+		UInt8* address = emitPage->GetRaw() + offset;
 		Binary::WriteByLittleEndianness(address, value);
 	}
 
@@ -381,7 +381,7 @@ namespace RTJ::Hex::X86
 			bool forceRegister = false,
 			UInt64 additionalMask = std::numeric_limits<UInt64>::max());
 		void SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType);
-		std::tuple<UInt8, UInt16> RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex);
+		std::tuple<UInt16, UInt8> RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex);
 		UInt16 RetriveLongLived(UInt16 left, UInt16 right);
 
 		RTP::PlatformCallingConvention* GetCallingConv()const;
@@ -409,14 +409,15 @@ namespace RTJ::Hex::X86
 		void FixUpDisplacement();
 		void GenerateBranch();
 		void AssemblyCode();
+		std::vector<UInt8> GetUsedNonVolatileRegisters()const;
 		/// <summary>
 		/// Prologue code for preserve register and allocating stack space
 		/// </summary>
-		void GeneratePrologue(RTEE::StackFrameInfo* info);
+		void GeneratePrologue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters);
 		/// <summary>
 		/// Epilogue code for restore register and deallocating stack space
 		/// </summary>
-		void GenerateEpilogue(RTEE::StackFrameInfo* info);
+		void GenerateEpilogue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters);
 		/// <summary>
 		/// Set up the RegisterAllocationContext from calling convention
 		/// </summary>

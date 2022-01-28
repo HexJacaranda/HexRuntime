@@ -8,6 +8,7 @@ namespace RTJ::Hex
 		UInt8 bit = Bit::LeftMostSetBit(mRegisterPool & mask);
 		if (bit != Bit::InvalidBit)
 		{
+			Bit::SetOne(mUseMask, bit);
 			Bit::SetZero(mRegisterPool, bit);
 			return bit;
 		}
@@ -81,5 +82,9 @@ namespace RTJ::Hex
 	std::unordered_map<UInt16, UInt8> const& RegisterAllocationContext::GetMapping() const
 	{
 		return mVar2Reg;
+	}
+	UInt64 RegisterAllocationContext::GetUsedRegisterRecord() const
+	{
+		return mUseMask;
 	}
 }

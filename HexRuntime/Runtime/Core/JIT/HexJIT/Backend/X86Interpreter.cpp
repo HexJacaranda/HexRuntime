@@ -460,7 +460,7 @@ namespace RTJ::Hex::X86
 		}
 		else
 		{
-			auto [spillReg, spillVar] = RetriveSpillCandidate(mask, mLiveness);
+			auto [spillVar, spillReg] = RetriveSpillCandidate(mask, mLiveness);
 			SpillAndGenerateCodeFor(spillVar, coreType);
 			//Leak it
 			mRegContext->ReturnRegister(spillReg);
@@ -527,8 +527,9 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::Finalize()
 	{
 		auto stackInfo = StackFrameGenerator(mContext).Generate();
-		GeneratePrologue(stackInfo);
-		GenerateEpilogue(stackInfo);
+		auto nonVolatiles = GetUsedNonVolatileRegisters();
+		GeneratePrologue(stackInfo, nonVolatiles);
+		GenerateEpilogue(stackInfo, nonVolatiles);
 		FixUpDisplacement();
 		GenerateBranch();
 		AssemblyCode();
@@ -543,7 +544,7 @@ namespace RTJ::Hex::X86
 				THROW("Unexpected usage of local variable. Please check if ShouldGenerateLayout is set.");
 			for (auto&& [bb, offsets] : maps)
 				for (auto offset : offsets)
-					RewritePageImmediate(mEmitPage, offset, varBase->Offset);
+					RewritePageImmediate(mContext->BBs[bb]->NativeCode, offset, varBase->Offset);
 		}
 	}
 
@@ -665,6 +666,31 @@ namespace RTJ::Hex::X86
 		mContext->NativeCode = finalPage;
 	}
 
+	std::vector<UInt8> X86NativeCodeGenerator::GetUsedNonVolatileRegisters() const
+	{
+		auto states = GetCallingConv()->RegisterStates;
+
+		std::vector<UInt8> registers{};
+		UInt64 totalMask = 0ull;
+		for (auto&& bb : mContext->BBs | std::views::filter(BasicBlock::ReachableFn))
+			totalMask |= bb->RegisterContext->GetUsedRegisterRecord();
+
+		UInt8 nativeRegister = Bit::InvalidBit;
+		while (true) {
+			nativeRegister = Bit::LeftMostSetBit(totalMask);
+			if (nativeRegister != Bit::InvalidBit)
+			{
+				if(states[nativeRegister] & RNVOL_F)
+					registers.push_back(nativeRegister);
+				Bit::SetZero(totalMask, nativeRegister);
+			}
+			else
+				break;
+		}
+
+		return registers;
+	}
+
 	void X86NativeCodeGenerator::InitializeContextFromCallingConv()
 	{
 		auto bb = mContext->BBs.front();
@@ -684,9 +710,15 @@ namespace RTJ::Hex::X86
 		}
 	}
 
-	void X86NativeCodeGenerator::GeneratePrologue(RTEE::StackFrameInfo* info)
+	void X86NativeCodeGenerator::GeneratePrologue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters)
 	{
 		mEmitPage = mProloguePage = new EmitPage(16);
+
+		for (auto&& reg : nonVolatileRegisters)
+		{
+			ASM(PUSH_R_IU, REGV(reg));
+		}
+
 		//Do not generate for empty stack
 		if (info->StackSize == 0)
 			return;
@@ -701,13 +733,23 @@ namespace RTJ::Hex::X86
 			ASM(SUB_MI_IU, REG(SP), IMM32_U(info->StackSize))
 	}
 
-	void X86NativeCodeGenerator::GenerateEpilogue(RTEE::StackFrameInfo* info)
+	void X86NativeCodeGenerator::GenerateEpilogue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters)
 	{
 		mEmitPage = mEpiloguePage = new EmitPage(16);
 		if (info->StackSize > 0)
 		{
-			ASM(MOV_RM_IU, REG(SP), REG(BP));
+			if (info->StackSize <= std::numeric_limits<UInt8>::max())
+				ASM_C(ADD_MI_I1, I1, REG(SP), IMM8_U(info->StackSize))
+			else if (info->StackSize <= std::numeric_limits<UInt16>::max())
+				ASM_C(ADD_MI_IU, I2, REG(SP), IMM16_U(info->StackSize))
+			else
+				ASM(ADD_MI_IU, REG(SP), IMM32_U(info->StackSize))
 			ASM(POP_R_IU, REG(BP));
+		}
+
+		for (auto&& reg : nonVolatileRegisters | std::views::reverse)
+		{
+			ASM(POP_R_IU, REGV(reg));
 		}
 		ASM(RET);
 	}
@@ -844,7 +886,7 @@ namespace RTJ::Hex::X86
 			auto newRegister = mRegContext->TryGetFreeRegister(mask);
 			if (!newRegister.has_value())
 			{
-				auto [spillReg, spillVariable] = RetriveSpillCandidate(mask, mLiveness);
+				auto [spillVariable, spillReg] = RetriveSpillCandidate(mask, mLiveness);
 				SpillAndGenerateCodeFor(spillVariable, coreType);
 				//Assign to spill variable
 				newRegister = spillReg;
@@ -881,10 +923,38 @@ namespace RTJ::Hex::X86
 		return !mCurrentBB->Liveness[nextIndex].Contains(variableIndex);
 	}
 
-	std::tuple<UInt8, UInt16> X86NativeCodeGenerator::RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex)
+	std::tuple<UInt16, UInt8> X86NativeCodeGenerator::RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex)
 	{
-		//USE_MASK
-		return {};
+		//Consider dead variables firstly
+		auto&& mapping = mRegContext->GetMapping();
+		auto&& liveness = mCurrentBB->Liveness;
+		for (auto&& [var, reg] : mapping)
+		{
+			if (!liveness[mLiveness].Contains(var) && Bit::TestAt(USE_MASK, reg))
+				return { var, reg };
+		}
+
+		//Consider live variables
+		VariableSet remainSet{};
+
+		for (auto&& [var, reg] : mapping)
+		{
+			if (liveness[mLiveness].Contains(var) && Bit::TestAt(USE_MASK, reg))
+				remainSet.Add(var);
+		}
+
+		if (remainSet.Count() == 0)
+			THROW("Fatal: Unable to spill");
+
+		for (Int32 i = mLiveness + 1; i < mCurrentBB->Liveness.size(); ++i)
+		{
+			VariableSet nextSet = remainSet & liveness[i];
+			if (nextSet.Count() == 0)
+				break;
+		}
+
+		auto candidateVar = remainSet.Front();
+		return  { candidateVar, mapping.at(candidateVar) };
 	}
 
 	void X86NativeCodeGenerator::Emit(Instruction instruction)
@@ -1270,8 +1340,30 @@ namespace RTJ::Hex::X86
 		UInt8 REX = 0u;
 		UInt8 Operand16Prefix = 0u;
 		auto coreType = instruction.CoreType;
+
+		auto setREXIfContains8RegSwitch = [&](Operand const& operand) {
+			if (operand.Kind == OperandPreference::Register)
+			{
+				switch (operand.Register)
+				{
+				case NREG::AX:
+				case NREG::BX:
+				case NREG::CX:
+				case NREG::DX:
+					break;
+				default:
+					REX |= 0X40;
+				}			
+			}
+		};
+
 		switch (coreType)
 		{
+		case CoreTypes::I1:
+		case CoreTypes::U1:
+			setREXIfContains8RegSwitch(left);
+			setREXIfContains8RegSwitch(right);
+			break;
 		case CoreTypes::Ref:
 			if (!x64) break;
 		case CoreTypes::I8:

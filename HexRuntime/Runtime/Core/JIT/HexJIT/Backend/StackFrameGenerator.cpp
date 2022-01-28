@@ -13,12 +13,11 @@ namespace RTJ::Hex
 	{
 		Int32 current = 0;
 		auto getAndUpdate = [&](Int32 size) -> Int32 {
-			Int32 ret = current;
 			Int32 remain = size % Alignment;
 			if (remain > 0)
 				size = size - remain + Alignment;
 			current += size;
-			return ret;
+			return current;
 		};
 
 		std::vector<RTEE::StackFrameSlot> slots;
@@ -39,7 +38,7 @@ namespace RTJ::Hex
 						(UInt16)(i | LocalVariableNode::ArgumentFlag)
 					});
 
-				argument.Offset = offset;
+				argument.Offset = -offset;
 			}
 		}
 
@@ -58,7 +57,7 @@ namespace RTJ::Hex
 						(UInt16)(i)
 					});
 
-				variable.Offset = offset;
+				variable.Offset = -offset;
 			}
 		}
 

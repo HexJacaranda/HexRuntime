@@ -31,6 +31,8 @@ namespace RTP::Register::X86
 		REG XMM5 = 0X15;
 		REG XMM6 = 0X16;
 		REG XMM7 = 0X17;
+
+		static constexpr UInt8 RegisterCount = XMM7 + 1;
 	};
 
 	template<>
@@ -53,6 +55,8 @@ namespace RTP::Register::X86
 		REG XMM13 = 0X1D;
 		REG XMM14 = 0X1E;
 		REG XMM15 = 0X1F;
+
+		static constexpr UInt8 RegisterCount = XMM15 + 1;
 	};
 
 	template<UInt32 Width>
