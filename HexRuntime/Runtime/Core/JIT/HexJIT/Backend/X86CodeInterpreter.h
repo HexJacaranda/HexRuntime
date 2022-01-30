@@ -157,8 +157,8 @@ namespace RTJ::Hex::X86
 	{
 	public:
 		ETY = UInt8;
-		VAL SIB = 0b00100000;
-		VAL Disp32 = 0b00101000;
+		VAL SIB = 0b00000100;
+		VAL Disp32 = 0b00000101;
 	};
 
 	class REXBit
@@ -197,23 +197,25 @@ namespace RTJ::Hex::X86
 			//This is used to ref the variable when Kind is displacement
 			std::optional<UInt16> RefVariable;
 		};
+		bool UseRIPAddressing = false;
 		union
 		{
 			UInt8 Register;
 			ConstantStorage Immediate;
 			struct
 			{
-				UInt8 Base;
-				UInt8 Scale;
-				UInt8 Index;
-				Int32 Offset;
-			} SIB;
-
-			struct
-			{
-				UInt8 Base;
-				Int32 Offset;
-			} Displacement;
+				union
+				{
+					std::optional<UInt8> Base;
+					struct
+					{
+						std::optional<UInt8> Base;
+						std::optional<UInt8> Index;
+						UInt8 Scale;							
+					} SIB;
+				};
+				std::optional<Int32> Displacement;
+			} M;
 		};
 
 		bool IsAdvancedAddressing()const {
@@ -242,8 +244,8 @@ namespace RTJ::Hex::X86
 		static Operand FromDisplacement(UInt8 base, Int32 offset)
 		{
 			Operand ret{ OperandPreference::Displacement };
-			ret.Displacement.Base = base;
-			ret.Displacement.Offset = offset;
+			ret.M.Base = base;
+			ret.M.Displacement = offset;
 			return ret;
 		}
 		static Operand Empty()
@@ -266,6 +268,20 @@ namespace RTJ::Hex::X86
 		Int32 Offset;
 		UInt8 Size;
 		Int32 BasicBlock;
+	};
+
+	struct ImmediateFixUp
+	{
+		Int32 Offset;
+		Int32 RIPBase;
+		Int32 BasicBlock;
+		ConstantStorage Storage;
+	};
+
+	struct ImmediateSegment
+	{
+		Int32 BaseOffset;
+		std::vector<ImmediateFixUp> Slots;
 	};
 
 	/// <summary>
@@ -350,12 +366,15 @@ namespace RTJ::Hex::X86
 		std::unordered_map<UInt16, std::unordered_map<Int32, std::vector<Int32>>> mVariableDispFix;
 		//[BB] -> Local Page Offset
 		std::unordered_map<Int32, JumpFixUp> mJmpOffsetFix;
+		//For immediate memory fix up (currently only for float and double)
+		std::unordered_map<UInt8, ImmediateSegment> mImmediateFix;
 
 		//For debugging
-		static constexpr Int32 DebugEstimateOffset32 = 0x7F7F7F7F;
-		static constexpr Int16 DebugEstimateOffset16 = 0x7F7F;
-		static constexpr Int8 DebugEstimateOffset8 = 0x7F;
+		static constexpr Int32 DebugOffset32 = 0x7F7F7F7F;
+		static constexpr Int16 DebugOffset16 = 0x7F7F;
+		static constexpr Int8 DebugOffset8 = 0x7F;
 		static constexpr Int32 EpilogueBBIndex = -1;
+		static constexpr Int32 CodeAlignment = 8;
 	private:
 		void Emit(Instruction instruction, Operand const& left, Operand const& right);
 		void Emit(Instruction instruction, Operand const& operand);
@@ -407,8 +426,11 @@ namespace RTJ::Hex::X86
 		void Prepare();
 		void Finalize();
 		void FixUpDisplacement();
+		void FixUpImmediateDisplacement(EmitPage* finalPage);
+
 		void GenerateBranch();
 		void AssemblyCode();
+		Int32 ComputeAlignedImmediateLayout();
 		std::vector<UInt8> GetUsedNonVolatileRegisters()const;
 		/// <summary>
 		/// Prologue code for preserve register and allocating stack space

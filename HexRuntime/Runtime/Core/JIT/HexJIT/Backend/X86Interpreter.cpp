@@ -12,7 +12,7 @@
 
 //TODO: Report
 #define USE_DISP(OPERAND, VAR)  {(OPERAND).Kind = OperandPreference::Displacement; \
-								(OPERAND).Displacement.Base = NREG::BP; \
+								(OPERAND).M.Base = NREG::BP; \
 								(OPERAND).RefVariable = VAR;}
 
 #define USE_MASK (mask & mGenContext.RegisterMask)
@@ -121,7 +121,7 @@ namespace RTJ::Hex::X86
 				arrayVar->TypeInfo->GetCoreType());
 
 			MARK_UNSPILLABLE(arrayReg);
-			destinationOperand.SIB.Base = arrayReg;
+			destinationOperand.M.SIB.Base = arrayReg;
 
 			//See if we can directly use the scale
 			auto scale = offset->Scale;
@@ -142,7 +142,7 @@ namespace RTJ::Hex::X86
 				break;
 			}
 			}
-			destinationOperand.SIB.Scale = scale;
+			destinationOperand.M.SIB.Scale = scale;
 
 			//TODO: Calculate index * scale
 
@@ -405,11 +405,11 @@ namespace RTJ::Hex::X86
 		if (std::numeric_limits<Int8>::min() <= estimatedOffset &&
 			std::numeric_limits<Int8>::max() >= estimatedOffset)
 		{
-			ASM(JMP_I1, IMM8_I(DebugEstimateOffset8));
+			ASM(JMP_I1, IMM8_I(DebugOffset8));
 		}
 		else
 		{
-			ASM(JMP_I4, IMM32_I(DebugEstimateOffset32));
+			ASM(JMP_I4, IMM32_I(DebugOffset32));
 		}
 
 		Int32 targetIndex = basicBlock->BranchedBB == nullptr ? EpilogueBBIndex : basicBlock->BranchedBB->Index;
@@ -428,11 +428,11 @@ namespace RTJ::Hex::X86
 		if (std::numeric_limits<Int8>::min() <= estimatedOffset &&
 			std::numeric_limits<Int8>::max() >= estimatedOffset)
 		{
-			imm = IMM8_I(DebugEstimateOffset8);
+			imm = IMM8_I(DebugOffset8);
 		}
 		else
 		{
-			imm = IMM32_I(DebugEstimateOffset32);
+			imm = IMM32_I(DebugOffset32);
 		}
 
 		TreeNode* value = basicBlock->BranchConditionValue;	
@@ -451,7 +451,7 @@ namespace RTJ::Hex::X86
 
 	UInt8 X86NativeCodeGenerator::AllocateRegisterAndGenerateCodeFor(UInt64 mask, UInt8 coreType)
 	{
-		auto freeReg = mRegContext->TryGetFreeRegister(mask);
+		auto freeReg = mRegContext->TryGetFreeRegister(USE_MASK);
 		if (freeReg.has_value())
 		{
 			//Leak it
@@ -478,12 +478,29 @@ namespace RTJ::Hex::X86
 
 		if (CoreTypes::IsFloatLike(coreType))
 		{
-			THROW("Not implemented");
-			if (forceRegister)
-				result.Kind = OperandPreference::Register;
-			else
-				result.Kind = OperandPreference::Displacement;
-			//Generate constant address and loading
+			Operand dispOperand{ OperandPreference::Displacement };
+			dispOperand.M.Displacement = DebugOffset32;
+			//Use RIP
+			dispOperand.UseRIPAddressing = true;
+
+			auto newRegister = AllocateRegisterAndGenerateCodeFor(NREG::CommonXMM & additionalMask, coreType);
+			result = Operand::FromRegister(newRegister);
+
+			Instruction instruction = RetriveBinaryInstruction(
+				SemanticGroup::MOV,
+				coreType,
+				OperandPreference::Register,
+				OperandPreference::Displacement);
+
+			//Track and record displacement
+			TRK(Displacement);
+			Emit(instruction, result, dispOperand);
+			mImmediateFix[constant->CoreType].Slots.push_back(
+				ImmediateFixUp{
+					REP_TRK(Displacement).value(),
+					mEmitPage->CurrentOffset(),
+					mCurrentBB->Index,
+					constant->Storage });
 		}
 		else if (CoreTypes::IsIntegerLike(coreType))
 		{
@@ -497,7 +514,7 @@ namespace RTJ::Hex::X86
 				RE_REG = newRegister;
 
 				result = Operand::FromRegister(newRegister);				
-				X86::Instruction instruction = RetriveBinaryInstruction(
+				Instruction instruction = RetriveBinaryInstruction(
 					SemanticGroup::MOV, 
 					coreType, 
 					OperandPreference::Register, 
@@ -533,6 +550,40 @@ namespace RTJ::Hex::X86
 		FixUpDisplacement();
 		GenerateBranch();
 		AssemblyCode();
+	}
+
+	void X86NativeCodeGenerator::FixUpImmediateDisplacement(EmitPage* finalPage)
+	{
+		for (auto&& [coreType, segment] : mImmediateFix)
+		{
+			//Write to memory first
+			auto size = CoreTypes::GetCoreTypeSize(coreType);
+			for (Int32 i = 0; i < segment.Slots.size(); ++i)
+			{
+				auto&& slot = segment.Slots[i];
+				Int32 realOffset = segment.BaseOffset + i * size;
+				switch (size)
+				{
+				case 4:
+					RewritePageImmediate(
+						finalPage,
+						realOffset,
+						slot.Storage.U4); break;
+				case 8:
+					RewritePageImmediate(
+						finalPage,
+						realOffset,
+						slot.Storage.U8); break;
+				default:
+					THROW("Not supported");
+				}
+
+				//Write rip
+				Int32 ripOffset = realOffset - (mContext->BBs[slot.BasicBlock]->PhysicalOffset + slot.RIPBase);
+				Int32 ripDisplacementOffset = mContext->BBs[slot.BasicBlock]->PhysicalOffset + slot.Offset;
+				RewritePageImmediate(finalPage, ripDisplacementOffset, ripOffset);
+			}
+		}
 	}
 
 	void X86NativeCodeGenerator::FixUpDisplacement()
@@ -603,23 +654,22 @@ namespace RTJ::Hex::X86
 			Int32 totalCodeSize = mProloguePage->CurrentOffset() + mEpiloguePage->CurrentOffset();
 			for (auto&& bb : mContext->BBs |
 				std::views::filter(BasicBlock::ReachableFn))
-				totalCodeSize += bb->NativeCodeSize;
+				totalCodeSize += bb->NativeCodeSize; 
 
-			finalPage = new EmitPage(totalCodeSize);
+			Int32 alignedDataSize = ComputeAlignedImmediateLayout();
+			finalPage = new EmitPage(alignedDataSize, totalCodeSize);
 		}
 
 		Int32 epilogueOffset = 0;
 		//Copy code to final page
 		{
-			Int32 current = 0;
 			auto copyToFinal = [&](EmitPage* page)
 			{
 				UInt8* address = finalPage->Prepare(page->CurrentOffset());
 				std::memcpy(address, page->GetRaw(), page->CurrentOffset());
+				Int32 retOffset = finalPage->CurrentOffset();
 				finalPage->Commit(page->CurrentOffset());
-
-				Int32 retOffset = current;
-				current += page->CurrentOffset();
+			
 				return retOffset;
 			};
 
@@ -661,9 +711,35 @@ namespace RTJ::Hex::X86
 			}
 		}
 
+		FixUpImmediateDisplacement(finalPage);
 		//Set to executable
 		finalPage->Finalize();
 		mContext->NativeCode = finalPage;
+	}
+
+	Int32 X86NativeCodeGenerator::ComputeAlignedImmediateLayout()
+	{
+		Int32 currentOffset = 0;
+		for (auto&& [coreType, segment] : mImmediateFix)
+		{
+			Int32 size = CoreTypes::GetCoreTypeSize(coreType);
+			Int32 remain = currentOffset % size;
+			//Make sure it's aligned
+			if (remain != 0)
+				currentOffset = currentOffset - remain + size;
+
+			//Store offset
+			segment.BaseOffset = currentOffset;
+			currentOffset += segment.Slots.size() * size;
+		}
+
+		//Requires code to be 8-byte aligned
+		Int32 remain = currentOffset % CodeAlignment;
+		//Make sure it's aligned
+		if (remain != 0)
+			currentOffset = currentOffset - remain + CodeAlignment;
+
+		return currentOffset;
 	}
 
 	std::vector<UInt8> X86NativeCodeGenerator::GetUsedNonVolatileRegisters() const
@@ -1441,15 +1517,9 @@ namespace RTJ::Hex::X86
 			return registerToEncode;
 		};
 
-		auto handleDisplacement = [&](Int32 offset, std::optional<UInt16> refVariable) -> UInt8 {
-			if (refVariable.has_value())
-			{
-				trackingVariable = refVariable;
-				//TODO: offset estimation
-				Disp32 = offset;
-				return AddressingMode::RegisterAddressingDisp32;
-			}
-			if (offset == 0)
+		auto handleDisplacement = [&](std::optional<Int32> displacement) -> UInt8
+		{
+			if (displacement.value_or(0) == 0)
 			{
 				//Special expression for [reg]
 				return AddressingMode::RegisterAddressing;
@@ -1457,43 +1527,88 @@ namespace RTJ::Hex::X86
 			else
 			{
 				//Optimize for code size
-				if (std::numeric_limits<Int8>::min() <= offset &&
-					std::numeric_limits<Int8>::max() >= offset)
+				if (std::numeric_limits<Int8>::min() <= displacement &&
+					std::numeric_limits<Int8>::max() >= displacement)
 				{
-					Disp8 = (Int8)offset;
+					Disp8 = (Int8)displacement.value();
 					return AddressingMode::RegisterAddressingDisp8;
 				}
 				else
 				{
-					Disp32 = offset;
+					Disp32 = displacement;
 					return AddressingMode::RegisterAddressingDisp32;
 				}
 			}
 		};
 
 		auto handleMOperand = [&](const Operand& operand) -> UInt8 {
+			if (operand.RefVariable.has_value())
+				trackingVariable = operand.RefVariable;
+
+			constexpr UInt8 InvalidSIBBase = 0b101;
+			constexpr UInt8 InvalidSIBIndex = 0b100;
+
 			UInt8 modRM = 0;
 			switch (operand.Kind)
 			{
 			case OperandPreference::Displacement:
 			{
-				modRM |= handleDisplacement(operand.Displacement.Offset, operand.RefVariable);
-				modRM |= encodeRegIdentity(REXBit::B, operand.Displacement.Base);
+				if (!operand.M.Base.has_value())
+				{
+					//Forced to use disp32
+					Disp32 = operand.M.Displacement;
+					modRM = AddressingMode::RegisterAddressing | RegisterOrMemory::Disp32;
+					//Direct access
+					if (!operand.UseRIPAddressing)
+						SIB = (InvalidSIBIndex << 3) | InvalidSIBBase;
+					break;
+				}
+
+				constexpr UInt8 EmptySIB = 0b00100000;
+				if (operand.M.Displacement.value_or(0) == 0 && (
+					operand.M.Base == NREG64::R13 || operand.M.Base == NREG::BP))
+				{
+					//Special encoding
+					modRM = AddressingMode::RegisterAddressingDisp8;
+					//Force a disp8 for [R13]/[EBP] encoding to [R13/EBP + 0]
+					Disp8 = 0;
+				}
+				else if (operand.M.Base == NREG64::R12 || operand.M.Base == NREG64::SP)
+				{
+					modRM = handleDisplacement(operand.M.Displacement);
+					modRM |= RegisterOrMemory::SIB;
+					//Use SIB
+					SIB = EmptySIB | encodeRegIdentity(REXBit::B, operand.M.Base.value());
+				}
+				else
+				{
+					modRM = handleDisplacement(operand.M.Displacement);
+					modRM |= encodeRegIdentity(REXBit::B, operand.M.Base.value_or(RegisterOrMemory::Disp32));
+				}
+
 				break;
 			}
 			case OperandPreference::SIB:
 			{
+				if (REX > 0 && operand.M.SIB.Index == NREG::SP)
+					THROW("Unable to use RSP in SIB as index");
+				modRM = handleDisplacement(operand.M.Displacement);	
+				if (operand.M.Displacement.value_or(0) == 0 && (
+					operand.M.SIB.Base == NREG::BP ||
+					operand.M.SIB.Base == NREG64::R13))
+				{
+					//Force a disp8 for [R13/RBP/EBP + RX * 2] encoding to [R13/RBP/EBP + RX * 2 + 0]
+					modRM = AddressingMode::RegisterAddressingDisp8;
+					Disp8 = 0;
+				}
 				modRM |= RegisterOrMemory::SIB;
-				if (right.SIB.Offset == 0)
-					modRM |= handleDisplacement(operand.SIB.Offset, {});
-
 				//SIB registe encoding
 				UInt8 sib = 0;
-				sib |= encodeRegIdentity(REXBit::B, operand.SIB.Base);
-				sib |= encodeRegIdentity(REXBit::X, operand.SIB.Index) << 3;
+				sib |= encodeRegIdentity(REXBit::B, operand.M.SIB.Base.value_or(InvalidSIBBase));
+				sib |= encodeRegIdentity(REXBit::X, operand.M.SIB.Index.value_or(InvalidSIBIndex)) << 3;
 
 				//Scale encoding
-				switch (operand.SIB.Scale)
+				switch (operand.M.SIB.Scale)
 				{
 				case 1u:
 					sib |= (0b00 << 6); break;

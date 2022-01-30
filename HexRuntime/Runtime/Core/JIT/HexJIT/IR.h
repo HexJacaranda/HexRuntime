@@ -103,61 +103,6 @@ namespace RTJ::Hex
 		BinaryNode(NodeKinds kind) :TreeNode(kind) {}
 	};
 
-	struct ConstantNode : TreeNode
-	{
-		ConstantNode(UInt8 coreType) :
-			TreeNode(NodeKinds::Constant),
-			CoreType(coreType) {}
-
-		ConstantNode(Boolean value) :
-			TreeNode(NodeKinds::Constant),
-			Bool(value),
-			CoreType(CoreTypes::I1) {}
-
-		ConstantNode(Int8 value) :
-			TreeNode(NodeKinds::Constant),
-			I1(value),
-			CoreType(CoreTypes::I1) {}
-
-		ConstantNode(Int16 value) :
-			TreeNode(NodeKinds::Constant),
-			I2(value),
-			CoreType(CoreTypes::I2) {}
-
-		ConstantNode(Int32 value) :
-			TreeNode(NodeKinds::Constant),
-			I4(value),
-			CoreType(CoreTypes::I4) {}
-
-		ConstantNode(Int64 value) :
-			TreeNode(NodeKinds::Constant),
-			I8(value),
-			CoreType(CoreTypes::I8) {}
-
-		ConstantNode(void* value) :
-			TreeNode(NodeKinds::Constant),
-			Pointer(value),
-			CoreType(CoreTypes::Ref) {}
-
-		UInt8 CoreType = 0;
-		union
-		{
-			Boolean Bool;
-			Int8 I1;
-			Int16 I2;
-			Int32 I4;
-			Int64 I8;
-			UInt8 U1;
-			UInt16 U2;
-			UInt32 U4;
-			UInt64 U8;
-			Float R4;
-			Double R8;
-			UInt32 StringToken;
-			void* Pointer;
-		};
-	};
-
 	/// <summary>
 	/// To access right bytes of constant
 	/// </summary>
@@ -174,7 +119,6 @@ namespace RTJ::Hex
 		UInt64 U8;
 		Float R4;
 		Double R8;
-		UInt32 StringToken;
 		void* Pointer;
 
 		static ConstantStorage From(Int8 value)
@@ -225,6 +169,62 @@ namespace RTJ::Hex
 			ret.U8 = value;
 			return ret;
 		}
+	};
+
+	struct ConstantNode : TreeNode
+	{
+		ConstantNode(UInt8 coreType) :
+			TreeNode(NodeKinds::Constant),
+			CoreType(coreType) {}
+
+		ConstantNode(Boolean value) :
+			TreeNode(NodeKinds::Constant),
+			Bool(value),
+			CoreType(CoreTypes::I1) {}
+
+		ConstantNode(Int8 value) :
+			TreeNode(NodeKinds::Constant),
+			I1(value),
+			CoreType(CoreTypes::I1) {}
+
+		ConstantNode(Int16 value) :
+			TreeNode(NodeKinds::Constant),
+			I2(value),
+			CoreType(CoreTypes::I2) {}
+
+		ConstantNode(Int32 value) :
+			TreeNode(NodeKinds::Constant),
+			I4(value),
+			CoreType(CoreTypes::I4) {}
+
+		ConstantNode(Int64 value) :
+			TreeNode(NodeKinds::Constant),
+			I8(value),
+			CoreType(CoreTypes::I8) {}
+
+		ConstantNode(void* value) :
+			TreeNode(NodeKinds::Constant),
+			Pointer(value),
+			CoreType(CoreTypes::Ref) {}
+
+		UInt8 CoreType = 0;
+		union
+		{
+			ConstantStorage Storage;
+			Boolean Bool;
+			Int8 I1;
+			Int16 I2;
+			Int32 I4;
+			Int64 I8;
+			UInt8 U1;
+			UInt16 U2;
+			UInt32 U4;
+			UInt64 U8;
+			Float R4;
+			Double R8;
+			UInt32 StringToken;
+			void* Pointer;
+		};
 	};
 
 	struct LocalVariableNode : TreeNode

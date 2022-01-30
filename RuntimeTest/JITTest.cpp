@@ -80,12 +80,13 @@ namespace RuntimeTest
 			Logger::WriteMessage(content.c_str());
 		}
 
-		void DumpNativeCode(const char* name)
+		void* DumpNativeCode(const char* name)
 		{
-			auto code = (const char*)context->NativeCode->GetRaw();
+			auto code = (const char*)context->NativeCode->GetExecuteableCode();
 			std::fstream fstream{ name, std::ios::out | std::ios::binary };
-			fstream.write(code, context->NativeCode->CurrentOffset());
+			fstream.write(code, context->NativeCode->GetCodeSize());
 			fstream.close();
+			return (void*)code;
 		}
 
 		void SetUpMethod(std::wstring_view name)
@@ -255,9 +256,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
-			DumpNativeCode("CodeGenTest1.bin");
-
-			Fn method = (Fn)context->NativeCode->GetRaw();
+			Fn method = (Fn)DumpNativeCode("CodeGenTest1.bin");
 			Assert::AreEqual(5, method());
 		}
 
@@ -270,9 +269,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
-			DumpNativeCode("CodeGenTest2.bin");
-
-			Fn method = (Fn)context->NativeCode->GetRaw();
+			Fn method = (Fn)DumpNativeCode("CodeGenTest2.bin");
 			Assert::AreEqual(5, method(0, 0, 2, 3));
 		}
 
@@ -285,11 +282,22 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
-			DumpNativeCode("CodeGenTest3.bin");
-
-			Fn method = (Fn)context->NativeCode->GetRaw();
+			Fn method = (Fn)DumpNativeCode("CodeGenTest3.bin");
 			Int32 ret = method(0, 0, 2, 3);
 			Assert::AreEqual(0, ret);
+		}
+
+		TEST_METHOD(CodeGenFloatImm)
+		{
+			using Fn = float(__fastcall*)();
+			SetUpMethod(L"CodeGenFloatImm");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenFloatImm.bin");
+			Float ret = method();
+			Assert::AreEqual(3.14f, ret);
 		}
 	};
 

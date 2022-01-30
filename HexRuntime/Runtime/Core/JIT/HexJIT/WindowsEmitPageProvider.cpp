@@ -19,5 +19,11 @@ namespace RTJ
 		VirtualProtect(origin, executableLength, PAGE_EXECUTE, &old);
 		return origin;
 	}
+	UInt8* EmitPageProvider::SetReadOnly(UInt8* origin, Int32 readonlyLength)
+	{
+		DWORD old;
+		VirtualProtect(origin, readonlyLength, PAGE_READONLY, &old);
+		return origin;
+	}
 }
 #endif // PLATFORM_WINDOWS

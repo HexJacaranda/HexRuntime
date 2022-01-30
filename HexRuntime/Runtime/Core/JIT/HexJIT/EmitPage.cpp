@@ -13,6 +13,14 @@ namespace RTJ
 		mRawPage = EmitPageProvider::Allocate(length);
 	}
 
+	EmitPage::EmitPage(Int32 alignedDataLength, Int32 codeLength) :
+		mLength(alignedDataLength + codeLength),
+		mDataSegmentLength(alignedDataLength),
+		mIndex(alignedDataLength)
+	{
+		mRawPage = EmitPageProvider::Allocate(alignedDataLength + codeLength);
+	}
+
 	EmitPage::~EmitPage()
 	{
 		if (mRawPage != nullptr)
@@ -26,6 +34,11 @@ namespace RTJ
 	Int32 EmitPage::CurrentOffset() const
 	{
 		return mIndex;
+	}
+
+	Int32 EmitPage::GetCodeSize() const
+	{
+		return mIndex - mDataSegmentLength;
 	}
 
 	UInt8* EmitPage::Prepare(Int32 length)
@@ -52,8 +65,16 @@ namespace RTJ
 		return mRawPage;
 	}
 
+	UInt8* EmitPage::GetExecuteableCode() const
+	{
+		return mRawPage + mDataSegmentLength;
+	}
+
 	UInt8* EmitPage::Finalize()
 	{
-		return EmitPageProvider::SetExecutable(mRawPage, mIndex);
+		EmitPageProvider::SetReadOnly(mRawPage, mDataSegmentLength);
+		EmitPageProvider::SetExecutable(mRawPage + mDataSegmentLength, mIndex - mDataSegmentLength);
+
+		return mRawPage;
 	}
 }

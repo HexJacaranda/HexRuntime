@@ -227,4 +227,13 @@
             .ret
         }
     }
+
+    .method public static float CodeGenFloatImm() managed
+    {
+        .code
+        {
+            .ldc float 3.14
+            .ret
+        }
+    }
 }
