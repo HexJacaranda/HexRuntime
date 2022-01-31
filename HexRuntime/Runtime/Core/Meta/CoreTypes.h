@@ -135,6 +135,9 @@ namespace RTC
 		inline static bool IsIntegerLike(UInt8 coreType) {
 			return coreType <= U8;
 		}
+		inline static bool IsSignedInteger(UInt8 coreType) {
+			return coreType <= I8 && I1 <= coreType;
+		}
 		inline static bool IsFloatLike(UInt8 coreType) {
 			return R2 <= coreType && coreType <= R8;
 		}

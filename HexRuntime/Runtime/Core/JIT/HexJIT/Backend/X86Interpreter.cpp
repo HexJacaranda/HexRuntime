@@ -69,6 +69,14 @@
 			Emit(instruction, __VA_ARGS__); \
 		} 
 
+#define ASM_CV(INST, CORE_TYPE,...) \
+		{ \
+			Instruction instruction{}; \
+			USE_INS(INST); \
+			instruction.CoreType = CORE_TYPE; \
+			Emit(instruction, __VA_ARGS__); \
+		} 
+
 #define REP_TRK(NAME) (mGenContext.NAME##Track).Offset
 #define REP_TRK_SIZE(NAME) (mGenContext.NAME##Track).Size
 
@@ -1040,7 +1048,7 @@ namespace RTJ::Hex::X86
 
 	void X86NativeCodeGenerator::Emit(Instruction instruction)
 	{
-		WritePage(mEmitPage, instruction.Opcode, instruction.Length);
+		Emit(instruction, Operand::Empty(), Operand::Empty());
 	}
 
 	Instruction X86NativeCodeGenerator::RetriveBinaryInstruction(
@@ -1120,6 +1128,105 @@ namespace RTJ::Hex::X86
 			}
 			break;
 		}
+		case SemanticGroup::SUB:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				if (immLoad) USE_INS(SUB_MI_I1)
+				else MR_USE_INS(SUB_MR_I1, SUB_RM_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad) USE_INS(SUB_MI_IU)
+				else MR_USE_INS(SUB_MR_IU, SUB_RM_IU)
+					break;
+			case CoreTypes::R4:
+				if (immLoad) THROW("Unsupported SUB M <- I/R <- I for R4");
+				if (MR) THROW("Unsupported SUB M <- R for R4");
+				USE_INS(SUBSS_RM);
+				break;
+			case CoreTypes::R8:
+				if (immLoad) THROW("Unsupported SUB M <- I/R <- I for R8");
+				if (MR) THROW("Unsupported SUB M <- R for R8");
+				USE_INS(SUBSD_RM);
+				break;
+			}
+			break;
+		}
+		case SemanticGroup::MUL:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				if (immLoad || MR) THROW("Not supported");
+				USE_INS(IMUL_RM_I1);
+				break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad || MR) THROW("Not supported");
+				USE_INS(IMUL_RM_IU);
+				break;
+			case CoreTypes::R4:
+				if (immLoad) THROW("Unsupported ADD M <- I/R <- I for R4");
+				if (MR) THROW("Unsupported ADD M <- R for R4");
+				USE_INS(MULSS_RM);
+				break;
+			case CoreTypes::R8:
+				if (immLoad) THROW("Unsupported ADD M <- I/R <- I for R8");
+				if (MR) THROW("Unsupported ADD M <- R for R8");
+				USE_INS(MULSD_RM);
+				break;
+			}
+			break;
+		}
+		case SemanticGroup::DIV:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::I1:
+				if (immLoad || MR) THROW("Not supported");
+				USE_INS(IDIV_RM_I1);
+				break;
+			case CoreTypes::U1:
+				if (immLoad || MR) THROW("Not supported");
+				USE_INS(DIV_RM_I1);
+				break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+				if (immLoad || MR) THROW("Not supported");
+				USE_INS(IDIV_RM_IU);
+				break;
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad || MR) THROW("Not supported");
+				USE_INS(DIV_RM_IU);
+				break;
+			case CoreTypes::R4:
+				if (immLoad) THROW("Unsupported ADD M <- I/R <- I for R4");
+				if (MR) THROW("Unsupported ADD M <- R for R4");
+				USE_INS(DIVSS_RM);
+				break;
+			case CoreTypes::R8:
+				if (immLoad) THROW("Unsupported ADD M <- I/R <- I for R8");
+				if (MR) THROW("Unsupported ADD M <- R for R8");
+				USE_INS(DIVSD_RM);
+				break;
+			}
+			break;
+		}
 		case SemanticGroup::CMP:
 		{
 			switch (coreType)
@@ -1177,8 +1284,12 @@ namespace RTJ::Hex::X86
 		LocalVariableNode* locals[2] = { nullptr, nullptr };
 		Int32 localCount = 0;
 
+		bool immLeft = false;
 		if (binary->First->Is(NodeKinds::Constant))
+		{
+			immLeft = true;
 			constant = binary->First->As<ConstantNode>();
+		}
 		else
 			locals[localCount++] = ValueAs<LocalVariableNode>(binary->First);
 
@@ -1194,29 +1305,88 @@ namespace RTJ::Hex::X86
 
 		Operand source{};
 		Operand destination{};
+
+		//For idiv/div and imul for I8/U8
+		bool requiresAX = false;
+		bool requiresConvert = false;
+		bool requiresMOperandForSource = false;
+		SemanticGroup group{};
+		switch (binary->Kind)
+		{
+		case NodeKinds::BinaryArithmetic:
+		{
+			auto binaryArithmetic = binary->As<BinaryArithmeticNode>();
+			if (CoreTypes::IsIntegerLike(coreType))
+			{
+				switch (binaryArithmetic->Opcode)
+				{
+				case OpCodes::Div:
+					requiresMOperandForSource = true;
+					requiresAX = true;
+					if (CoreTypes::IsSignedInteger(coreType))
+						requiresConvert = true;
+					break;
+				case OpCodes::Mul:
+					requiresMOperandForSource = true;
+					if (coreType == CoreTypes::I1 ||
+						coreType == CoreTypes::U1)
+						requiresAX = true;
+					break;
+				}
+			}
+
+			group = (SemanticGroup)((UInt8)SemanticGroup::ADD + (binaryArithmetic->Opcode - OpCodes::Add));
+			break;
+		}
+		case NodeKinds::Compare:
+			group = SemanticGroup::CMP; break;
+		}
+
 		if (constant != nullptr)
 		{
-			source = UseImmediate(constant);
+			if (immLeft)
+			{
+				Operand immOperand = UseImmediate(constant, true, requiresAX ? MSK_REG(NREG::AX) : regMask);
+				MARK_UNSPILLABLE(immOperand.Register);
 
-			UInt16 variable = locals[0]->As<LocalVariableNode>()->LocalIndex;
-			UInt8 reg = AllocateRegisterAndGenerateCodeFor(variable, regMask, coreType);
-			destination = Operand::FromRegister(reg);
+				UInt16 variable = locals[0]->As<LocalVariableNode>()->LocalIndex;
+				UInt8 reg = AllocateRegisterAndGenerateCodeFor(variable, regMask, coreType);
+				MARK_UNSPILLABLE(reg);
 
-			INVALIDATE_VAR(variable);			
-		} 
+				destination = immOperand;
+				source = Operand::FromRegister(reg);
+			}
+			else
+			{
+				UInt16 variable = locals[0]->As<LocalVariableNode>()->LocalIndex;
+				UInt8 reg = AllocateRegisterAndGenerateCodeFor(variable, requiresAX ? MSK_REG(NREG::AX) : regMask, coreType);
+				MARK_UNSPILLABLE(reg);
+
+				Operand immOperand = UseImmediate(constant, requiresMOperandForSource);
+				if (immOperand.IsRegister())
+					MARK_UNSPILLABLE(immOperand.Register);
+
+				destination = Operand::FromRegister(reg);
+				source = immOperand;
+
+				INVALIDATE_VAR(variable);
+			}
+		}
 		else
 		{
 			/*Allocate register for two operand, but one of them will be
 			* modified and finally as the result register.
 			* (This will be solved for float-like type in AVX support(TODO))
 			*/
-			
+
 			UInt16 leftVar = locals[0]->As<LocalVariableNode>()->LocalIndex;
 			UInt16 rightVar = locals[1]->As<LocalVariableNode>()->LocalIndex;
 			//Consider ? = a <op> a
 			if (leftVar == rightVar)
 			{
-				UInt8 reg = AllocateRegisterAndGenerateCodeFor(leftVar, regMask, coreType);
+				UInt8 reg =
+					AllocateRegisterAndGenerateCodeFor(leftVar, requiresAX ? MSK_REG(NREG::AX) : regMask, coreType);
+
 				source = Operand::FromRegister(reg);
 				destination = Operand::FromRegister(reg);
 				//Remove the allocation
@@ -1224,65 +1394,38 @@ namespace RTJ::Hex::X86
 			}
 			else
 			{
-				UInt8 leftReg = AllocateRegisterAndGenerateCodeFor(leftVar, regMask, coreType);
-				MARK_UNSPILLABLE(leftReg);
-				UInt8 rightReg = AllocateRegisterAndGenerateCodeFor(rightVar, regMask, coreType);
-				MARK_UNSPILLABLE(rightReg);
+				auto requireAndMark = [&](UInt16 var, UInt64 mask) {
+					UInt8 reg = AllocateRegisterAndGenerateCodeFor(var, mask, coreType);
+					MARK_UNSPILLABLE(reg);
+					return Operand::FromRegister(reg);
+				};
 
 				RTAssert(ST_VAR.has_value());
 				auto storingVar = ST_VAR.value();
-				//Consider a = a <op> c
-				if (storingVar == leftVar)
-				{
-					destination = Operand::FromRegister(leftReg);
-					source = Operand::FromRegister(rightReg);
-				}
-				else if (storingVar == rightVar)
-				{
-					destination = Operand::FromRegister(rightReg);
-					source = Operand::FromRegister(leftReg);
-				}
-				else
-				{
-					UInt16 longLived = RetriveLongLived(leftVar, rightVar);
-					if (longLived == leftVar)
-					{
-						destination = Operand::FromRegister(rightReg);
-						source = Operand::FromRegister(leftReg);
-						INVALIDATE_VAR(rightVar);
-					}
-					else
-					{
-						//Right variable
-						destination = Operand::FromRegister(leftReg);
-						source = Operand::FromRegister(rightReg);
-						INVALIDATE_VAR(leftVar);
-					}
-				}
-			}		
+
+				destination = requireAndMark(leftVar, requiresAX ? MSK_REG(NREG::AX) : regMask);
+				source = requireAndMark(rightVar, regMask);
+				INVALIDATE_VAR(leftVar);
+			}
 		}
-	
-		SemanticGroup group{};
-		switch (binary->Kind)
-		{
-		case NodeKinds::BinaryArithmetic:
-		{
-			auto binaryArithmetic = binary->As<BinaryArithmeticNode>();
-			group = (SemanticGroup)((UInt8)SemanticGroup::ADD + (binaryArithmetic->Opcode - OpCodes::Add));
-			break;
-		}
-		case NodeKinds::Compare: 
-			group = SemanticGroup::CMP; break;
-		}
+
 		//Choose instruction
 		RTAssert(destination.Kind == OperandPreference::Register);
+
+		if (requiresConvert)
+		{
+			ASM_CV(CDQ, coreType);
+		}
 
 		//Update result register
 		RE_REG = destination.Register;
 		Instruction instruction = RetriveBinaryInstruction(group, coreType, OperandPreference::Register, source.Kind);
 
 		//Emit instruction
-		Emit(instruction, destination, source);
+		if (requiresAX)
+			Emit(instruction, source);
+		else
+			Emit(instruction, destination, source);
 	}
 
 	void X86NativeCodeGenerator::CodeGenFor(UnaryArithmeticNode* unaryNode)
@@ -1719,6 +1862,8 @@ namespace RTJ::Hex::X86
 			{
 				handleIOperand(left);
 			}
+			break;
+		case NO_PRD_F:
 			break;
 		default:
 			THROW("Invalid operand type");

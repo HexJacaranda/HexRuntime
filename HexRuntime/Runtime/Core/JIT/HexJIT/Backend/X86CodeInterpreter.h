@@ -29,6 +29,7 @@
 #define MR_F InstructionFlags::MR
 #define RI_F InstructionFlags::RI
 #define MI_F InstructionFlags::MI
+#define NO_PRD_F InstructionFlags::NO_OPRD
 #define MAGIC_F(VALUE) ((InstructionFlags::MagicRegUse) | (VALUE << 6))
 #define NO_F 0
 #define NO_REXW_F InstructionFlags::REXWNotRequiredFor64
@@ -57,6 +58,7 @@ namespace RTJ::Hex::X86
 		VAL I_ = 0b100000;
 		VAL R_ = 0b101000;
 		VAL M_ = 0b110000;
+		VAL NO_OPRD = 0b111000;
 
 		VAL MagicRegMSK = 0b0111000000;
 		VAL MagicRegUse = 0b1000000000;
@@ -86,7 +88,7 @@ namespace RTJ::Hex::X86
 		INS_3(MOVSS_RM, RM_F | SSE_F, 0xF3, 0x0F, 0x10);
 		INS_3(MOVSS_MR, MR_F | SSE_F, 0xF3, 0x0F, 0x11);
 
-		INS_1(ADD_MR_I1, MR_F,0x00);
+		INS_1(ADD_MR_I1, MR_F, 0x00);
 		INS_1(ADD_MR_IU, MR_F, 0x01);
 		INS_1(ADD_RM_I1, RM_F, 0x02);
 		INS_1(ADD_RM_IU, RM_F, 0x03);
@@ -94,13 +96,37 @@ namespace RTJ::Hex::X86
 		INS_1(ADD_MI_I1, MI_F | MAGIC_F(0), 0x80);
 		INS_1(ADD_MI_IU, MI_F | MAGIC_F(0), 0x81);
 
-		INS_1(SUB_MI_I1, MI_F | MAGIC_F(5), 0x80);
-		INS_1(SUB_MI_IU, MI_F | MAGIC_F(5), 0x81);
-
 		INS_3(ADDSD_RM, RM_F | SSE_F, 0xF2, 0x0F, 0x58);
 		INS_3(ADDSS_RM, RM_F | SSE_F, 0xF3, 0x0F, 0x58);
 
-		INS_1(RET, NO_F, 0xC3);
+		INS_1(SUB_MR_I1, MR_F, 0x28);
+		INS_1(SUB_MR_IU, MR_F, 0x29);
+		INS_1(SUB_RM_I1, RM_F, 0x2A);
+		INS_1(SUB_RM_IU, RM_F, 0x2B);
+
+		INS_1(SUB_MI_I1, MI_F | MAGIC_F(5), 0x80);
+		INS_1(SUB_MI_IU, MI_F | MAGIC_F(5), 0x81);
+
+		INS_3(SUBSD_RM, RM_F | SSE_F, 0xF2, 0x0F, 0x5C);
+		INS_3(SUBSS_RM, RM_F | SSE_F, 0xF3, 0x0F, 0x5C);
+
+		INS_1(IMUL_RM_I1, M_F | MAGIC_F(4), 0xF6);
+		INS_2(IMUL_RM_IU, RM_F, 0x0F, 0xAF);
+
+		INS_3(MULSD_RM, RM_F | SSE_F, 0xF2, 0x0F, 0x59);
+		INS_3(MULSS_RM, RM_F | SSE_F, 0xF3, 0x0F, 0x59);
+
+		INS_1(DIV_RM_I1, M_F | MAGIC_F(6), 0xF6);
+		INS_1(DIV_RM_IU, M_F | MAGIC_F(6), 0xF7);
+
+		INS_1(CDQ, NO_PRD_F, 0x99);
+		INS_1(IDIV_RM_I1, M_F | MAGIC_F(7), 0xF6);
+		INS_1(IDIV_RM_IU, M_F | MAGIC_F(7), 0xF7);
+
+		INS_3(DIVSD_RM, RM_F | SSE_F, 0xF2, 0x0F, 0x5E);
+		INS_3(DIVSS_RM, RM_F | SSE_F, 0xF3, 0x0F, 0x5E);
+
+		INS_1(RET, NO_PRD_F | NO_REXW_F, 0xC3);
 		INS_1(JMP_I1, I_F, 0xEB);
 		INS_1(JMP_I4, I_F, 0xE9);
 		INS_1(JMP_M_I8, M_F, 0xFF);

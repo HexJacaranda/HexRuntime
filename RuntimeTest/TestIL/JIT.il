@@ -236,4 +236,146 @@
             .ret
         }
     }
+
+    .method public static double CodeGenDoubleImm() managed
+    {
+        .code
+        {
+            .ldc double 2.718
+            .ret
+        }
+    }
+
+
+    .method public static int32 CodeGenIntAdd(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 -1
+            .add
+            .ret
+        }
+    }
+
+    .method public static int32 CodeGenIntSub(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 -1
+            .sub
+            .ret
+        }
+    }
+
+    .method public static int32 CodeGenIntMul(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 3
+            .mul
+            .ret
+        }
+    }
+
+    .method public static int32 CodeGenIntDiv(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 2
+            .div
+            .ret
+        }
+    }
+
+    .method public static float CodeGenFloatAdd(float x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc float -2.0
+            .add
+            .ret
+        }
+    }
+
+    .method public static float CodeGenFloatSub(float x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc float 2.0
+            .sub
+            .ret
+        }
+    }
+
+    .method public static float CodeGenFloatMul(float x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc float 2.0
+            .mul
+            .ret
+        }
+    }
+
+    .method public static float CodeGenFloatDiv(float x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc float 2.0
+            .div
+            .ret
+        }
+    }
+
+    .method public static double CodeGenDoubleAdd(double x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc double -2.0
+            .add
+            .ret
+        }
+    }
+
+    .method public static double CodeGenDoubleSub(double x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc double 2.0
+            .sub
+            .ret
+        }
+    }
+
+    .method public static double CodeGenDoubleMul(double x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc double 2.0
+            .mul
+            .ret
+        }
+    }
+
+    .method public static double CodeGenDoubleDiv(double x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc double 2.0
+            .div
+            .ret
+        }
+    }
 }

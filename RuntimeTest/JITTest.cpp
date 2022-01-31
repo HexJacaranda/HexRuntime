@@ -299,6 +299,175 @@ namespace RuntimeTest
 			Float ret = method();
 			Assert::AreEqual(3.14f, ret);
 		}
+
+		TEST_METHOD(CodeGenDoubleImm)
+		{
+			using Fn = double(__fastcall*)();
+			SetUpMethod(L"CodeGenDoubleImm");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleImm.bin");
+			auto ret = method();
+			Assert::AreEqual(2.718, ret);
+		}
+
+		TEST_METHOD(CodeGenIntAdd)
+		{
+			using Fn = int(__fastcall*)(int);
+			SetUpMethod(L"CodeGenIntAdd");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenIntAdd.bin");
+			auto ret = method(1);
+			Assert::AreEqual(0, ret);
+		}
+
+		TEST_METHOD(CodeGenIntSub)
+		{
+			using Fn = int(__fastcall*)(int);
+			SetUpMethod(L"CodeGenIntSub");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenIntSub.bin");
+			auto ret = method(1);
+			Assert::AreEqual(2, ret);
+		}
+
+		TEST_METHOD(CodeGenIntMul)
+		{
+			using Fn = int(__fastcall*)(int);
+			SetUpMethod(L"CodeGenIntMul");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenIntMul.bin");
+			auto ret = method(1);
+			Assert::AreEqual(3, ret);
+		}
+
+		TEST_METHOD(CodeGenIntDiv)
+		{
+			using Fn = int(__fastcall*)(int);
+			SetUpMethod(L"CodeGenIntDiv");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenIntDiv.bin");
+			auto ret = method(5);
+			Assert::AreEqual(2, ret);
+		}
+
+		TEST_METHOD(CodeGenFloatAdd)
+		{
+			using Fn = float(__fastcall*)(float);
+			SetUpMethod(L"CodeGenFloatAdd");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenFloatAdd.bin");
+			auto ret = method(2.0f);
+			Assert::AreEqual(0.0f, ret);
+		}
+
+		TEST_METHOD(CodeGenFloatSub)
+		{
+			using Fn = float(__fastcall*)(float);
+			SetUpMethod(L"CodeGenFloatSub");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenFloatSub.bin");
+			auto ret = method(4.0f);
+			Assert::AreEqual(2.0f, ret);
+		}
+
+		TEST_METHOD(CodeGenFloatMul)
+		{
+			using Fn = float(__fastcall*)(float);
+			SetUpMethod(L"CodeGenFloatMul");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenFloatMul.bin");
+			auto ret = method(2.0f);
+			Assert::AreEqual(4.0f, ret);
+		}
+
+		TEST_METHOD(CodeGenFloatDiv)
+		{
+			using Fn = float(__fastcall*)(float);
+			SetUpMethod(L"CodeGenFloatDiv");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenFloatDiv.bin");
+			auto ret = method(5.0f);
+			Assert::AreEqual(2.5f, ret);
+		}
+
+		TEST_METHOD(CodeGenDoubleAdd)
+		{
+			using Fn = Double(__fastcall*)(Double);
+			SetUpMethod(L"CodeGenDoubleAdd");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleAdd.bin");
+			auto ret = method(2.0);
+			Assert::AreEqual(0.0, ret);
+		}
+
+		TEST_METHOD(CodeGenDoubleSub)
+		{
+			using Fn = Double(__fastcall*)(Double);
+			SetUpMethod(L"CodeGenDoubleSub");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleSub.bin");
+			auto ret = method(4.0);
+			Assert::AreEqual(2.0, ret);
+		}
+
+		TEST_METHOD(CodeGenDoubleMul)
+		{
+			using Fn = Double(__fastcall*)(Double);
+			SetUpMethod(L"CodeGenDoubleMul");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleMul.bin");
+			auto ret = method(2.0);
+			Assert::AreEqual(4.0, ret);
+		}
+
+		TEST_METHOD(CodeGenDoubleDiv)
+		{
+			using Fn = Double(__fastcall*)(Double);
+			SetUpMethod(L"CodeGenDoubleDiv");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleDiv.bin");
+			auto ret = method(5.0);
+			Assert::AreEqual(2.5, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest::assembly = nullptr;
