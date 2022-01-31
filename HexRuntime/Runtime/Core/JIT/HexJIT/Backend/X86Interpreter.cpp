@@ -13,6 +13,7 @@
 //TODO: Report
 #define USE_DISP(OPERAND, VAR)  {(OPERAND).Kind = OperandPreference::Displacement; \
 								(OPERAND).M.Base = NREG::BP; \
+								(OPERAND).M.Displacement = DebugOffset32; \
 								(OPERAND).RefVariable = VAR;}
 
 #define USE_MASK (mask & mGenContext.RegisterMask)
@@ -792,6 +793,8 @@ namespace RTJ::Hex::X86
 
 		for (auto&& reg : nonVolatileRegisters)
 		{
+			if (reg == NREG::BP || reg == NREG::SP)
+				continue;
 			ASM(PUSH_R_IU, REGV(reg));
 		}
 
@@ -825,6 +828,8 @@ namespace RTJ::Hex::X86
 
 		for (auto&& reg : nonVolatileRegisters | std::views::reverse)
 		{
+			if (reg == NREG::BP || reg == NREG::SP)
+				continue;
 			ASM(POP_R_IU, REGV(reg));
 		}
 		ASM(RET);
@@ -1428,7 +1433,7 @@ namespace RTJ::Hex::X86
 				case NREG::DX:
 					break;
 				default:
-					REX |= 0X40;
+					REX |= 0x40;
 				}			
 			}
 		};
@@ -1444,7 +1449,11 @@ namespace RTJ::Hex::X86
 			if (!x64) break;
 		case CoreTypes::I8:
 		case CoreTypes::U8:
-			REX |= 0x48; break;
+		{
+			if (!(instruction.Flags & NO_REXW_F))
+				REX |= 0x48;
+			break;
+		}
 		case CoreTypes::I2:
 		case CoreTypes::U2:
 		{

@@ -31,6 +31,7 @@
 #define MI_F InstructionFlags::MI
 #define MAGIC_F(VALUE) ((InstructionFlags::MagicRegUse) | (VALUE << 6))
 #define NO_F 0
+#define NO_REXW_F InstructionFlags::REXWNotRequiredFor64
 
 #define I_F InstructionFlags::I_
 #define R_F InstructionFlags::R_
@@ -60,6 +61,8 @@ namespace RTJ::Hex::X86
 		VAL MagicRegMSK = 0b0111000000;
 		VAL MagicRegUse = 0b1000000000;
 		VAL MagicRegShift = 6;
+
+		VAL REXWNotRequiredFor64 = 0b1000000000000000;
 	};
 
 	/* M = Memory / Register
@@ -119,8 +122,8 @@ namespace RTJ::Hex::X86
 		INS_1(JCC_GE_I1, I_F, 0x7D);
 		INS_1(JCC_LE_I1, I_F, 0x7E);
 
-		INS_1(PUSH_R_IU, R_F | OP_REG_F, 0x50);
-		INS_1(POP_R_IU, R_F | OP_REG_F, 0x58);
+		INS_1(PUSH_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x50);
+		INS_1(POP_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x58);
 	};
 
 	struct Instruction
