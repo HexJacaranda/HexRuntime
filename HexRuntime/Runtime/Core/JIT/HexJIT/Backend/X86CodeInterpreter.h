@@ -141,12 +141,62 @@ namespace RTJ::Hex::X86
 		INS_3(COMISD_RM, RM_F, 0x66, 0x0F, 0x2F);
 		INS_2(COMISS_RM, RM_F, 0x0F, 0x2F);
 
+		INS_3(UCOMISD_RM, RM_F, 0x66, 0x0F, 0x2E);
+		INS_2(UCOMISD_RM, RM_F, 0x0F, 0x2E);
+
+		INS_2(SET_EQ_I1, M_F, 0x0F, 0x94);
+		INS_2(SET_NE_I1, M_F, 0x0F, 0x95);
+		INS_2(SET_GT_I1, M_F, 0x0F, 0x9F);
+		INS_2(SET_LT_I1, M_F, 0x0F, 0x9C);
+		INS_2(SET_GE_I1, M_F, 0x0F, 0x9D);
+		INS_2(SET_LE_I1, M_F, 0x0F, 0x9E);
+
+		INS_1(TEST_MR_I1, MR_F, 0x84);
+		INS_1(TEST_MI_I1, MI_F | MAGIC_F(0), 0xF6);
+
 		INS_1(JCC_EQ_I1, I_F, 0x74);
 		INS_1(JCC_NE_I1, I_F, 0x75);
 		INS_1(JCC_GT_I1, I_F, 0x7F);
 		INS_1(JCC_LT_I1, I_F, 0x7C);
 		INS_1(JCC_GE_I1, I_F, 0x7D);
 		INS_1(JCC_LE_I1, I_F, 0x7E);
+
+		INS_2(JCC_EQ_I4, I_F, 0x0F, 0x84);
+		INS_1(JCC_NE_I4, I_F, 0x0F, 0x85);
+		INS_1(JCC_GT_I4, I_F, 0x0F, 0x8F);
+		INS_1(JCC_LT_I4, I_F, 0x0F, 0x8C);
+		INS_1(JCC_GE_I4, I_F, 0x0F, 0x8D);
+		INS_1(JCC_LE_I4, I_F, 0x0F, 0x8E);
+
+		INS_1(NOT_I1, M_F | MAGIC_F(2), 0xF6);
+		INS_1(NOT_IU, M_F | MAGIC_F(2), 0xF7);
+
+		INS_1(NEG_I1, M_F | MAGIC_F(3), 0xF6);
+		INS_1(NEG_IU, M_F | MAGIC_F(3), 0xF7);
+
+		INS_1(AND_MR_I1, MR_F, 0x20);
+		INS_1(AND_MR_IU, MR_F, 0x21);
+		INS_1(AND_RM_I1, RM_F, 0x22);
+		INS_1(AND_RM_IU, RM_F, 0x23);
+
+		INS_1(AND_MI_I1, MI_F | MAGIC_F(4), 0x80);
+		INS_1(AND_MI_IU, MI_F | MAGIC_F(4), 0x81);
+
+		INS_1(OR_MR_I1, MR_F, 0x08);
+		INS_1(OR_MR_IU, MR_F, 0x09);
+		INS_1(OR_RM_I1, RM_F, 0x0A);
+		INS_1(OR_RM_IU, RM_F, 0x0B);
+
+		INS_1(OR_MI_I1, MI_F | MAGIC_F(1), 0x80);
+		INS_1(OR_MI_IU, MI_F | MAGIC_F(1), 0x81);
+
+		INS_1(XOR_MR_I1, MR_F, 0x30);
+		INS_1(XOR_MR_IU, MR_F, 0x31);
+		INS_1(XOR_RM_I1, RM_F, 0x32);
+		INS_1(XOR_RM_IU, RM_F, 0x33);
+
+		INS_1(XOR_MI_I1, MI_F | MAGIC_F(6), 0x80);
+		INS_1(XOR_MI_IU, MI_F | MAGIC_F(6), 0x81);
 
 		INS_1(PUSH_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x50);
 		INS_1(POP_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x58);
@@ -214,6 +264,8 @@ namespace RTJ::Hex::X86
 		AND,
 		OR,
 		XOR,
+		NOT,
+		NEG,
 		CMP
 	};
 
@@ -319,10 +371,12 @@ namespace RTJ::Hex::X86
 	struct GenerationContext
 	{
 		std::optional<UInt16> StoringVariable;
+		std::optional<Operand> StoringDestination;
 		std::optional<UInt8> ResultRegister;
 		Tracking ImmediateTrack;
 		Tracking DisplacementTrack;
-		UInt64 RegisterMask = std::numeric_limits<UInt64>::max();
+		UInt64 RegisterMask = std::numeric_limits<UInt64>::max();	
+		std::optional<UInt8> JccCondition;
 	};
 
 	/// <summary>
@@ -384,6 +438,7 @@ namespace RTJ::Hex::X86
 		std::vector<VariableSet> mVariableLanded;
 		std::vector<BasicBlock*> mSortedBB;
 		BasicBlock* mCurrentBB = nullptr;
+		Statement* mCurrentStmt = nullptr;
 		RegisterAllocationContext* mRegContext = nullptr;
 		Int32 mLiveness = 0;
 		EmitPage* mEmitPage = nullptr;
@@ -397,6 +452,7 @@ namespace RTJ::Hex::X86
 		std::unordered_map<Int32, JumpFixUp> mJmpOffsetFix;
 		//For immediate memory fix up (currently only for float and double)
 		std::unordered_map<UInt8, ImmediateSegment> mImmediateFix;
+		std::unordered_map<Int32, std::optional<UInt8>> mJccConditions;
 
 		//For debugging
 		static constexpr Int32 DebugOffset32 = 0x7F7F7F7F;
@@ -410,6 +466,7 @@ namespace RTJ::Hex::X86
 		void Emit(Instruction instruction);
 
 		Instruction RetriveBinaryInstruction(SemanticGroup semGroup, UInt8 coreType, OperandPreference destPreference, OperandPreference sourcePreference);
+		Instruction RetriveUnaryInstruction(SemanticGroup semGroup, UInt8 coreType, OperandPreference preference);
 		void EmitLoadM2R(UInt8 nativeRegister, UInt16 variable, UInt8 coreType);
 		void EmitLoadR2R(UInt8 toRegister, UInt8 fromRegister, UInt8 coreType);
 		void EmitStoreR2M(UInt8 nativeRegister, UInt16 variable, UInt8 coreType);
@@ -428,6 +485,8 @@ namespace RTJ::Hex::X86
 			ConstantNode* constant,
 			bool forceRegister = false,
 			UInt64 additionalMask = std::numeric_limits<UInt64>::max());
+
+		Operand UseMemory(RegisterConflictSession& session, TreeNode* target);
 		void SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType);
 		std::tuple<UInt16, UInt8> RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex);
 		UInt16 RetriveLongLived(UInt16 left, UInt16 right);
@@ -444,6 +503,9 @@ namespace RTJ::Hex::X86
 		void CodeGenForReturn(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForJmp(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForJcc(BasicBlock* basicBlock, Int32 estimatedOffset);
+		void CodeGenForBooleanStore(TreeNode* expression);
+		bool ShouldStoreBoolean(UInt16 variable);
+		bool IsUsedByAdjacentJcc(UInt16 variable);
 
 		void CodeGenForBinary(BinaryNodeAccessProxy* binaryNode);
 		void CodeGenFor(UnaryArithmeticNode* unaryNode);

@@ -22,7 +22,9 @@
 #define RET_REG(REG) session.Return((REG))
 
 #define ST_VAR (mGenContext.StoringVariable)
+#define ST_DST (mGenContext.StoringDestination)
 #define RE_REG (mGenContext.ResultRegister)
+#define JCC_COND (mGenContext.JccCondition)
 
 #define MR_USE_INS(MR_INST, RM_INST) {\
 		if (MR) \
@@ -93,6 +95,16 @@ namespace RTJ::Hex::X86
 
 	void X86NativeCodeGenerator::CodeGenFor(StoreNode* store)
 	{
+		/*This method only cares for simple and general stores like
+		* 1. store var <- var / imm
+		* 2. store var.member <- var / imm
+		* 3. store var[index] <- var / imm
+		* Other complex 
+		*/
+
+		ST_VAR = {};
+		ST_DST = {};
+
 		RegisterConflictSession session{ &mGenContext };
 
 		bool shouldNotEmit = false;
@@ -190,7 +202,7 @@ namespace RTJ::Hex::X86
 			case NodeKinds::Load:
 			{
 				auto sourceLoad = source->As<LoadNode>();
-				if (sourceLoad->Source->Is(NodeKinds::LocalVariable))
+				if (ValueIs(sourceLoad, NodeKinds::LocalVariable))
 				{
 					auto onFlyReg = mRegContext->TryGetRegister(local->LocalIndex);
 					if (onFlyReg.has_value())
@@ -224,6 +236,8 @@ namespace RTJ::Hex::X86
 		default:
 			THROW("Destination node kind not allowed");
 		}
+
+		ST_DST = destinationOperand;
 
 		/*---------------Handle the source operand---------------*/
 		Operand sourceOperand{};
@@ -312,8 +326,16 @@ namespace RTJ::Hex::X86
 		}
 		default:
 		{
-			//Other operation, requires register as intermediate status
-			CodeGenFor(source);
+			//Special handle for boolean
+			if (source->TypeInfo->GetCoreType() == CoreTypes::Bool)
+			{
+				CodeGenForBooleanStore(source);
+				//This is completely decided by CodeGenForBooleanStore
+				shouldNotEmit = true;
+			}
+			else
+				//Other operation, requires register as intermediate status
+				CodeGenFor(source);
 			if (ST_VAR.has_value())
 			{
 				RTAssert(RE_REG.has_value());
@@ -427,11 +449,11 @@ namespace RTJ::Hex::X86
 
 	void X86NativeCodeGenerator::CodeGenForJcc(BasicBlock* basicBlock, Int32 estimatedOffset)
 	{
-		THROW("Not implemented");
 		//Set emit page
 		mEmitPage = basicBlock->NativeCode;
 		TRK(Immediate);
 
+		bool useImm32 = false;
 		Operand imm{};
 		/*Actually we need to jump to the epilogue code for clean up procedure*/
 		if (std::numeric_limits<Int8>::min() <= estimatedOffset &&
@@ -442,9 +464,182 @@ namespace RTJ::Hex::X86
 		else
 		{
 			imm = IMM32_I(DebugOffset32);
+			useImm32 = true;
 		}
 
-		TreeNode* value = basicBlock->BranchConditionValue;	
+		UInt8 condition = CmpCondition::EQ;
+		
+		auto&& cond = mJccConditions[basicBlock->Index];
+		if (cond.has_value()) condition = cond.value();
+
+		Instruction instruction{};
+		switch (condition)
+		{
+		case CmpCondition::EQ:
+			if (useImm32) USE_INS(JCC_EQ_I4)
+			else USE_INS(JCC_EQ_I1); break;
+		case CmpCondition::NE:
+			if (useImm32) USE_INS(JCC_EQ_I4)
+			else USE_INS(JCC_NE_I1); break;
+		case CmpCondition::GT:
+			if (useImm32) USE_INS(JCC_EQ_I4)
+			else USE_INS(JCC_GT_I1); break;
+		case CmpCondition::LT:
+			if (useImm32) USE_INS(JCC_EQ_I4)
+			else USE_INS(JCC_LT_I1); break;
+		case CmpCondition::GE:
+			if (useImm32) USE_INS(JCC_EQ_I4)
+			else USE_INS(JCC_GE_I1); break;
+		case CmpCondition::LE:
+			if (useImm32) USE_INS(JCC_EQ_I4)
+			else USE_INS(JCC_LE_I1); break;
+		default:
+			THROW("Unexpected condition");
+		}
+
+		Emit(instruction, imm);
+
+		Int32 targetIndex = basicBlock->BranchedBB == nullptr ? EpilogueBBIndex : basicBlock->BranchedBB->Index;
+		mJmpOffsetFix[basicBlock->Index] = { REP_TRK(Immediate).value(),  (UInt8)REP_TRK_SIZE(Immediate), targetIndex };
+	}
+
+	bool X86NativeCodeGenerator::ShouldStoreBoolean(UInt16 variable)
+	{
+		Int32 liveness = mLiveness;
+		bool usedForLoad = false;
+		for (auto stmt = mCurrentStmt->Next;
+			stmt != nullptr && usedForLoad != true;
+			stmt = stmt->Next)
+		{
+			if (IsValueUnusedAfter(liveness, variable))
+				return false;
+
+			TraverseTree(
+				mContext->Traversal.Space,
+				mContext->Traversal.Count,
+				stmt->Now,
+				[&](TreeNode* node)
+				{
+					if (node->Is(NodeKinds::Load) &&
+						ValueIs(node, NodeKinds::LocalVariable))
+					{
+						auto local = ValueAs<LocalVariableNode>(node);
+						if (local->LocalIndex == variable)
+							usedForLoad = true;
+					}
+				});
+
+			liveness++;
+		}
+		
+		return usedForLoad;
+	}
+
+	bool X86NativeCodeGenerator::IsUsedByAdjacentJcc(UInt16 variable)
+	{
+		if (mLiveness < mCurrentBB->Liveness.size() - 2)
+			return false;
+		if (mCurrentBB->BranchKind == PPKind::Conditional &&
+			ValueIs(mCurrentBB->BranchConditionValue, NodeKinds::LocalVariable))
+		{
+			auto local = ValueAs<LocalVariableNode>(mCurrentBB->BranchConditionValue);
+			if (local->LocalIndex == variable)
+				return true;
+		}
+		return false;
+	}
+
+	void X86NativeCodeGenerator::CodeGenForBooleanStore(TreeNode* expression)
+	{
+		bool usedByAdjacentJcc = ST_VAR.has_value() ? IsUsedByAdjacentJcc(ST_VAR.value()) : false;
+
+		switch (expression->Kind)
+		{
+		case NodeKinds::Compare:
+		{
+			auto compare = expression->As<CompareNode>();
+			CodeGenForBinary(compare->As<BinaryNodeAccessProxy>());
+
+			if (usedByAdjacentJcc)
+			{
+				//Set to generate proper instruction
+				JCC_COND = compare->Condition;
+			}
+			else
+			{
+				Instruction instruction{};
+				switch (compare->Condition)
+				{
+				case CmpCondition::EQ:
+					USE_INS(SET_EQ_I1); break;
+				case CmpCondition::NE:
+					USE_INS(SET_NE_I1); break;
+				case CmpCondition::GT:
+					USE_INS(SET_GT_I1); break;
+				case CmpCondition::LT:
+					USE_INS(SET_LT_I1); break;
+				case CmpCondition::GE:
+					USE_INS(SET_GE_I1); break;
+				case CmpCondition::LE:
+					USE_INS(SET_LE_I1); break;
+				default:
+					THROW("Unexpected condition");
+				}
+
+				//Use the operand generated from Store call
+				RTAssert(ST_DST.has_value());
+				Emit(instruction, ST_DST.value());
+			}
+		}
+		case NodeKinds::UnaryArithmetic:
+		{
+			auto unary = expression->As<UnaryArithmeticNode>();
+			switch (unary->Opcode)
+			{
+				//Logical operation
+			case OpCodes::Not:
+			{
+				RTAssert(ValueIs(unary, NodeKinds::LocalVariable));
+				auto variable = ValueAs<LocalVariableNode>(unary);
+				RTAssert(variable->TypeInfo->GetCoreType() == CoreTypes::Bool);
+
+				UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(variable->LocalIndex, NREG::Common, CoreTypes::Bool);
+				Operand operand = Operand::FromRegister(nativeReg);
+				ASM_C(TEST_MR_I1, I1, operand, operand);
+
+				if (usedByAdjacentJcc)
+				{
+					JCC_COND = CmpCondition::EQ;
+				}
+				else
+				{
+					ASM_C(SET_EQ_I1, I1, ST_DST.value());
+				}
+			}
+			default:
+				THROW("Unsupported boolean operation");
+			}
+		}
+		case NodeKinds::BinaryArithmetic:
+		{
+			auto binary = expression->As<BinaryArithmeticNode>();
+			switch (binary->Opcode)
+			{
+			case OpCodes::And:
+			case OpCodes::Or:
+			case OpCodes::Xor:
+				CodeGenForBinary(binary->As<BinaryNodeAccessProxy>());
+			default:
+				THROW("Unsupported boolean operation");
+			}
+			RTAssert(RE_REG.has_value());
+			//The instruction will set the EFlags, so directly use JE
+			if (usedByAdjacentJcc)
+			{
+				JCC_COND = CmpCondition::EQ;
+			}
+		}
+		}
 	}
 
 	void X86NativeCodeGenerator::SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType)
@@ -860,16 +1055,16 @@ namespace RTJ::Hex::X86
 			MergeContext();
 
 			//Generate code for BB
-			for (auto stmt = bb->Now; stmt != nullptr; stmt = stmt->Next, mLiveness++)
-				if (stmt->Now != nullptr)
-					CodeGenFor(stmt->Now);
+			for (mCurrentStmt = bb->Now; mCurrentStmt != nullptr; mCurrentStmt = mCurrentStmt->Next, mLiveness++)
+			{
+				if (mCurrentStmt->Now != nullptr)
+					CodeGenFor(mCurrentStmt->Now);
+			}
 			
 			switch (bb->BranchKind)
 			{
-				case PPKind::Conditional:
-					PreCodeGenForJcc(bb->BranchConditionValue); break;
-				case PPKind::Ret:
-					PreCodeGenForRet(bb->ReturnValue); break;
+			case PPKind::Conditional:PreCodeGenForJcc(bb->BranchConditionValue); break;
+			case PPKind::Ret:PreCodeGenForRet(bb->ReturnValue); break;
 			}
 
 			//Compute code size
@@ -1051,6 +1246,60 @@ namespace RTJ::Hex::X86
 		Emit(instruction, Operand::Empty(), Operand::Empty());
 	}
 
+	Instruction X86NativeCodeGenerator::RetriveUnaryInstruction(
+		SemanticGroup semGroup,
+		UInt8 coreType,
+		OperandPreference preference)
+	{
+		Instruction instruction{};
+		instruction.CoreType = coreType;
+		bool useImm = preference == OperandPreference::Immediate;
+
+		switch (semGroup)
+		{
+		case SemanticGroup::NOT:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::Char:
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				USE_INS(NOT_I1);
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				USE_INS(NOT_IU);
+			default:
+				THROW("Unsupported core type for NOT");
+			}
+			break;
+		}
+		case SemanticGroup::NEG:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::Char:
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				USE_INS(NEG_I1);
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				USE_INS(NEG_IU);
+			default:
+				THROW("Unsupported core type for NEG");
+			}
+			break;
+		}
+		}
+	}
+
 	Instruction X86NativeCodeGenerator::RetriveBinaryInstruction(
 		SemanticGroup semGroup, 
 		UInt8 coreType, 
@@ -1067,6 +1316,8 @@ namespace RTJ::Hex::X86
 		{
 			switch (coreType)
 			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
 				if (immLoad) USE_INS(MOV_RI_I1)
@@ -1101,6 +1352,8 @@ namespace RTJ::Hex::X86
 		{
 			switch (coreType)
 			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
 				if (immLoad) USE_INS(ADD_MI_I1)
@@ -1132,6 +1385,8 @@ namespace RTJ::Hex::X86
 		{
 			switch (coreType)
 			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
 				if (immLoad) USE_INS(SUB_MI_I1)
@@ -1163,6 +1418,8 @@ namespace RTJ::Hex::X86
 		{
 			switch (coreType)
 			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
 				if (immLoad || MR) THROW("Not supported");
@@ -1194,6 +1451,8 @@ namespace RTJ::Hex::X86
 		{
 			switch (coreType)
 			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
 			case CoreTypes::I1:
 				if (immLoad || MR) THROW("Not supported");
 				USE_INS(IDIV_RM_I1);
@@ -1227,10 +1486,87 @@ namespace RTJ::Hex::X86
 			}
 			break;
 		}
+		case SemanticGroup::AND:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				if (immLoad) USE_INS(AND_MI_I1)
+				else MR_USE_INS(AND_MR_I1, AND_RM_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad) USE_INS(AND_MI_IU)
+				else MR_USE_INS(AND_MR_IU, AND_RM_IU)
+					break;
+			default:
+				THROW("Unsupported core type for AND");
+			}
+			break;
+		}
+		case SemanticGroup::OR:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				if (immLoad) USE_INS(OR_MI_I1)
+				else MR_USE_INS(OR_MR_I1, OR_RM_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad) USE_INS(OR_MI_IU)
+				else MR_USE_INS(OR_MR_IU, OR_RM_IU)
+					break;
+			default:
+				THROW("Unsupported core type for OR");
+			}
+			break;
+		}
+		case SemanticGroup::XOR:
+		{
+			switch (coreType)
+			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
+			case CoreTypes::I1:
+			case CoreTypes::U1:
+				if (immLoad) USE_INS(XOR_MI_I1)
+				else MR_USE_INS(XOR_MR_I1, XOR_RM_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+			case CoreTypes::U2:
+			case CoreTypes::U4:
+			case CoreTypes::U8:
+				if (immLoad) USE_INS(XOR_MI_IU)
+				else MR_USE_INS(XOR_MR_IU, XOR_RM_IU)
+					break;
+			default:
+				THROW("Unsupported core type for XOR");
+			}
+			break;
+		}
 		case SemanticGroup::CMP:
 		{
 			switch (coreType)
 			{
+			case CoreTypes::Bool:
+			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
 				if (immLoad) USE_INS(CMP_MI_I1)
@@ -1266,9 +1602,8 @@ namespace RTJ::Hex::X86
 	{
 		switch (binary->Kind)
 		{
-		case NodeKinds::BinaryArithmetic:
 		case NodeKinds::Compare:
-			break;
+		case NodeKinds::BinaryArithmetic: break;
 		default:
 			THROW("Unsupported binary node");
 		}
@@ -1310,6 +1645,8 @@ namespace RTJ::Hex::X86
 		bool requiresAX = false;
 		bool requiresConvert = false;
 		bool requiresMOperandForSource = false;
+		//For compare
+		bool preservingDestination = false;
 		SemanticGroup group{};
 		switch (binary->Kind)
 		{
@@ -1339,6 +1676,7 @@ namespace RTJ::Hex::X86
 			break;
 		}
 		case NodeKinds::Compare:
+			preservingDestination = true;
 			group = SemanticGroup::CMP; break;
 		}
 
@@ -1369,7 +1707,8 @@ namespace RTJ::Hex::X86
 				destination = Operand::FromRegister(reg);
 				source = immOperand;
 
-				INVALIDATE_VAR(variable);
+				if (!preservingDestination)
+					INVALIDATE_VAR(variable);
 			}
 		}
 		else
@@ -1390,7 +1729,8 @@ namespace RTJ::Hex::X86
 				source = Operand::FromRegister(reg);
 				destination = Operand::FromRegister(reg);
 				//Remove the allocation
-				INVALIDATE_VAR(leftVar);
+				if (!preservingDestination)
+					INVALIDATE_VAR(leftVar);
 			}
 			else
 			{
@@ -1405,7 +1745,9 @@ namespace RTJ::Hex::X86
 
 				destination = requireAndMark(leftVar, requiresAX ? MSK_REG(NREG::AX) : regMask);
 				source = requireAndMark(rightVar, regMask);
-				INVALIDATE_VAR(leftVar);
+
+				if (!preservingDestination)
+					INVALIDATE_VAR(leftVar);
 			}
 		}
 
@@ -1431,11 +1773,21 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::CodeGenFor(UnaryArithmeticNode* unaryNode)
 	{
 		RE_REG = {};
+
 	}
 
 	void X86NativeCodeGenerator::PreCodeGenForJcc(TreeNode* conditionValue)
 	{
+		RegisterConflictSession session{ &mGenContext };
+		if (!JCC_COND.has_value())
+		{
+			//Requires additional test instruction
+			auto operand = UseMemory(session, conditionValue);
+			ASM_C(TEST_MR_I1, I1, operand, operand);
+		}
 
+		//Record Jcc condition
+		mJccConditions[mCurrentBB->Index] = JCC_COND;
 	}
 
 	void X86NativeCodeGenerator::PreCodeGenForRet(TreeNode* returnValue)
