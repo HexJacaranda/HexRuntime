@@ -378,4 +378,112 @@
             .ret
         }
     }
+
+    .method public static int32 CodeGenJcc(int32 x, int32 y) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .cmp .eq
+            .jcc TRUE_BR
+            .ldarg x
+            .ldc int32 1
+            .add
+            .ret
+            .label TRUE_BR
+            .ldarg y
+            .ldc int32 2
+            .mul
+            .ret
+        }
+    }
+
+    .method public static int32 CodeGenJcc1(int32 x, int32 y) managed
+    {
+        .local
+        {
+            bool z
+            bool u
+        }
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .cmp .eq
+            .stloc z
+
+            .ldarg x
+            .ldarg y
+            .cmp .le
+            .stloc u
+
+            .ldloc z
+            .jcc TRUE_BR
+
+            .ldarg x
+            .ldc int32 1
+            .add
+            .ret
+
+            .label TRUE_BR
+            .ldarg y
+            .ldc int32 2
+            .mul
+            .ret
+        }
+    }
+
+    .method public static bool CodeGenBoolAnd(bool x, bool y) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .and
+            .ret
+        }
+    }
+
+    .method public static bool CodeGenBoolOr(bool x, bool y) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .or
+            .ret
+        }
+    }
+
+    .method public static bool CodeGenBoolXor(bool x, bool y) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .xor
+            .ret
+        }
+    }
+
+    .method public static bool CodeGenPreserveArg(bool x, bool y) managed
+    {
+        .local
+        {
+            bool z
+        }
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .and
+            .stloc z
+
+            .ldarg x
+            .ldarg y
+            .or
+            .ret
+        }
+    }
 }

@@ -49,6 +49,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 		bbIterator = bbIterator->Next)
 	{
 		mStmtHead = bbIterator->Now;
+		mPreviousStmt = nullptr;
 
 		for (mCurrentStmt = bbIterator->Now;
 			mCurrentStmt != nullptr && mCurrentStmt->Now != nullptr;

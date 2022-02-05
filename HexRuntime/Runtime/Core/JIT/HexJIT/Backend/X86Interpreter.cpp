@@ -18,7 +18,7 @@
 
 #define USE_MASK (mask & mGenContext.RegisterMask)
 #define MARK_UNSPILLABLE(REG) session.Borrow((REG))
-#define INVALIDATE_VAR(VAR) mRegContext->TryInvalidateFor(VAR)
+#define INVALIDATE_VAR(VAR) InvalidateVaraible(VAR)
 #define RET_REG(REG) session.Return((REG))
 
 #define ST_VAR (mGenContext.StoringVariable)
@@ -181,7 +181,6 @@ namespace RTJ::Hex::X86
 			auto local = destination->As<LocalVariableNode>();
 			//Set generation context
 			ST_VAR = local->LocalIndex;
-
 			//TODO: Volatile requires immediate memory write
 			if (false)
 			{
@@ -236,8 +235,6 @@ namespace RTJ::Hex::X86
 		default:
 			THROW("Destination node kind not allowed");
 		}
-
-		ST_DST = destinationOperand;
 
 		/*---------------Handle the source operand---------------*/
 		Operand sourceOperand{};
@@ -334,15 +331,16 @@ namespace RTJ::Hex::X86
 				shouldNotEmit = true;
 			}
 			else
+			{
 				//Other operation, requires register as intermediate status
 				CodeGenFor(source);
-			if (ST_VAR.has_value())
-			{
-				RTAssert(RE_REG.has_value());
-				mRegContext->Establish(ST_VAR.value(), RE_REG.value());
+			}
 
+			if (ST_VAR.has_value() && RE_REG.has_value())
+			{
+				mRegContext->Establish(ST_VAR.value(), RE_REG.value());
 				shouldNotEmit = true;
-			}		
+			}
 			break;
 		}
 		}
@@ -372,6 +370,40 @@ namespace RTJ::Hex::X86
 		//Mark
 		mContext->GetLocalBase(variable)->Flags |= LocalAttachedFlags::ShouldGenerateLayout;
 		mVariableLanded[bb->Index].Add(variable);
+	}
+
+	void X86NativeCodeGenerator::InvalidateVaraible(UInt16 variable)
+	{
+		do
+		{
+			if (!LocalVariableNode::IsArgument(variable))
+				break;
+			auto currentReg = mRegContext->TryGetRegister(variable);
+			if (!currentReg.has_value())
+				break;
+
+			auto callingConv = GetCallingConv();
+			auto index = LocalVariableNode::GetIndex(variable);
+			auto&& passway = callingConv->ArgumentPassway[index];
+			//TODO: Anything further? (for object in ref)
+			if (passway.HasRegister() && !passway.HasMemory())
+			{
+				auto reg = passway.SingleRegister;
+				if (reg != currentReg.value())
+					break;
+
+				if (ST_VAR == variable)
+					break;
+
+				if (IsValueUnusedAfter(mLiveness, variable))
+					break;
+
+				EmitStoreR2M(reg, variable, mContext->GetLocalType(variable)->GetCoreType());
+				MarkVariableLanded(variable);
+			}
+
+		} while (0);
+		mRegContext->TryInvalidateFor(variable);
 	}
 
 	void X86NativeCodeGenerator::CodeGenFor(MorphedCallNode* call, TreeNode* destination)
@@ -467,7 +499,7 @@ namespace RTJ::Hex::X86
 			useImm32 = true;
 		}
 
-		UInt8 condition = CmpCondition::EQ;
+		UInt8 condition = CmpCondition::NE;
 		
 		auto&& cond = mJccConditions[basicBlock->Index];
 		if (cond.has_value()) condition = cond.value();
@@ -537,7 +569,9 @@ namespace RTJ::Hex::X86
 
 	bool X86NativeCodeGenerator::IsUsedByAdjacentJcc(UInt16 variable)
 	{
-		if (mLiveness < mCurrentBB->Liveness.size() - 2)
+		//Should count empty stmt in
+		Int32 lastLiveness = mCurrentBB->Liveness.size() - 1 - 2;
+		if (mLiveness < lastLiveness)
 			return false;
 		if (mCurrentBB->BranchKind == PPKind::Conditional &&
 			ValueIs(mCurrentBB->BranchConditionValue, NodeKinds::LocalVariable))
@@ -585,11 +619,22 @@ namespace RTJ::Hex::X86
 				default:
 					THROW("Unexpected condition");
 				}
-
-				//Use the operand generated from Store call
-				RTAssert(ST_DST.has_value());
-				Emit(instruction, ST_DST.value());
+				
+				if (ST_VAR.has_value())
+				{
+					UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(ST_VAR.value(), NREG::Common, CoreTypes::Bool, false);
+					Emit(instruction, Operand::FromRegister(nativeReg));
+					//Set result register
+					RE_REG = nativeReg;
+				}
+				else
+				{
+					RTAssert(ST_DST.has_value());
+					//Use the operand generated from Store call
+					Emit(instruction, ST_DST.value());
+				}
 			}
+			break;
 		}
 		case NodeKinds::UnaryArithmetic:
 		{
@@ -615,10 +660,12 @@ namespace RTJ::Hex::X86
 				{
 					ASM_C(SET_EQ_I1, I1, ST_DST.value());
 				}
+				break;
 			}
 			default:
 				THROW("Unsupported boolean operation");
 			}
+			break;
 		}
 		case NodeKinds::BinaryArithmetic:
 		{
@@ -629,6 +676,7 @@ namespace RTJ::Hex::X86
 			case OpCodes::Or:
 			case OpCodes::Xor:
 				CodeGenForBinary(binary->As<BinaryNodeAccessProxy>());
+				break;
 			default:
 				THROW("Unsupported boolean operation");
 			}
@@ -638,7 +686,43 @@ namespace RTJ::Hex::X86
 			{
 				JCC_COND = CmpCondition::EQ;
 			}
+			break;
 		}
+		}
+	}
+
+	Operand X86NativeCodeGenerator::UseMemory(RegisterConflictSession& session, TreeNode* target)
+	{
+		switch (target->Kind)
+		{
+		case NodeKinds::Load:
+		{
+			auto load = target->As<LoadNode>();
+			auto value = ValueAs<LocalVariableNode>(load);
+			auto nativeReg = mRegContext->TryGetRegister(value->LocalIndex);
+			if (nativeReg.has_value())
+				return Operand::FromRegister(nativeReg.value());
+			else
+			{
+				Operand operand{};
+				USE_DISP(operand, value->LocalIndex);
+				return operand;
+			}
+			break;
+		}
+		case NodeKinds::OffsetOf:
+		{
+			THROW("Not implemented");
+			break;
+		}
+		case NodeKinds::ArrayOffsetOf:
+		{
+			THROW("Not implemented");
+			break;
+		}
+		default:
+			THROW("Not implemented");
+			break;
 		}
 	}
 
@@ -890,13 +974,15 @@ namespace RTJ::Hex::X86
 		{
 			for (auto&& [bbIndex, fixUp] : mJmpOffsetFix)
 			{
-				Int32 finalOffset = mContext->BBs[bbIndex]->PhysicalOffset + fixUp.Offset;
+				auto sourceBB = mContext->BBs[bbIndex];
+				Int32 finalOffset = sourceBB->PhysicalOffset + fixUp.Offset;
 
 				Int32 targetOffset = 0;
+				Int32 relativeBase = sourceBB->PhysicalOffset + sourceBB->NativeCodeSize;
 				if (fixUp.BasicBlock == EpilogueBBIndex)
-					targetOffset = epilogueOffset;
+					targetOffset = epilogueOffset - relativeBase;
 				else
-					targetOffset = mContext->BBs[fixUp.BasicBlock]->PhysicalOffset;
+					targetOffset = mContext->BBs[fixUp.BasicBlock]->PhysicalOffset - relativeBase;
 
 				switch (fixUp.Size)
 				{
@@ -910,8 +996,7 @@ namespace RTJ::Hex::X86
 					RewritePageImmediate(finalPage, finalOffset, (Int64)targetOffset); break;
 				default:
 					THROW("Unknown immediate size");
-				}
-				
+				}			
 			}
 		}
 
@@ -1264,14 +1349,14 @@ namespace RTJ::Hex::X86
 			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
-				USE_INS(NOT_I1);
+				USE_INS(NOT_I1); break;
 			case CoreTypes::I2:
 			case CoreTypes::I4:
 			case CoreTypes::I8:
 			case CoreTypes::U2:
 			case CoreTypes::U4:
 			case CoreTypes::U8:
-				USE_INS(NOT_IU);
+				USE_INS(NOT_IU); break;
 			default:
 				THROW("Unsupported core type for NOT");
 			}
@@ -1284,14 +1369,14 @@ namespace RTJ::Hex::X86
 			case CoreTypes::Char:
 			case CoreTypes::I1:
 			case CoreTypes::U1:
-				USE_INS(NEG_I1);
+				USE_INS(NEG_I1); break;
 			case CoreTypes::I2:
 			case CoreTypes::I4:
 			case CoreTypes::I8:
 			case CoreTypes::U2:
 			case CoreTypes::U4:
 			case CoreTypes::U8:
-				USE_INS(NEG_IU);
+				USE_INS(NEG_IU); break;
 			default:
 				THROW("Unsupported core type for NEG");
 			}
@@ -2259,7 +2344,7 @@ namespace RTJ::Hex::X86
 			if (IS_TRK(Immediate))
 			{
 				REP_TRK(Immediate) = mEmitPage->CurrentOffset();
-				REP_TRK_SIZE(Immediate) = ImmediateCoreType;
+				REP_TRK_SIZE(Immediate) = size;
 			}
 			switch (size)
 			{

@@ -142,7 +142,7 @@ namespace RTJ::Hex::X86
 		INS_2(COMISS_RM, RM_F, 0x0F, 0x2F);
 
 		INS_3(UCOMISD_RM, RM_F, 0x66, 0x0F, 0x2E);
-		INS_2(UCOMISD_RM, RM_F, 0x0F, 0x2E);
+		INS_2(UCOMISS_RM, RM_F, 0x0F, 0x2E);
 
 		INS_2(SET_EQ_I1, M_F, 0x0F, 0x94);
 		INS_2(SET_NE_I1, M_F, 0x0F, 0x95);
@@ -162,11 +162,11 @@ namespace RTJ::Hex::X86
 		INS_1(JCC_LE_I1, I_F, 0x7E);
 
 		INS_2(JCC_EQ_I4, I_F, 0x0F, 0x84);
-		INS_1(JCC_NE_I4, I_F, 0x0F, 0x85);
-		INS_1(JCC_GT_I4, I_F, 0x0F, 0x8F);
-		INS_1(JCC_LT_I4, I_F, 0x0F, 0x8C);
-		INS_1(JCC_GE_I4, I_F, 0x0F, 0x8D);
-		INS_1(JCC_LE_I4, I_F, 0x0F, 0x8E);
+		INS_2(JCC_NE_I4, I_F, 0x0F, 0x85);
+		INS_2(JCC_GT_I4, I_F, 0x0F, 0x8F);
+		INS_2(JCC_LT_I4, I_F, 0x0F, 0x8C);
+		INS_2(JCC_GE_I4, I_F, 0x0F, 0x8D);
+		INS_2(JCC_LE_I4, I_F, 0x0F, 0x8E);
 
 		INS_1(NOT_I1, M_F | MAGIC_F(2), 0xF6);
 		INS_1(NOT_IU, M_F | MAGIC_F(2), 0xF7);
@@ -261,6 +261,7 @@ namespace RTJ::Hex::X86
 		SUB,
 		MUL,
 		DIV,
+		MOD,
 		AND,
 		OR,
 		XOR,
@@ -496,6 +497,11 @@ namespace RTJ::Hex::X86
 		void MarkVariableOnFly(UInt16 variable, BasicBlock* bb = nullptr);
 		void MarkVariableLanded(UInt16 variable, BasicBlock* bb = nullptr);
 		void LandVariableFor(UInt16 variable, BasicBlock* bb = nullptr);
+		/// <summary>
+		/// Special care for arguments on register
+		/// </summary>
+		/// <param name="variable"></param>
+		void InvalidateVaraible(UInt16 variable);
 
 		void CodeGenFor(MorphedCallNode* call, TreeNode* destination);
 		void CodeGenFor(StoreNode* store);

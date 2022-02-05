@@ -270,9 +270,6 @@
     <ClInclude Include="Runtime\DynamicTokenTable.h">
       <Filter>头文件\Runtime\Utility</Filter>
     </ClInclude>
-    <ClInclude Include="Runtime\Core\Meta\TypeIdentity.h">
-      <Filter>头文件\Runtime\Core\Meta</Filter>
-    </ClInclude>
     <ClInclude Include="Runtime\Core\Meta\InstantiationMap.h">
       <Filter>头文件\Runtime\Core\Meta</Filter>
     </ClInclude>
@@ -346,6 +343,9 @@
       <Filter>头文件\Runtime\Core\ExecutionEngine</Filter>
     </ClInclude>
     <ClInclude Include="Runtime\Core\Platform\CallingConventionProviderUse.h">
+      <Filter>头文件\Runtime\Core\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Runtime\Core\Meta\TypeIdentity.h">
       <Filter>头文件\Runtime\Core\Platform</Filter>
     </ClInclude>
   </ItemGroup>

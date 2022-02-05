@@ -468,6 +468,98 @@ namespace RuntimeTest
 			auto ret = method(5.0);
 			Assert::AreEqual(2.5, ret);
 		}
+
+		TEST_METHOD(CodeGenJcc)
+		{
+			using Fn = Int32(__fastcall*)(Int32, Int32);
+			SetUpMethod(L"CodeGenJcc");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenJcc.bin");
+			auto ret = method(2, 2);
+			Assert::AreEqual(4, ret);
+			ret = method(2, 3);
+			Assert::AreEqual(3, ret);
+		}
+
+		TEST_METHOD(CodeGenJcc1)
+		{
+			using Fn = Int32(__fastcall*)(Int32, Int32);
+			SetUpMethod(L"CodeGenJcc1");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenJcc1.bin");
+			auto ret = method(2, 2);
+			Assert::AreEqual(4, ret);
+			ret = method(2, 3);
+			Assert::AreEqual(3, ret);
+		}
+
+		TEST_METHOD(CodeGenBoolAnd)
+		{
+			using Fn = bool(__fastcall*)(bool, bool);
+			SetUpMethod(L"CodeGenBoolAnd");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenBoolAnd.bin");
+			auto ret = method(true, false);
+			Assert::AreEqual(false, ret);
+		}
+
+		TEST_METHOD(CodeGenBoolOr)
+		{
+			using Fn = bool(__fastcall*)(bool, bool);
+			SetUpMethod(L"CodeGenBoolOr");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenBoolOr.bin");
+			auto ret = method(false, true);
+			Assert::AreEqual(true, ret);
+		}
+
+		TEST_METHOD(CodeGenBoolXor)
+		{
+			using Fn = bool(__fastcall*)(bool, bool);
+			SetUpMethod(L"CodeGenBoolXor");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenBoolXor.bin");
+			auto ret = method(false, true);
+			Assert::AreEqual(true, ret);
+		}
+
+		TEST_METHOD(CodeGenPreserveArg)
+		{
+			using Fn = bool(__fastcall*)(bool, bool);
+			SetUpMethod(L"CodeGenPreserveArg");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenPreserveArg.bin");
+			auto ret = method(false, true);
+			Assert::AreEqual(true, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest::assembly = nullptr;
