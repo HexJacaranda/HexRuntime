@@ -30,13 +30,14 @@
 #define RI_F InstructionFlags::RI
 #define MI_F InstructionFlags::MI
 #define NO_PRD_F InstructionFlags::NO_OPRD
-#define MAGIC_F(VALUE) ((InstructionFlags::MagicRegUse) | (VALUE << 6))
+#define MAGIC_F(VALUE) ((InstructionFlags::MagicRegUse) | (VALUE << InstructionFlags::MagicRegShift))
 #define NO_F 0
 #define NO_REXW_F InstructionFlags::REXWNotRequiredFor64
 
 #define I_F InstructionFlags::I_
 #define R_F InstructionFlags::R_
 #define M_F InstructionFlags::M_
+#define RMI_F InstructionFlags::RMI
 
 namespace RTJ::Hex::X86
 {
@@ -45,24 +46,25 @@ namespace RTJ::Hex::X86
 	public:
 		ETY = UInt16;
 
-		VAL SSE = 0x0001;
-		VAL AVX = 0x0002;
-		VAL OpRegEnc = 0x0004;
+		VAL SSE = 0b001;
+		VAL AVX = 0b010;
+		VAL OpRegEnc = 0b100;
 
 		VAL OperandMSK = 0b111000;
-		VAL MR = 0b000000;
-		VAL RM = 0b001000;
-		VAL RI = 0b010000;
-		VAL MI = 0b011000;
+		VAL MR = 0b0000000;
+		VAL RM = 0b0001000;
+		VAL RI = 0b0010000;
+		VAL MI = 0b0011000;
 
-		VAL I_ = 0b100000;
-		VAL R_ = 0b101000;
-		VAL M_ = 0b110000;
-		VAL NO_OPRD = 0b111000;
+		VAL I_ = 0b0100000;
+		VAL R_ = 0b0101000;
+		VAL M_ = 0b0110000;
+		VAL NO_OPRD = 0b0111000;
+		VAL RMI = 0b1000000;
 
-		VAL MagicRegMSK = 0b0111000000;
-		VAL MagicRegUse = 0b1000000000;
-		VAL MagicRegShift = 6;
+		VAL MagicRegMSK = 0b01110000000;
+		VAL MagicRegUse = 0b10000000000;
+		VAL MagicRegShift = 7;
 
 		VAL REXWNotRequiredFor64 = 0b1000000000000000;
 	};
@@ -81,6 +83,8 @@ namespace RTJ::Hex::X86
 		INS_1(MOV_RM_IU, RM_F, 0x8B);
 		INS_1(MOV_RI_I1, RI_F | OP_REG_F, 0xB0);
 		INS_1(MOV_RI_IU, RI_F | OP_REG_F, 0xB8);
+		INS_1(MOV_MI_I1, MI_F | MAGIC_F(0), 0xC6);
+		INS_1(MOV_MI_IU, MI_F | MAGIC_F(0), 0xC7);
 
 		INS_3(MOVSD_RM, RM_F | SSE_F, 0xF2, 0x0F, 0x10);
 		INS_3(MOVSD_MR, MR_F | SSE_F, 0xF2, 0x0F, 0x11);
@@ -360,6 +364,33 @@ namespace RTJ::Hex::X86
 		ConstantStorage Storage;
 	};
 
+	struct OperandOptions
+	{
+		ETY = UInt8;
+		VAL None = 0b00000000;
+		VAL ForceMask = 0b00000011;
+		/// <summary>
+		/// Force to use register
+		/// </summary>
+		VAL ForceRegister = 0b00000001;
+		/// <summary>
+		/// Force to use memory
+		/// </summary>
+		VAL ForceMemory = 0b00000010;
+		/// <summary>
+		/// Automantically determine which to use
+		/// </summary>
+		VAL AutoRMI = 0b00000000;
+		/// <summary>
+		/// Only allocate register yet do not read variable from memory
+		/// </summary>
+		VAL AllocateOnly = 0b00000100;
+		/// <summary>
+		/// AddressOf semantic
+		/// </summary>
+		VAL AddressOf = 0b00001000;
+	};
+
 	struct ImmediateSegment
 	{
 		Int32 BaseOffset;
@@ -472,6 +503,7 @@ namespace RTJ::Hex::X86
 		void EmitLoadR2R(UInt8 toRegister, UInt8 fromRegister, UInt8 coreType);
 		void EmitStoreR2M(UInt8 nativeRegister, UInt16 variable, UInt8 coreType);
 
+		bool IsVariableUnusedFromNow(UInt16 variable) const;
 		bool IsValueUnusedAfter(Int32 livenessIndex, UInt16 variableIndex) const;
 		UInt8 AllocateRegisterAndGenerateCodeFor(UInt16 variable, UInt64 mask, UInt8 coreType, bool requireLoading = true);
 
@@ -487,7 +519,12 @@ namespace RTJ::Hex::X86
 			bool forceRegister = false,
 			UInt64 additionalMask = std::numeric_limits<UInt64>::max());
 
-		Operand UseMemory(RegisterConflictSession& session, TreeNode* target);
+		Operand UseOperandFrom(
+			RegisterConflictSession& session,
+			TreeNode* target,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> mask = {});
+
 		void SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType);
 		std::tuple<UInt16, UInt8> RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex);
 		UInt16 RetriveLongLived(UInt16 left, UInt16 right);
