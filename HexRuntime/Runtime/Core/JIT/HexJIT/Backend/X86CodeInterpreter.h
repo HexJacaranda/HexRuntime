@@ -178,6 +178,9 @@ namespace RTJ::Hex::X86
 		INS_1(NEG_I1, M_F | MAGIC_F(3), 0xF6);
 		INS_1(NEG_IU, M_F | MAGIC_F(3), 0xF7);
 
+		INS_2(XORPS_RM, RM_F, 0x0F, 0x57);
+		INS_3(XORPD_RM, RM_F, 0x66, 0x0F, 0x57);
+
 		INS_1(AND_MR_I1, MR_F, 0x20);
 		INS_1(AND_MR_IU, MR_F, 0x21);
 		INS_1(AND_RM_I1, RM_F, 0x22);
@@ -389,6 +392,10 @@ namespace RTJ::Hex::X86
 		/// AddressOf semantic
 		/// </summary>
 		VAL AddressOf = 0b00001000;
+		/// <summary>
+		/// Invalidate variable if possible
+		/// </summary>
+		VAL InvalidateVariable = 0b00010000;
 	};
 
 	struct ImmediateSegment
@@ -462,6 +469,11 @@ namespace RTJ::Hex::X86
 		Binary::WriteByLittleEndianness(address, value);
 	}
 
+	static void RewritePageImmediate(EmitPage* emitPage, Int32 offset, UInt8* value, Int32 length) {
+		UInt8* address = emitPage->GetRaw() + offset;
+		std::memcpy(address, value, length);
+	}
+
 	static RTP::PlatformCallingConvention* GenerateCallingConvFor(RTMM::PrivateHeap* heap, RTM::MethodSignatureDescriptor* signature);
 
 	class X86NativeCodeGenerator : public IHexJITFlow
@@ -492,6 +504,8 @@ namespace RTJ::Hex::X86
 		static constexpr Int8 DebugOffset8 = 0x7F;
 		static constexpr Int32 EpilogueBBIndex = -1;
 		static constexpr Int32 CodeAlignment = 8;
+		static constexpr std::array<UInt8, 16> NegR4SSEConstant = { 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80 };
+		static constexpr std::array<UInt8, 16> NegR8SSEConstant = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00 ,0x00, 0x00, 0x00, 0x00, 0x00, 0x80 };
 	private:
 		void Emit(Instruction instruction, Operand const& left, Operand const& right);
 		void Emit(Instruction instruction, Operand const& operand);

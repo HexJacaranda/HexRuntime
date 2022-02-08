@@ -379,6 +379,36 @@
         }
     }
 
+    .method public static int32 CodeGenIntNeg(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .neg
+            .ret
+        }
+    }
+
+    .method public static float CodeGenFloatNeg(float x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .neg
+            .ret
+        }
+    }
+
+    .method public static double CodeGenDoubleNeg(double x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .neg
+            .ret
+        }
+    }
+
     .method public static int32 CodeGenJcc(int32 x, int32 y) managed
     {
         .code

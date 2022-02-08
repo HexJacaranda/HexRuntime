@@ -120,6 +120,7 @@ namespace RTJ::Hex
 		Float R4;
 		Double R8;
 		void* Pointer;
+		UInt8* SIMD;
 
 		static ConstantStorage From(Int8 value)
 		{

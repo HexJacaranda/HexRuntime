@@ -587,6 +587,9 @@ namespace RTJ::Hex::X86
 					coreType,
 					options & OperandOptions::AllocateOnly);
 
+				if (options & OperandOptions::InvalidateVariable)
+					InvalidateVaraible(variable);
+
 				MARK_UNSPILLABLE(nativeReg);
 				return Operand::FromRegister(nativeReg);
 			}
@@ -645,7 +648,9 @@ namespace RTJ::Hex::X86
 						}
 					}
 
-					mRegContext->Establish(variable, newRegister.value());
+					if (!(options & OperandOptions::InvalidateVariable))
+						mRegContext->Establish(variable, newRegister.value());
+					
 					MARK_UNSPILLABLE(newRegister.value());
 					return Operand::FromRegister(newRegister.value());
 				}
@@ -939,6 +944,13 @@ namespace RTJ::Hex::X86
 						finalPage,
 						realOffset,
 						slot.Storage.U8); break;
+				case 16:
+					RewritePageImmediate(
+						finalPage,
+						realOffset,
+						slot.Storage.SIMD,
+						size);
+					break;
 				default:
 					THROW("Not supported");
 				}
@@ -1465,6 +1477,8 @@ namespace RTJ::Hex::X86
 			break;
 		}
 		}
+
+		return instruction;
 	}
 
 	Instruction X86NativeCodeGenerator::RetriveBinaryInstruction(
@@ -1946,11 +1960,56 @@ namespace RTJ::Hex::X86
 		RE_REG = {};
 		auto source = unaryNode->Value;
 		auto coreType = unaryNode->Value->TypeInfo->GetCoreType();
-		Operand operand = UseOperandFrom(session, source);
-		SemanticGroup semGroup = (SemanticGroup)((UInt8)SemanticGroup::NOT + unaryNode->Opcode - OpCodes::Not);
+		if (unaryNode->Opcode == OpCodes::Neg && CoreTypes::IsFloatLike(coreType))
+		{
+			//Special handling
+			Operand operand = UseOperandFrom(session, source,
+				OperandOptions::ForceRegister |
+				OperandOptions::InvalidateVariable);
 
-		Instruction ins = RetriveUnaryInstruction(semGroup, coreType, operand.Kind);
-		Emit(ins, operand);
+			RTAssert(operand.IsRegister());
+			RE_REG = operand.Register;
+
+			Operand dispOperand{ OperandPreference::Displacement };
+			dispOperand.M.Displacement = DebugOffset32;
+			//Use RIP
+			dispOperand.UseRIPAddressing = true;
+
+			//Track displacement
+			TRK(Displacement);
+			ConstantStorage storage{};
+
+			if (coreType == CoreTypes::R4)
+			{
+				ASM_C(XORPS_RM, R4, operand, dispOperand);
+				storage.SIMD = (UInt8*)NegR4SSEConstant.data();
+			}
+			else
+			{
+				ASM_C(XORPD_RM, R8, operand, dispOperand);
+				storage.SIMD = (UInt8*)NegR8SSEConstant.data();
+			}
+	
+			mImmediateFix[CoreTypes::SIMD128].Slots.push_back(
+				ImmediateFixUp{
+					REP_TRK(Displacement).value(),
+					mEmitPage->CurrentOffset(),
+					mCurrentBB->Index,
+					storage });
+		}
+		else
+		{
+			Operand operand = UseOperandFrom(session, source, 
+				OperandOptions::ForceRegister | 
+				OperandOptions::InvalidateVariable);
+
+			RTAssert(operand.IsRegister());
+			RE_REG = operand.Register;
+
+			SemanticGroup semGroup = (SemanticGroup)((UInt8)SemanticGroup::NOT + unaryNode->Opcode - OpCodes::Not);
+			Instruction ins = RetriveUnaryInstruction(semGroup, coreType, operand.Kind);
+			Emit(ins, operand);
+		}
 	}
 
 	void X86NativeCodeGenerator::PreCodeGenForJcc(TreeNode* conditionValue)

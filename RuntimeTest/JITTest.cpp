@@ -546,6 +546,51 @@ namespace RuntimeTest
 			Assert::AreEqual(true, ret);
 		}
 
+		TEST_METHOD(CodeGenIntNeg)
+		{
+			using Fn = Int32(__fastcall*)(Int32);
+			SetUpMethod(L"CodeGenIntNeg");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenIntNeg.bin");
+			auto ret = method(-1);
+			Assert::AreEqual(1, ret);
+		}
+
+		TEST_METHOD(CodeGenFloatNeg)
+		{
+			using Fn = Float(__fastcall*)(Float);
+			SetUpMethod(L"CodeGenFloatNeg");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenFloatNeg.bin");
+			auto ret = method(3.14f);
+			Assert::AreEqual(-3.14f, ret);
+		}
+
+		TEST_METHOD(CodeGenDoubleNeg)
+		{
+			using Fn = Double(__fastcall*)(Double);
+			SetUpMethod(L"CodeGenDoubleNeg");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleNeg.bin");
+			auto ret = method(2.718);
+			Assert::AreEqual(-2.718, ret);
+		}
+
 		TEST_METHOD(CodeGenPreserveArg)
 		{
 			using Fn = bool(__fastcall*)(bool, bool);

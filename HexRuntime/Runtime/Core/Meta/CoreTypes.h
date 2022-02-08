@@ -1,6 +1,8 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "..\..\Utility.h"
 #include <string_view>
+
 namespace RTC
 {
 	/// <summary>
@@ -122,6 +124,23 @@ namespace RTC
 		static constexpr UInt8 Array = 0x42;
 		static constexpr UInt8 String = 0x43;
 		static constexpr UInt8 Delegate = 0x44;
+
+		ETY = UInt8;
+		//SIMD Special Encoding 0xD0 ~ 0xFF
+
+		//Width
+		VAL SIMDWidthMask = 0b11111000;
+		VAL SIMD128 = 0b11000000;
+		VAL SIMD256 = 0b11001000;
+		VAL SIMD512 = 0b11010000;
+
+		//Value Preference
+		VAL SIMDBits = 0b00000000;
+		VAL SIMDI32 = 0b00000001;
+		VAL SIMDI64 = 0b00000010;
+		
+		VAL SIMDF32 = 0b00000011;
+		VAL SIMDF64 = 0b00000100;
 	public:
 		inline static bool IsPrimitive(UInt8 coreType) {
 			return coreType < Struct;
@@ -130,7 +149,7 @@ namespace RTC
 			return coreType > Struct;
 		}
 		inline static bool IsValidCoreType(UInt8 coreType) {
-			return coreType <= Delegate;
+			return coreType <= Delegate || coreType >= SIMD128;
 		}
 		inline static bool IsIntegerLike(UInt8 coreType) {
 			return coreType <= U8;
@@ -140,6 +159,10 @@ namespace RTC
 		}
 		inline static bool IsFloatLike(UInt8 coreType) {
 			return R2 <= coreType && coreType <= R8;
+		}
+		inline static bool IsSIMD(UInt8 coreType)
+		{
+			return coreType >= SIMD128;
 		}
 		static Int32 GetCoreTypeSize(UInt8 coreType) {
 			if (coreType <= Char)
@@ -153,6 +176,19 @@ namespace RTC
 
 			if (coreType <= Delegate)
 				return SizeOfReferenceCoreType[Ref - Ref];
+
+			if (coreType >= SIMD128)
+			{
+				switch (coreType & SIMDWidthMask)
+				{
+				case SIMD128:
+					return 16;
+				case SIMD256:
+					return 32;
+				case SIMD512:
+					return 64;
+				}
+			}
 
 			return -1;
 		}
