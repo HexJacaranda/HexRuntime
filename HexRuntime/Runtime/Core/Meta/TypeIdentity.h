@@ -24,11 +24,11 @@ namespace RTM
 		UInt32 GetHashCode()const
 		{
 			if (ArgumentCount == 0)
-				return RTME::ComputeHashCode(Canonical);
+				return ComputeHashCode(Canonical);
 			else if (ArgumentCount == 1)
-				return RTME::ComputeHashCode(Canonical) + RTME::ComputeHashCode(SingleArgument);
+				return ComputeHashCode(Canonical) + ComputeHashCode(SingleArgument);
 			else
-				return RTME::ComputeHashCode(Canonical) + RTME::ComputeHashCode(Arguments, sizeof(TypeDescriptor*) * ArgumentCount);
+				return ComputeHashCode(Canonical) + ComputeHashCode(Arguments, sizeof(TypeDescriptor*) * ArgumentCount);
 		}
 	};
 

@@ -359,12 +359,44 @@ namespace RTJ::Hex::X86
 		Int32 BasicBlock;
 	};
 
-	struct ImmediateFixUp
+	struct RIPFixUp
 	{
 		Int32 Offset;
 		Int32 RIPBase;
 		Int32 BasicBlock;
+	};
+
+	struct ConstantWithType
+	{
+		UInt8 CoreType;
 		ConstantStorage Storage;
+	};
+
+	struct ConstantEqualer
+	{
+		bool operator()(ConstantWithType const& left, ConstantWithType const& right) const {
+			if (left.CoreType != right.CoreType) return false;
+			Int32 size = CoreTypes::GetCoreTypeSize(left.CoreType);
+			switch (size)
+			{
+				case sizeof(UInt8): return left.Storage.U1 == right.Storage.U1;
+				case sizeof(UInt16): return left.Storage.U2 == right.Storage.U2;
+				case sizeof(UInt32): return left.Storage.U4 == right.Storage.U4;
+				case sizeof(UInt64): return left.Storage.U8 == right.Storage.U8;
+				default:
+					return !std::memcmp(left.Storage.SIMD, right.Storage.SIMD, size);
+			}
+		}
+	};
+
+	struct ConstantHasher
+	{
+		std::size_t operator()(ConstantWithType const& value) const {
+			if (CoreTypes::IsSIMD(value.CoreType))
+				return ComputeHashCode(value.Storage.SIMD, CoreTypes::GetCoreTypeSize(value.CoreType));
+
+			return ComputeHashCode(value.Storage);
+		}
 	};
 
 	struct OperandOptions
@@ -401,7 +433,8 @@ namespace RTJ::Hex::X86
 	struct ImmediateSegment
 	{
 		Int32 BaseOffset;
-		std::vector<ImmediateFixUp> Slots;
+		//Constant -> Uses
+		std::unordered_map<ConstantWithType, std::vector<RIPFixUp>, ConstantHasher, ConstantEqualer> Slots;
 	};
 
 	/// <summary>
@@ -469,6 +502,38 @@ namespace RTJ::Hex::X86
 		Binary::WriteByLittleEndianness(address, value);
 	}
 
+	static void RewritePageImmediate(EmitPage* emitPage, Int32 offset, UInt8 coreType, ConstantStorage const& constant)
+	{
+		UInt8* address = emitPage->GetRaw() + offset;
+		switch (coreType)
+		{
+		case CoreTypes::I1:
+		case CoreTypes::U1:
+			Binary::WriteByLittleEndianness(address, constant.U1); break;
+		case CoreTypes::I2:
+		case CoreTypes::U2:
+			Binary::WriteByLittleEndianness(address, constant.U2); break;
+		case CoreTypes::I4:
+		case CoreTypes::U4:
+			Binary::WriteByLittleEndianness(address, constant.U4); break;
+		case CoreTypes::I8:
+		case CoreTypes::U8:
+			Binary::WriteByLittleEndianness(address, constant.U8); break;
+		case CoreTypes::R2:
+			Binary::WriteByLittleEndianness(address, constant.U2); break;
+		case CoreTypes::R4:
+			Binary::WriteByLittleEndianness(address, constant.U4); break;
+		case CoreTypes::R8:
+			Binary::WriteByLittleEndianness(address, constant.U8); break;
+		default:
+		{
+			//TODO: should adapt specific type write by little endianness?
+			std::memcpy(address, constant.SIMD, CoreTypes::GetCoreTypeSize(coreType));
+			break;
+		}
+		}	
+	}
+
 	static void RewritePageImmediate(EmitPage* emitPage, Int32 offset, UInt8* value, Int32 length) {
 		UInt8* address = emitPage->GetRaw() + offset;
 		std::memcpy(address, value, length);
@@ -502,6 +567,7 @@ namespace RTJ::Hex::X86
 		static constexpr Int32 DebugOffset32 = 0x7F7F7F7F;
 		static constexpr Int16 DebugOffset16 = 0x7F7F;
 		static constexpr Int8 DebugOffset8 = 0x7F;
+
 		static constexpr Int32 EpilogueBBIndex = -1;
 		static constexpr Int32 CodeAlignment = 8;
 		static constexpr std::array<UInt8, 16> NegR4SSEConstant = { 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80 };

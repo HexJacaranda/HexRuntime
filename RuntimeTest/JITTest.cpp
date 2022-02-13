@@ -469,6 +469,19 @@ namespace RuntimeTest
 			Assert::AreEqual(2.5, ret);
 		}
 
+		TEST_METHOD(CodeGenIntMod)
+		{
+			using Fn = Int32(__fastcall*)(Int32, Int32);
+			SetUpMethod(L"CodeGenIntMod");
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenIntMod.bin");
+			auto ret = method(7, 3);
+			Assert::AreEqual(1, ret);
+		}
+
 		TEST_METHOD(CodeGenJcc)
 		{
 			using Fn = Int32(__fastcall*)(Int32, Int32);

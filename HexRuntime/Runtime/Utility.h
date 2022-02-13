@@ -180,6 +180,35 @@ namespace RT
 		}
 	}
 
+	template<class U>
+	static UInt32 ComputeHashCode(U const& value) {
+		const UInt8* _First = (const UInt8*)&value;
+
+		const UInt32 _FNV_offset_basis = 2166136261U;
+		const UInt32 _FNV_prime = 16777619U;
+		UInt32 _Val = _FNV_offset_basis;
+		for (UInt32 _Next = 0; _Next < sizeof(U); ++_Next)
+		{
+			_Val ^= (UInt32)_First[_Next];
+			_Val *= _FNV_prime;
+		}
+		return (_Val);
+	}
+
+	static UInt32 ComputeHashCode(const void* value, UInt32 size) {
+		const UInt8* _First = (const UInt8*)value;
+
+		const UInt32 _FNV_offset_basis = 2166136261U;
+		const UInt32 _FNV_prime = 16777619U;
+		UInt32 _Val = _FNV_offset_basis;
+		for (UInt32 _Next = 0; _Next < size; ++_Next)
+		{
+			_Val ^= (UInt32)_First[_Next];
+			_Val *= _FNV_prime;
+		}
+		return (_Val);
+	}
+
 #define ETY using EnumType
 #define VAL static constexpr EnumType
 }

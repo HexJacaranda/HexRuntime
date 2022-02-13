@@ -409,6 +409,17 @@
         }
     }
 
+    .method public static int32 CodeGenIntMod(int32 x, int32 y) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldarg y
+            .mod
+            .ret
+        }
+    }
+
     .method public static int32 CodeGenJcc(int32 x, int32 y) managed
     {
         .code

@@ -100,6 +100,8 @@ namespace RTJ::Hex
 				opText = L"sub"; break;
 			case OpCodes::Mul:
 				opText = L"mul"; break;
+			case OpCodes::Mod:
+				opText = L"mod"; break;
 			case OpCodes::Div:
 				opText = L"div"; break;
 			case OpCodes::And:

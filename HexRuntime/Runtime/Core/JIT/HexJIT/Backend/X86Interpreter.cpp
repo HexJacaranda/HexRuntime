@@ -862,15 +862,19 @@ namespace RTJ::Hex::X86
 				OperandPreference::Register,
 				OperandPreference::Displacement);
 
+			ConstantWithType constantKey{ coreType, constant->Storage };
 			//Track and record displacement
 			TRK(Displacement);
 			Emit(instruction, result, dispOperand);
-			mImmediateFix[constant->CoreType].Slots.push_back(
-				ImmediateFixUp{
+
+			//Record
+			mImmediateFix[constant->CoreType].Slots[constantKey].push_back(
+				RIPFixUp{
 					REP_TRK(Displacement).value(),
 					mEmitPage->CurrentOffset(),
-					mCurrentBB->Index,
-					constant->Storage });
+					mCurrentBB->Index
+				}
+			);
 		}
 		else if (CoreTypes::IsIntegerLike(coreType))
 		{
@@ -926,39 +930,23 @@ namespace RTJ::Hex::X86
 	{
 		for (auto&& [coreType, segment] : mImmediateFix)
 		{
-			//Write to memory first
 			auto size = CoreTypes::GetCoreTypeSize(coreType);
-			for (Int32 i = 0; i < segment.Slots.size(); ++i)
+			Int32 i = 0;
+			for (auto&& [key, fixups] : segment.Slots)
 			{
-				auto&& slot = segment.Slots[i];
 				Int32 realOffset = segment.BaseOffset + i * size;
-				switch (size)
+				//Write to data segment first
+				RewritePageImmediate(finalPage, realOffset, coreType, key.Storage);
+
+				for (auto&& fixup : fixups)
 				{
-				case 4:
-					RewritePageImmediate(
-						finalPage,
-						realOffset,
-						slot.Storage.U4); break;
-				case 8:
-					RewritePageImmediate(
-						finalPage,
-						realOffset,
-						slot.Storage.U8); break;
-				case 16:
-					RewritePageImmediate(
-						finalPage,
-						realOffset,
-						slot.Storage.SIMD,
-						size);
-					break;
-				default:
-					THROW("Not supported");
+					//Write rip
+					Int32 ripOffset = realOffset - (mContext->BBs[fixup.BasicBlock]->PhysicalOffset + fixup.RIPBase);
+					Int32 ripDisplacementOffset = mContext->BBs[fixup.BasicBlock]->PhysicalOffset + fixup.Offset;
+					RewritePageImmediate(finalPage, ripDisplacementOffset, ripOffset);
 				}
 
-				//Write rip
-				Int32 ripOffset = realOffset - (mContext->BBs[slot.BasicBlock]->PhysicalOffset + slot.RIPBase);
-				Int32 ripDisplacementOffset = mContext->BBs[slot.BasicBlock]->PhysicalOffset + slot.Offset;
-				RewritePageImmediate(finalPage, ripDisplacementOffset, ripOffset);
+				i++;
 			}
 		}
 	}
@@ -1629,6 +1617,7 @@ namespace RTJ::Hex::X86
 			}
 			break;
 		}
+		case SemanticGroup::MOD:
 		case SemanticGroup::DIV:
 		{
 			switch (coreType)
@@ -1820,11 +1809,15 @@ namespace RTJ::Hex::X86
 		if (CoreTypes::IsFloatLike(coreType))
 			regMask = NREG::CommonXMM;
 
+		//Keep the same
+		UInt64 destinationRegMask = regMask;
+
 		Operand source{};
 		Operand destination{};
 
 		//For idiv/div and imul for I8/U8
-		bool requiresAX = false;
+		bool requiresSpecialDestinationRegister = false;
+		bool requiresSpecialAllocationForMod = false;
 		bool requiresConvert = false;
 		bool requiresMOperandForSource = false;
 		//For compare
@@ -1839,21 +1832,32 @@ namespace RTJ::Hex::X86
 			{
 				switch (binaryArithmetic->Opcode)
 				{
+				case OpCodes::Mod:
+					requiresSpecialAllocationForMod = true;
 				case OpCodes::Div:
 				{
 					requiresMOperandForSource = true;
-					requiresAX = true;
+					requiresSpecialDestinationRegister = true;
+					destinationRegMask = MSK_REG(NREG::AX);
 					if (CoreTypes::IsSignedInteger(coreType))
 						requiresConvert = true;
-				}
-				break;
+
+					//Pre-spill the variable if possible
+					AllocateRegisterAndGenerateCodeFor(MSK_REG(NREG::DX), coreType);
+					MARK_UNSPILLABLE(NREG::DX);
+					break;
+				}					
 				case OpCodes::Mul:
 					requiresMOperandForSource = true;
 					if (coreType == CoreTypes::I1 ||
 						coreType == CoreTypes::U1)
-						requiresAX = true;
+					{
+						requiresSpecialDestinationRegister = true;
+						destinationRegMask = MSK_REG(NREG::AX);
+					}
 					break;
 				}
+				
 			}
 
 			group = (SemanticGroup)((UInt8)SemanticGroup::ADD + (binaryArithmetic->Opcode - OpCodes::Add));
@@ -1868,7 +1872,7 @@ namespace RTJ::Hex::X86
 		{
 			if (immLeft)
 			{
-				Operand immOperand = UseImmediate(constant, true, requiresAX ? MSK_REG(NREG::AX) : regMask);
+				Operand immOperand = UseImmediate(constant, true, destinationRegMask);
 				MARK_UNSPILLABLE(immOperand.Register);
 
 				UInt16 variable = locals[0]->As<LocalVariableNode>()->LocalIndex;
@@ -1881,7 +1885,7 @@ namespace RTJ::Hex::X86
 			else
 			{
 				UInt16 variable = locals[0]->As<LocalVariableNode>()->LocalIndex;
-				UInt8 reg = AllocateRegisterAndGenerateCodeFor(variable, requiresAX ? MSK_REG(NREG::AX) : regMask, coreType);
+				UInt8 reg = AllocateRegisterAndGenerateCodeFor(variable, destinationRegMask, coreType);
 				MARK_UNSPILLABLE(reg);
 
 				Operand immOperand = UseImmediate(constant, requiresMOperandForSource);
@@ -1908,7 +1912,7 @@ namespace RTJ::Hex::X86
 			if (leftVar == rightVar)
 			{
 				UInt8 reg =
-					AllocateRegisterAndGenerateCodeFor(leftVar, requiresAX ? MSK_REG(NREG::AX) : regMask, coreType);
+					AllocateRegisterAndGenerateCodeFor(leftVar, destinationRegMask, coreType);
 
 				source = Operand::FromRegister(reg);
 				destination = Operand::FromRegister(reg);
@@ -1927,7 +1931,7 @@ namespace RTJ::Hex::X86
 				RTAssert(ST_VAR.has_value());
 				auto storingVar = ST_VAR.value();
 
-				destination = requireAndMark(leftVar, requiresAX ? MSK_REG(NREG::AX) : regMask);
+				destination = requireAndMark(leftVar, destinationRegMask);
 				source = requireAndMark(rightVar, regMask);
 
 				if (!preservingDestination)
@@ -1944,11 +1948,15 @@ namespace RTJ::Hex::X86
 		}
 
 		//Update result register
-		RE_REG = destination.Register;
+		if (requiresSpecialAllocationForMod)
+			RE_REG = NREG::DX;
+		else
+			RE_REG = destination.Register;
+
 		Instruction instruction = RetriveBinaryInstruction(group, coreType, OperandPreference::Register, source.Kind);
 
 		//Emit instruction
-		if (requiresAX)
+		if (requiresSpecialDestinationRegister)
 			Emit(instruction, source);
 		else
 			Emit(instruction, destination, source);
@@ -1989,13 +1997,14 @@ namespace RTJ::Hex::X86
 				ASM_C(XORPD_RM, R8, operand, dispOperand);
 				storage.SIMD = (UInt8*)NegR8SSEConstant.data();
 			}
-	
-			mImmediateFix[CoreTypes::SIMD128].Slots.push_back(
-				ImmediateFixUp{
+
+			ConstantWithType key{ CoreTypes::SIMD128, storage };
+
+			mImmediateFix[CoreTypes::SIMD128].Slots[key].push_back(
+				RIPFixUp{
 					REP_TRK(Displacement).value(),
 					mEmitPage->CurrentOffset(),
-					mCurrentBB->Index,
-					storage });
+					mCurrentBB->Index });
 		}
 		else
 		{
