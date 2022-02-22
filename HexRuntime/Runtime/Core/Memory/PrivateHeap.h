@@ -40,6 +40,8 @@ namespace RTMM
 				mAllocator->deallocate_bytes(object, sizeof(U));
 			}
 		}
+
+		std::pmr::synchronized_pool_resource* GetResource()const;
 	};
 
 	enum class TrackTagT { Null };

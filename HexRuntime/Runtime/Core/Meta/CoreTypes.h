@@ -61,7 +61,7 @@ namespace RTC
 		static constexpr Int32 SizeOfReferenceCoreType[] =
 		{
 			sizeof(void*), //Pointer
-			2 * sizeof(void*) //Interior Pointer
+			sizeof(void*) //Interior Pointer
 		};
 
 		static constexpr std::wstring_view NameOfRefCoreType[] = {

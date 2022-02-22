@@ -49,6 +49,12 @@
     <None Include="TestIL\JIT.il">
       <Filter>Resource Files\BuildSource</Filter>
     </None>
+    <None Include="TestIL\Core.il">
+      <Filter>Resource Files\BuildSource</Filter>
+    </None>
+    <None Include="TestIL\Core.json">
+      <Filter>Resource Files\BuildSource</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="TestIL\Core">

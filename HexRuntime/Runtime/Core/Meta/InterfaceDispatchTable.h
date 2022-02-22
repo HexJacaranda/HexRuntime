@@ -19,12 +19,14 @@ namespace RTM
 		}
 	};
 
+
 	/// <summary>
 	/// Kind of hashtable responsible for (Interface Index, Method Token) -> (MethodTable Index) mapping.
 	///	When it's small, it behaves like a array on which we do linear search
 	/// </summary>
 	class InterfaceDispatchTable
 	{
+		//TODO: Use unordered_map
 		friend class MetaManager;
 		DispatchSlot* mSlots;
 		//Highest bit is reserved for mode bit(linear or hash)

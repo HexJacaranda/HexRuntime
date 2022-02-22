@@ -45,5 +45,15 @@ namespace RuntimeTest
 			auto arrayType = meta.GetIntrinsicTypeFromCoreType(CoreTypes::Array);
 			Assert::AreEqual(L"[Core][global]Array<Canon>", arrayType->GetFullQualifiedName()->GetContent());
 		}
+
+		TEST_METHOD(InstantiatingRefTest)
+		{
+			MetaManager meta{};
+			auto int32Type = meta.GetIntrinsicTypeFromCoreType(CoreTypes::I4);
+			auto refInt32Type = meta.InstantiateRefType(int32Type);
+
+			Assert::AreEqual(CoreTypes::Struct, refInt32Type->GetCoreType());
+			Assert::AreEqual(L"[Core][global]Interior<[Core][global]Int32>", refInt32Type->GetFullQualifiedName()->GetContent());
+		}
 	};
 }

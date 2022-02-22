@@ -1,5 +1,6 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "..\..\Guid.h"
 #include "..\Object\StringObject.h"
 #include "..\..\Logging.h"
 #include "MDRecords.h"
@@ -11,6 +12,7 @@
 #include "MethodTable.h"
 #include "InterfaceDispatchTable.h"
 #include "InstantiationMap.h"
+#include "TypeStructuredName.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -53,7 +55,12 @@ namespace RTM
 	{
 		USE_LOGGER(MetaManager);
 		std::shared_mutex mContextLock;
-		std::unordered_map<RTME::GUID, AssemblyContext*, RTME::GuidHash, RTME::GuidEqual> mContexts;
+		std::unordered_map<Guid, AssemblyContext*, GuidHash, GuidEqual> mContexts;
+		std::atomic<AssemblyContext*> mCoreAssembly = nullptr;
+		std::atomic<AssemblyContext*> mGenericAssembly = nullptr;
+
+		static Guid CoreLibraryGuid;
+		static Guid GenericLibraryGuid;
 	private:
 		AssemblyContext* TryQueryContextLocked(RTME::AssemblyRefMD* reference);
 		AssemblyContext* TryQueryContext(RTME::AssemblyRefMD* reference);
@@ -63,42 +70,61 @@ namespace RTM
 		* the type you wish to load it's being loaded by other thread.
 		*/
 
-		TypeDescriptor* GetTypeFromTokenInternal(
-			AssemblyContext* context, 
-			MDToken typeReference, 
-			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT),
-			Int8 waitStatus = -1,
-			bool allowWait = false);
-
-		TypeDescriptor* GetTypeFromDefTokenInternal(
-			AssemblyContext* context,
-			MDToken typeDefinition,
+		TypeDescriptor* GetTypeFromReferenceTokenInternal(
+			AssemblyContext* defineContext,
+			MDToken reference,
 			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT),
 			Int8 waitStatus = -1,
 			bool allowWait = false
 		);
 
-		void ResolveType(
-			AssemblyContext* context,
-			TypeDescriptor* type,
-			MDToken typeDefinition,
-			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+		TypeDescriptor* GetTypeFromDefinitionTokenInternal(
+			AssemblyContext* defineContext,
+			RTME::MDRecordKinds definitionKind,
+			MDToken definition,
+			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT),
+			Int8 waitStatus = -1,
+			bool allowWait = false
+		);
 
-		void InstantiateType(
-			AssemblyContext* context,
-			TypeDescriptor* canonical,
-			TypeDescriptor* type,
-			MDToken typeDefinition,
-			TypeIdentity const& typeIdentity,
-			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+		TypeDescriptor* InstantiateWith(
+			AssemblyContext* defineContext,
+			Type* canonical,
+			std::vector<Type*> const& args);
 
-		FieldTable* GenerateFieldTable(INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+		struct MetaOptions
+		{
+			ETY = UInt8;
+			VAL Canonical = 0b00;
+			VAL Generic = 0b01;
+			VAL ShareMD = 0b10;
+		};
 
-		FieldsLayout* GenerateLayout(FieldTable* table, AssemblyContext* context);
+		/// <summary>
+		/// Resolve or instantiate type
+		/// </summary>
+		/// <param name="originContext">should be the assembly of canonical type</param>
+		/// <param name="canonicalType"></param>
+		/// <param name="targetType"></param>
+		/// <param name="tokenKind"></param>
+		/// <param name="definitionToken"></param>
+		/// <param name="INJECT"></param>
+		void ResolveOrInstantiateType(
+			AssemblyContext* originContext,
+			TypeDescriptor* canonicalType,
+			TypeDescriptor* targetType,
+			UInt8 metaOption,
+			MDToken definitionToken,
+			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT)
+		);
 
-		MethodTable* GenerateMethodTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+		FieldTable* GenerateFieldTable(AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
-		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+		FieldsLayout* GenerateLayout(FieldTable* table, AssemblyContext* allocatingContext, AssemblyContext* context);
+
+		MethodTable* GenerateMethodTable(Type* current, AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
+
+		InterfaceDispatchTable* GenerateInterfaceTable(Type* current, AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
 		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);
 		/// <summary>
@@ -107,6 +133,8 @@ namespace RTM
 		/// <param name="assembly"></param>
 		/// <returns></returns>
 		AssemblyContext* LoadAssembly(RTString assembly);
+
+		AssemblyContext* NewDynamicAssembly();
 		/// <summary>
 		/// Very dangerous operation, can only be used when failing the load
 		/// or exiting
@@ -119,6 +147,16 @@ namespace RTM
 		/// <param name="view"></param>
 		/// <returns></returns>
 		RTO::StringObject* GetStringFromView(AssemblyContext* context, std::wstring_view view);
+		/// <summary>
+		/// Load assembly by guid
+		/// </summary>
+		/// <param name="guid"></param>
+		/// <returns></returns>
+		AssemblyContext* GetGenericAssembly();
+
+		AssemblyContext* GetCoreAssembly();
+		
+		std::shared_ptr<TypeStructuredName> GetTSN(TypeIdentity const& identity);
 	public:
 		MetaManager();
 		AssemblyContext* StartUp(RTString assemblyName);
@@ -133,7 +171,7 @@ namespace RTM
 		FieldDescriptor* GetFieldFromToken(AssemblyContext* context, MDToken fieldReference);
 
 		TypeDescriptor* InstantiateRefType(TypeDescriptor* origin);
-
+		
 		TypeDescriptor* GetIntrinsicTypeFromCoreType(UInt8 coreType);
 	};
 

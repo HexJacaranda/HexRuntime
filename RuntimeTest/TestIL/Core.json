@@ -1,0 +1,9 @@
+{
+  "inputs": [ "Core.il" ],
+  "references": [],
+  "output_directory": ".",
+  "options": {
+    "core_library": true,
+    "disable_core_type": false
+  }
+}

@@ -169,10 +169,32 @@ namespace RT
 		}
 	}
 
+	template<class T, ForeachFn<T* const> Fn>
+	static void ForeachInlined(T** const& inlineArray, Int32 count, Fn&& action) {
+		if (count == 1)
+			std::forward<Fn>(action)(*(T**)&inlineArray);
+		else if (count > 1)
+		{
+			for (Int32 i = 0; i < count; ++i)
+				std::forward<Fn>(action)(inlineArray[i]);
+		}
+	}
+
 	template<class T, ForeachWithIndexFn<T*> Fn>
 	static void ForeachInlined(T**& inlineArray, Int32 count, Fn&& action) {
 		if (count == 1)
 			std::forward<Fn>(action)(*(T**)&inlineArray, 0);
+		else if (count > 1)
+		{
+			for (Int32 i = 0; i < count; ++i)
+				std::forward<Fn>(action)(inlineArray[i], i);
+		}
+	}
+
+	template<class T, ForeachWithIndexFn<T* const> Fn>
+	static void ForeachInlined(T** const& inlineArray, Int32 count, Fn&& action) {
+		if (count == 1)
+			std::forward<Fn>(action)(*(T** const)&inlineArray, 0);
 		else if (count > 1)
 		{
 			for (Int32 i = 0; i < count; ++i)

@@ -85,6 +85,7 @@
     <ClInclude Include="Runtime\Core\Platform\X86Register.h" />
     <ClInclude Include="Runtime\DynamicTokenTable.h" />
     <ClInclude Include="Runtime\Endianness.h" />
+    <ClInclude Include="Runtime\Guid.h" />
     <ClInclude Include="Runtime\Host\RuntimeHost.h" />
     <ClInclude Include="Runtime\LinkList.h" />
     <ClInclude Include="Runtime\Logging.h" />

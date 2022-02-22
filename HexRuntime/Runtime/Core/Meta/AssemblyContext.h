@@ -19,8 +19,9 @@ namespace RTM
 		std::atomic<TypeDescriptor*> Type = nullptr;
 	};
 
+	using TypeEntryTableT = DynamicMetaTable<std::wstring_view, TypeDefEntry>;
 
-	using TypeEntryTableT = DynamicTokenTable<TypeIdentity, TypeDefEntry, TypeIdentityHash, TypeIdentityEqual>;
+	static std::pmr::synchronized_pool_resource* GetDefaultResource();
 
 	struct AssemblyContext
 	{

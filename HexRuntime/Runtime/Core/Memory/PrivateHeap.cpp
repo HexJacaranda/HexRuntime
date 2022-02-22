@@ -32,6 +32,11 @@ void RTMM::PrivateHeap::FreeTracked(void* target)
 	mAllocator->deallocate_bytes(origin, *origin);
 }
 
+std::pmr::synchronized_pool_resource* RTMM::PrivateHeap::GetResource() const
+{
+	return mResource.get();
+}
+
 void* operator new(size_t size, RTMM::PrivateHeap* allocator)
 {
 	return allocator->Allocate(size);

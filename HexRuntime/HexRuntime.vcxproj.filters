@@ -348,6 +348,9 @@
     <ClInclude Include="Runtime\Core\Meta\TypeIdentity.h">
       <Filter>头文件\Runtime\Core\Platform</Filter>
     </ClInclude>
+    <ClInclude Include="Runtime\Guid.h">
+      <Filter>头文件\Runtime\Utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

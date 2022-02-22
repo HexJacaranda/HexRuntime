@@ -190,6 +190,8 @@
       <FileType>Document</FileType>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
     </CopyFileToFolders>
+    <None Include="TestIL\Core.il" />
+    <None Include="TestIL\Core.json" />
     <None Include="TestIL\JIT.il" />
     <None Include="TestIL\JIT.json" />
   </ItemGroup>

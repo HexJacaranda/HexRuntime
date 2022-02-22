@@ -1,5 +1,6 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "..\..\Guid.h"
 #include "..\Platform\Platform.h"
 
 namespace RTME
@@ -31,34 +32,7 @@ namespace RTME
 		EventRef
 	};
 
-	struct GUID
-	{
-		Int32 X;
-		Int16 Y;
-		Int16 Z;
-		Int16 U[4];
-	public:
-		UInt32 GetHashCode()const
-		{
-			return ComputeHashCode(*this);
-		}
-	};
 
-	struct GuidHash
-	{
-		inline UInt32 operator()(GUID const& guid)const
-		{
-			return guid.GetHashCode();
-		}
-	};
-
-	struct GuidEqual
-	{
-		inline bool operator()(GUID const& left, GUID const& right)const
-		{
-			return memcmp(&left, &right, sizeof(GUID)) == 0;
-		}
-	};
 
 	struct AssemblyHeaderMD
 	{
@@ -66,7 +40,7 @@ namespace RTME
 		Int32 MajorVersion;
 		Int32 MinorVersion;
 		MDToken GroupNameToken;
-		GUID GUID;
+		Guid GUID;
 
 		static constexpr Int32 CompactSize =
 			sizeof(AssemblyHeaderMD::NameToken) +
@@ -159,7 +133,7 @@ namespace RTME
 	struct AssemblyRefMD
 	{
 		static constexpr MDToken SelfReference = 0u;
-		GUID GUID;
+		Guid GUID;
 		MDToken AssemblyName;
 	};
 
