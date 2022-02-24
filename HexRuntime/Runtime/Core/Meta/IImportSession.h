@@ -16,6 +16,7 @@ namespace RTME
 		IImportSession(RTMM::PrivateHeap* heap);
 		virtual Int32 ReadInto(UInt8* memory, Int32 size) = 0;
 		virtual void Relocate(Int32 offset, RTI::LocateOption option) = 0;
+		virtual Int32 GetCurrentPosition()const = 0;
 		virtual ~IImportSession();
 
 		template<class T>

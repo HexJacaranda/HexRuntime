@@ -43,6 +43,12 @@ namespace RTM
 	MetaManager* MetaData = nullptr;
 }
 
+std::wstring_view RTM::ToStringView(RTO::StringObject* stringObject)
+{
+	if (stringObject == nullptr) return {};
+	return { stringObject->GetContent(), (std::size_t)stringObject->GetCount() };
+}
+
 RTM::AssemblyContext* RTM::MetaManager::TryQueryContextLocked(RTME::AssemblyRefMD* reference)
 {
 	std::shared_lock lock{ mContextLock };
@@ -233,7 +239,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefinitionTokenInternal(
 		auto fqn = GetTSN(identity);
 		instantiationType->mFullQualifiedName = GetStringFromView(genericAssembly, fqn->GetFullyQualifiedName());
 		instantiationType->mTypeName = GetStringFromView(genericAssembly, fqn->GetShortTypeName());
-		auto [newDefinitionToken, finalValue] = genericAssembly->Entries.DefineNewMeta(fqn->GetFullyQualifiedName(), entry);
+		auto [newDefinitionToken, finalValue] = genericAssembly->Entries.DefineNewMeta(ToStringView(instantiationType->mFullQualifiedName), entry);
 
 		if (finalValue != entry)
 		{
@@ -253,16 +259,20 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefinitionTokenInternal(
 		}
 		else
 		{
-			InstantiationLayerMap layer{};
+			ScopeMap scope{};
 
 			ForeachInlined(identity.Arguments, identity.ArgumentCount,
 				[&](Type* argument, Int32 index)
 				{
-					layer.insert(std::make_pair(genericInstantiation.TypeParameterTokens[index], argument));
+					scope.insert(
+						{
+							{ RTME::MDRecordKinds::TypeRef, genericInstantiation.TypeParameterTokens[index] },
+							argument
+						});
 				});
 
 			{
-				INSTANTIATION_SESSION(layer);
+				INSTANTIATION_SCOPE(scope);
 				ResolveOrInstantiateType(
 					defineContext,
 					canonicalType,
@@ -272,11 +282,9 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefinitionTokenInternal(
 					USE_LOADING_CONTEXT,
 					USE_INSTANTIATION_CONTEXT);
 
-				promoteAndWait(instantiationType, finalValue);
+				return promoteAndWait(instantiationType, finalValue);
 			}
 		}
-
-		return instantiationType;
 	}
 	
 	if (definitionKind == RTME::MDRecordKinds::TypeDef)
@@ -356,7 +364,7 @@ RTM::TypeDescriptor* RTM::MetaManager::InstantiateWith(
 	auto fqn = GetTSN(identity);
 	instantiationType->mFullQualifiedName = GetStringFromView(genericAssembly, fqn->GetFullyQualifiedName());
 	instantiationType->mTypeName = GetStringFromView(genericAssembly, fqn->GetShortTypeName());
-	auto [newDefinitionToken, finalValue] = genericAssembly->Entries.DefineNewMeta(fqn->GetFullyQualifiedName(), entry);
+	auto [newDefinitionToken, finalValue] = genericAssembly->Entries.DefineNewMeta(ToStringView(instantiationType->mFullQualifiedName), entry);
 
 	if (finalValue != entry)
 	{
@@ -371,17 +379,21 @@ RTM::TypeDescriptor* RTM::MetaManager::InstantiateWith(
 		std::unique_lock lock{ entry.WaiterLock };
 		entry.Waiter.wait(lock,
 			[&]() { return type->Status.load(std::memory_order::acquire) >= TypeStatus::Done; });
+
+		return type;
 	}
 	else
 	{
-		InstantiationLayerMap layer{};
+		ScopeMap scope{};
 
 		ForeachInlined(identity.Arguments, identity.ArgumentCount,
 			[&](Type* argument, Int32 index)
 			{
-				layer.insert(std::make_pair(
-					canonical->GetMetadata()->GenericParameterTokens[index],
-					argument));
+				scope.insert(
+					{
+						{ RTME::MDRecordKinds::GenericParameter, canonical->GetMetadata()->GenericParameterTokens[index] },
+						argument
+					});
 			});
 
 		{
@@ -427,7 +439,7 @@ RTM::TypeDescriptor* RTM::MetaManager::InstantiateWith(
 				return type;
 			};
 
-			INSTANTIATION_SESSION(layer);
+			INSTANTIATION_SCOPE(scope);
 			ResolveOrInstantiateType(
 				defineContext,
 				canonical,
@@ -586,9 +598,12 @@ void RTM::MetaManager::ResolveOrInstantiateType(
 	type->mContext = context;
 	type->mSelf = definitionToken;
 
-	//For canonical type, return directly
-	if (type->IsGeneric())
+	//For canonical or half-open type, return directly
+	if (type->IsGeneric() &&
+		genericMap.GetCurrentScopeArgCount() < meta->GenericParameterCount)
+	{
 		return;
+	}
 
 	LOG_DEBUG("{} [{:#010x}] Resolution started",
 		type->GetFullQualifiedName()->GetContent(),
@@ -663,7 +678,7 @@ void RTM::MetaManager::ResolveOrInstantiateType(
 RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT))
 {
 	//Load fields
-	auto fieldTable = new (context->Heap) FieldTable();
+	auto fieldTable = new (allocatingContext->Heap) FieldTable();
 
 	//Field descriptors
 	fieldTable->mFieldCount = meta->FieldCount;
@@ -1128,6 +1143,18 @@ RTM::TypeDescriptor* RTM::MetaManager::InstantiateRefType(TypeDescriptor * origi
 	auto type = new (GetGenericAssembly()->Heap) TypeDescriptor;
 	auto ref = GetIntrinsicTypeFromCoreType(CoreTypes::InteriorRef);
 	return InstantiateWith(GetCoreAssembly(), ref, { origin });
+}
+
+RTM::TypeDescriptor* RTM::MetaManager::InstantiateArrayType(TypeDescriptor * origin)
+{
+	auto type = new (GetGenericAssembly()->Heap) TypeDescriptor;
+	auto ref = GetIntrinsicTypeFromCoreType(CoreTypes::Array);
+	return InstantiateWith(GetCoreAssembly(), ref, { origin });
+}
+
+RTM::TypeDescriptor* RTM::MetaManager::Instantiate(TypeDescriptor * canonical, std::vector<TypeDescriptor*> const & args)
+{
+	return InstantiateWith(canonical->GetAssembly(), canonical, args);
 }
 
 RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreType)

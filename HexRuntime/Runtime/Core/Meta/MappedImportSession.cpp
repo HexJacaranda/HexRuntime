@@ -39,6 +39,11 @@ void RTME::MappedImportSession::Relocate(Int32 offset, RTI::LocateOption option)
 	}
 }
 
+RT::Int32 RTME::MappedImportSession::GetCurrentPosition() const
+{
+	return mCurrent - mMappedBase;
+}
+
 RTME::MappedImportSession::~MappedImportSession()
 {
 	

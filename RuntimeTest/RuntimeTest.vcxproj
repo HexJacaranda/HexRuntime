@@ -194,6 +194,12 @@
     <None Include="TestIL\Core.json" />
     <None Include="TestIL\JIT.il" />
     <None Include="TestIL\JIT.json" />
+    <CopyFileToFolders Include="TestIL\MetaTest">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
+    <None Include="TestIL\MetaTest.il" />
+    <None Include="TestIL\MetaTest.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

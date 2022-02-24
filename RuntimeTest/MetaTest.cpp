@@ -10,6 +10,17 @@ using namespace RT;
 using namespace RTM;
 using namespace RTC;
 
+
+namespace Microsoft::VisualStudio::CppUnitTestFramework
+{
+	template<> inline std::wstring ToString<Type>(Type* t)
+	{
+		if (t == nullptr)
+			return L"null";
+		return t->GetFullQualifiedName()->GetContent();
+	}
+}
+
 namespace RuntimeTest
 {
 	TEST_CLASS(MetaTest)
@@ -54,6 +65,47 @@ namespace RuntimeTest
 
 			Assert::AreEqual(CoreTypes::Struct, refInt32Type->GetCoreType());
 			Assert::AreEqual(L"[Core][global]Interior<[Core][global]Int32>", refInt32Type->GetFullQualifiedName()->GetContent());
+		}
+
+		TEST_METHOD(InstantiatingArrayTest)
+		{
+			MetaManager meta{};
+			auto int32Type = meta.GetIntrinsicTypeFromCoreType(CoreTypes::I4);
+			auto refInt32Type = meta.InstantiateArrayType(int32Type);
+
+			Assert::AreEqual(CoreTypes::Ref, refInt32Type->GetCoreType());
+			Assert::AreEqual(L"[Core][global]Array<[Core][global]Int32>", refInt32Type->GetFullQualifiedName()->GetContent());
+		}
+
+		TEST_METHOD(InstantiatingTest)
+		{
+			MetaManager meta{};
+			auto context = meta.StartUp(Text("MetaTest"));
+			auto defToken = context->Entries[L"[MetaTest][global]SimpleGeneric<Canon>"];
+			auto canonical = meta.GetTypeFromDefinitionToken(context, defToken);
+			auto int32Type = meta.GetIntrinsicTypeFromCoreType(CoreTypes::I4);
+
+			auto instantiated = meta.Instantiate(canonical, { int32Type });
+
+			Assert::AreEqual(L"[MetaTest][global]SimpleGeneric<[Core][global]Int32>", instantiated->GetFullQualifiedName()->GetContent());
+
+			{
+				auto table = instantiated->GetFieldTable();
+				auto fields = table->GetFields();
+				Assert::AreEqual(2, fields.Count);
+
+				auto&& X = fields[0];
+				Assert::AreEqual(int32Type, X.GetType());
+
+				auto&& Y = fields[1];
+				auto arrayInt32Type = meta.InstantiateArrayType(int32Type);
+				Assert::AreEqual(arrayInt32Type, Y.GetType());
+			}	
+
+			{
+				auto size = CoreTypes::GetCoreTypeSize(CoreTypes::Ref) * 2;
+				Assert::AreEqual(size, instantiated->GetSize());
+			}
 		}
 	};
 }

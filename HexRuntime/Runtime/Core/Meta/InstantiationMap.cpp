@@ -1,41 +1,40 @@
 #include "InstantiationMap.h"
 
-void RTM::InstantiationMap::AddRefScope(InstantiationLayerMap&& refMap)
+void RTM::InstantiationMap::AddScope(ScopeMap&& map)
 {
-	mRefTokenMap.push_back(std::move(refMap));
+	mTokenMap.push_back(std::move(map));
 }
 
-void RTM::InstantiationMap::AddDefScope(InstantiationLayerMap&& defMap)
+std::optional<RTM::Type*> RTM::InstantiationMap::TryGetFromReference(MDToken token) const
 {
-	mDefTokenMap.push_back(std::move(defMap));
-}
-
-std::optional<RTM::Type*> RTM::InstantiationMap::TryGetFromReference(MDToken token)
-{
+	TypedToken key{ RTME::MDRecordKinds::TypeRef, token };
 	//Should be in order of top to bottom
-	for (auto iterator = mRefTokenMap.rbegin(); iterator != mRefTokenMap.rend(); ++iterator)
-		if (auto where = iterator->find(token); where != iterator->end())
+	for (auto iterator = mTokenMap.rbegin(); iterator != mTokenMap.rend(); ++iterator)
+		if (auto where = iterator->find(key); where != iterator->end())
 			return where->second;
 
 	return {};
 }
 
-std::optional<RTM::Type*> RTM::InstantiationMap::TryGetFromDefinition(MDToken token)
+std::optional<RTM::Type*> RTM::InstantiationMap::TryGetFromDefinition(MDToken token) const
 {
+	TypedToken key{ RTME::MDRecordKinds::GenericParameter, token };
 	//Should be in order of top to bottom
-	for (auto iterator = mDefTokenMap.rbegin(); iterator != mDefTokenMap.rend(); ++iterator)
-		if (auto where = iterator->find(token); where != iterator->end())
+	for (auto iterator = mTokenMap.rbegin(); iterator != mTokenMap.rend(); ++iterator)
+		if (auto where = iterator->find(key); where != iterator->end())
 			return where->second;
 
 	return {};
 }
 
-void RTM::InstantiationMap::QuitDefScope()
+RT::Int32 RTM::InstantiationMap::GetCurrentScopeArgCount() const
 {
-	mDefTokenMap.pop_back();
+	if (mTokenMap.size() == 0) 
+		return 0;
+	return mTokenMap.back().size();
 }
 
-void RTM::InstantiationMap::QuitRefScope()
+void RTM::InstantiationMap::QuitScope()
 {
-	mRefTokenMap.pop_back();
+	mTokenMap.pop_back();
 }

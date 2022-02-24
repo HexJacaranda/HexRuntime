@@ -82,6 +82,11 @@ void RTI::OSFile::Locate(FileHandle handle, Int32 offset, LocateOption option)
 	SetFilePointer(handle, offset, nullptr, (DWORD)option);
 }
 
+RT::Int32 RTI::OSFile::GetCurrentLocation(FileHandle handle){
+
+	return SetFilePointer(handle, 0, nullptr, (DWORD)LocateOption::Current);
+}
+
 RT::Int32 RTI::OSFile::ReadInto(FileHandle handle, UInt8* buffer, Int32 readBytes)
 {
 	DWORD doneBytes = 0;

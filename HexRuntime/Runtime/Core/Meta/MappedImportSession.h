@@ -18,6 +18,7 @@ namespace RTME
 		MappedImportSession(RTMM::PrivateHeap* heap, UInt8* address, Int32 fileSize);
 		virtual Int32 ReadInto(UInt8* memory, Int32 size);
 		virtual void Relocate(Int32 offset, RTI::LocateOption option);
+		virtual Int32 GetCurrentPosition()const;
 		virtual ~MappedImportSession();
 	};
 }

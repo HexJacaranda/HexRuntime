@@ -42,6 +42,7 @@ namespace RTI
 
 		static FileHandle Duplicate(FileHandle handle);
 		static void Locate(FileHandle handle, Int32 offset, LocateOption option);
+		static Int32 GetCurrentLocation(FileHandle handle);
 		static Int32 ReadInto(FileHandle handle, UInt8* buffer, Int32 readBytes);
 		static Int32 SizeOf(FileHandle handle);
 	};

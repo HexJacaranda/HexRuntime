@@ -16,6 +16,11 @@ void RTME::ImportSession::Relocate(Int32 offset, RTI::LocateOption option)
 	return RTI::OSFile::Locate(mHandle, offset, option);
 }
 
+RT::Int32 RTME::ImportSession::GetCurrentPosition() const
+{
+	return RTI::OSFile::GetCurrentLocation(mHandle);
+}
+
 RTME::ImportSession::~ImportSession()
 {
 	RTI::OSFile::Close(mHandle);

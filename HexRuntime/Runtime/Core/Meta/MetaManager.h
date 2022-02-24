@@ -19,6 +19,7 @@
 #include <vector>
 #include <shared_mutex>
 #include <memory>
+#include <string_view>
 
 #define INJECT(...) __VA_ARGS__
 
@@ -171,9 +172,13 @@ namespace RTM
 		FieldDescriptor* GetFieldFromToken(AssemblyContext* context, MDToken fieldReference);
 
 		TypeDescriptor* InstantiateRefType(TypeDescriptor* origin);
+		TypeDescriptor* InstantiateArrayType(TypeDescriptor* origin);
+		TypeDescriptor* Instantiate(TypeDescriptor* canonical, std::vector<TypeDescriptor*> const& args);
 		
 		TypeDescriptor* GetIntrinsicTypeFromCoreType(UInt8 coreType);
 	};
+
+	static std::wstring_view ToStringView(RTO::StringObject* stringObject);
 
 	extern MetaManager* MetaData;
 }

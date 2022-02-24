@@ -48,7 +48,7 @@ bool RTME::MDImporter::PrepareImporter()
 	//Prepare index table
 	mIndexTable = new (mHeap) MDIndexTable[(Int32)MDRecordKinds::KindLimit];
 	return UseSession(
-		[&](auto session)
+		[&](IImportSession* session)
 		{
 			//Read ref table header
 			IF_SESSION_FAIL_RET(ReadInto(mRefTableHeader.TypeRefTableOffset));
@@ -60,7 +60,7 @@ bool RTME::MDImporter::PrepareImporter()
 
 			//Read regular table stream
 			for (Int32 i = 0; i < (Int32)MDRecordKinds::KindLimit; ++i)
-			{
+			{		
 				IF_SESSION_FAIL_RET(ReadInto(mIndexTable[i].Kind));
 				IF_SESSION_FAIL_RET(ReadIntoSeries(mIndexTable[i].Count, mIndexTable[i].Offsets));
 			}
@@ -184,6 +184,7 @@ bool RTME::MDImporter::ImportMethodSignature(IImportSession* session, MethodSign
 bool RTME::MDImporter::ImportField(IImportSession* session, MDToken token, FieldMD* fieldMD)
 {
 	LOCATE(FieldDef);
+	IF_SESSION_FAIL_RET(ReadInto(fieldMD->ParentTypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->TypeRefToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->NameToken));
 	IF_SESSION_FAIL_RET(ReadInto(fieldMD->FullyQualifiedNameToken));

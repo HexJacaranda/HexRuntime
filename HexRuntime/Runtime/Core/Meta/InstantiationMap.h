@@ -6,45 +6,55 @@
 
 namespace RTM
 {
-	using InstantiationLayerMap = std::unordered_map<MDToken, TypeDescriptor*>;
+	struct TypedToken
+	{
+		RTME::MDRecordKinds Kind;
+		MDToken Token;
+	};
+
+	struct TypedTokenHash
+	{
+		std::size_t operator()(TypedToken const& token)const {
+			return ComputeHashCode(token);
+		}
+	};
+
+	struct TypedTokenEqual
+	{
+		bool operator()(TypedToken const& left, TypedToken const& right)const {
+			return std::memcmp(&left, &right, sizeof(TypedToken)) == 0;
+		}
+	};
+
+	using ScopeMap = std::unordered_map<TypedToken, TypeDescriptor*, TypedTokenHash, TypedTokenEqual>;
+
 	class InstantiationMap
 	{
-		std::deque<InstantiationLayerMap> mRefTokenMap;
-		std::deque<InstantiationLayerMap> mDefTokenMap;
+		std::deque<ScopeMap> mTokenMap;
 	public:
-		void AddRefScope(InstantiationLayerMap&& refMap);
-		void AddDefScope(InstantiationLayerMap&& defMap);
-		std::optional<TypeDescriptor*> TryGetFromReference(MDToken token);
-		std::optional<TypeDescriptor*> TryGetFromDefinition(MDToken token);
-		void QuitRefScope();
-		void QuitDefScope();
+		void AddScope(ScopeMap&& defMap);
+		std::optional<TypeDescriptor*> TryGetFromReference(MDToken token) const;
+		std::optional<TypeDescriptor*> TryGetFromDefinition(MDToken token) const;
+		Int32 GetCurrentScopeArgCount()const;
+		void QuitScope();
 	};
 
 	class InstantiationSession
 	{
 		InstantiationMap& mMap;
-		bool mIsDef;
 	public:
 		InstantiationSession(
 			InstantiationMap& map, 
-			InstantiationLayerMap&& tokenMap,
-			bool isDef = false)
-			:mMap(map), mIsDef(isDef)
+			ScopeMap&& tokenMap)
+			:mMap(map)
 		{
-			if (isDef)
-				mMap.AddDefScope(std::move(tokenMap));
-			else
-				mMap.AddRefScope(std::move(tokenMap));		
+			mMap.AddScope(std::move(tokenMap));
 		}
 		~InstantiationSession()
 		{
-			if (mIsDef)
-				mMap.QuitDefScope();
-			else
-				mMap.QuitRefScope();
+			mMap.QuitScope();
 		}
 	};
 
-#define INSTANTIATION_SESSION(LAYER) RTM::InstantiationSession _session { genericMap, std::move(LAYER) }
-#define INSTANTIATION_SESSION_DEF(LAYER) RTM::InstantiationSession _session { genericMap, std::move(LAYER), true }
+#define INSTANTIATION_SCOPE(LAYER) RTM::InstantiationSession _session { genericMap, std::move(LAYER) }
 }

@@ -1,0 +1,9 @@
+{
+  "inputs": [ "MetaTest.il" ],
+  "references": ["Core"],
+  "output_directory": ".",
+  "options": {
+    "core_library": false,
+    "disable_core_type": false
+  }
+}
