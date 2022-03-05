@@ -133,6 +133,7 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(OffsetOfNo
 	{
 		auto refType = Meta::MetaData->InstantiateRefType(node->TypeInfo);
 		generatedLocal = REQ_JIT_VAR(refType);
+		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
 	}
 
 	return ret;
@@ -149,7 +150,12 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(LoadNode* 
 	case NodeKinds::LocalVariable:
 		return {};
 	default:
-		Flatten(source, generatedLocal, requestJITVariable);
+	{
+		TreeNode* localNode = nullptr;
+		DoubleLinkList<Statement> ret{};
+		FLATTEN_AND_UPDATE(ret, node->Source, Flatten(source, localNode, requestJITVariable));
+		return ret;
+	}
 	}
 }
 

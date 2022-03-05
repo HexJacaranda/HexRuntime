@@ -528,3 +528,33 @@
         }
     }
 }
+
+.struct public instance Struct
+.namespace Test
+{
+    .field public instance int32 X
+    .field public instance float Y
+}
+
+.class public instance JITTest2
+.namespace Test
+{
+    .method public static float TestStructLocal() managed
+    {
+        .local
+        {
+            [JIT][Test]Struct X
+        }
+        .code
+        {
+            .ldloc X
+            .ldc float 1.0
+            .stfld [JIT][Test]Struct::Y
+
+            .ldloc X
+            .ldfld [JIT][Test]Struct::Y
+            .ret
+        }
+    }
+}
+

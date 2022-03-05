@@ -30,7 +30,8 @@ namespace RuntimeTest
 			auto name = parser.Parse();
 
 			auto instantiatedName = name->InstantiateWith({ L"[Core][global]Int32" ,L"[Core][global]Int32", L"[Core][global]Int32" });
-			Assert::AreEqual(L"[Core][global]A<[Core][global]Int32>.B<[Core][global]Int32, [Core][global]Int32>", instantiatedName->GetTypeName().data());
+			Assert::AreEqual(L"[Core][global]A<[Core][global]Int32>.B<[Core][global]Int32, [Core][global]Int32>", 
+				instantiatedName->GetFullyQualifiedName().data());
 		}
 	};
 }

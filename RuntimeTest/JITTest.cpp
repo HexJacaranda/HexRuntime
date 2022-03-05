@@ -19,11 +19,13 @@
 #include "../HexRuntime/Runtime/Core/Object/Object.h"
 #include <format>
 #include <fstream>
+#include <filesystem>
 
 using namespace RTJ;
 using namespace RTJ::Hex;
 using namespace RTC;
 using namespace RT;
+using namespace RTM;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace Microsoft::VisualStudio::CppUnitTestFramework
@@ -58,6 +60,84 @@ namespace Microsoft::VisualStudio::CppUnitTestFramework
 
 namespace RuntimeTest
 {
+	struct CodeDumper
+	{
+	public:
+		std::wstring Directory;
+		HexJITContext* Context = nullptr;
+
+		void* operator()() {
+			std::wstring_view methodName = ToStringView(Context->Context->MethDescriptor->GetName());
+			auto finalDumpPath = std::format(L"{}/{}.bin", Directory, methodName);
+
+			auto code = (const char*)Context->NativeCode->GetExecuteableCode();
+			std::fstream fstream{ finalDumpPath, std::ios::out | std::ios::binary };
+			fstream.write(code, Context->NativeCode->GetCodeSize());
+			fstream.close();
+			return (void*)code;
+		}
+	};
+
+	template<class FlowT, class...FlowTs>
+	Hex::BasicBlock* PassThrough(HexJITContext* context)
+	{
+		FlowT flow{ context };
+		auto bb = flow.PassThrough();
+		if constexpr (sizeof...(FlowTs) == 0)
+			return bb;
+		else
+			return PassThrough<FlowTs...>(context);
+	}
+
+	void ViewIR(BasicBlock* bb)
+	{
+		auto content = JITDebugView::ViewIR(bb);
+		Logger::WriteMessage(content.c_str());
+	}
+
+	void CheckOrCreateDumpCodeDirectory(const char* directory)
+	{
+		if (std::filesystem::exists(directory))
+			return;
+		std::filesystem::create_directories(directory);
+	}
+
+	void SetUpMethod(
+		AssemblyContext* assembly,
+		HexJITContext* context,
+		std::wstring_view const& typeName,
+		std::wstring_view const& name)
+	{
+		auto type = Meta::MetaData->GetTypeFromFQN(typeName);
+		auto table = type->GetMethodTable();
+		for (auto&& method : table->GetMethods())
+		{
+			auto methodName = method->GetName();
+			if (name == methodName->GetContent())
+			{
+				context->Context->MethDescriptor = method;
+				context->Context->Assembly = assembly;
+				break;
+			}
+		}
+
+		auto method = context->Context->MethDescriptor;
+		for (auto&& local : method->GetLocalVariables())
+			context->LocalAttaches.push_back({ &local, 0 });
+
+		for (auto&& argument : method->GetSignature()->GetArguments())
+			context->ArgumentAttaches.push_back({ &argument, 0 });
+
+		Assert::IsNotNull(context->Context->MethDescriptor, L"Method not found");
+	}
+
+#define SET_UP_METHOD_FOR(NAME) \
+	void SetUpMethod(std::wstring_view const& name) \
+	{ \
+		RuntimeTest::SetUpMethod(Assembly, Context, L"[JIT][Test]"#NAME, name);\
+	} 
+		
+
 	TEST_CLASS(JITTest)
 	{
 		Hex::HexJITContext* context = nullptr;
@@ -66,18 +146,7 @@ namespace RuntimeTest
 		template<class FlowT, class...FlowTs>
 		Hex::BasicBlock* PassThrough()
 		{
-			FlowT flow{ context };
-			auto bb = flow.PassThrough();
-			if constexpr (sizeof...(FlowTs) == 0)
-				return bb;
-			else
-				return PassThrough<FlowTs...>();
-		}
-
-		void ViewIR(BasicBlock* bb) 
-		{
-			auto content = JITDebugView::ViewIR(bb);
-			Logger::WriteMessage(content.c_str());
+			return RuntimeTest::PassThrough<FlowT, FlowTs...>(context);
 		}
 
 		void* DumpNativeCode(const char* name)
@@ -621,4 +690,60 @@ namespace RuntimeTest
 	};
 
 	RTM::AssemblyContext* JITTest::assembly = nullptr;
+
+	TEST_CLASS(JITTest2)
+	{
+		HexJITContext* Context = nullptr;
+		static AssemblyContext* Assembly;
+		CodeDumper Dump;
+	public:
+		TEST_CLASS_INITIALIZE(InitializeMetaManager)
+		{
+			Meta::MetaData = new Meta::MetaManager();
+			Assembly = Meta::MetaData->StartUp(Text("JIT"));
+			CheckOrCreateDumpCodeDirectory("JITTest2");
+		}
+
+		TEST_CLASS_CLEANUP(CleanUpMetaManager)
+		{
+			Meta::MetaData->ShutDown();
+			delete Meta::MetaData;
+		}
+
+		TEST_METHOD_INITIALIZE(InitializeContext)
+		{
+			Context = new Hex::HexJITContext();
+			Context->Context = new JITContext();
+			Context->Memory = new Memory::SegmentHeap();
+
+			Context->Traversal.Count = 256;
+			Context->Traversal.Space = (Int8*)Context->Memory->Allocate(sizeof(void*) * Context->Traversal.Count);
+
+			Dump = CodeDumper{ L"JITTest2", Context };
+		}
+
+		TEST_METHOD_CLEANUP(CleanUpContext)
+		{
+			delete Context->Memory;
+			delete Context;
+		}
+
+		SET_UP_METHOD_FOR(JITTest2)
+
+		TEST_METHOD(TestStructLocal)
+		{
+			SetUpMethod(L"TestStructLocal");
+			using Fn = Float(__fastcall*)();
+			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>(Context);
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+
+			Fn method = (Fn)Dump();
+			auto ret = method();
+
+			Assert::AreEqual(1.0f, ret);
+		}
+	};
+
+	RTM::AssemblyContext* JITTest2::Assembly = nullptr;
 }

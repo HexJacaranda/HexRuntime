@@ -1,5 +1,6 @@
 #pragma once
 #include "..\..\RuntimeAlias.h"
+#include "..\..\Utility.h"
 #include "..\..\Range.h"
 #include <string>
 #include <string_view>
@@ -17,6 +18,8 @@ namespace RTM
 		std::vector<std::shared_ptr<TypeStructuredName>> Arguments;
 	};
 
+	static constexpr std::wstring_view CanonicalPlaceholder = L"Canon";
+
 	/// <summary>
 	/// Type need structured name for generic resolving
 	/// </summary>
@@ -31,10 +34,11 @@ namespace RTM
 		TypeStructuredName() = default;
 		std::wstring_view GetReferenceAssembly()const;
 		std::wstring_view GetNamespace()const;
-		std::wstring_view GetTypeName()const;
 		std::wstring_view GetShortTypeName()const;
-		std::vector<TypeNameNode> const& GetTypeNodes()const;
 		std::wstring_view GetFullyQualifiedName()const;
+		std::wstring GetCanonicalizedName()const;
+		bool IsFullyCanonical()const;
+		std::vector<TypeNameNode> const& GetTypeNodes()const;
 		std::shared_ptr<TypeStructuredName> InstantiateWith(std::vector<std::wstring_view> const& arguments);
 	private:
 		template<class Fn>
@@ -59,7 +63,10 @@ namespace RTM
 		std::shared_ptr<TypeStructuredName> mParsedName;
 	public:
 		TypeNameParser(std::wstring_view originName);
-		std::shared_ptr<TypeStructuredName> Parse(bool suppressArgumentParse = false);
+		std::shared_ptr<TypeStructuredName> Parse();
+		std::wstring_view ExtractAssembly();
+
+		static std::wstring_view ExtractAssembly(std::wstring_view originName);
 	private:
 		IndexRange ParseAssembly();
 		IndexRange ParseNamespace();

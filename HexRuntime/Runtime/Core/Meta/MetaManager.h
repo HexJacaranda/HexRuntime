@@ -57,6 +57,7 @@ namespace RTM
 		USE_LOGGER(MetaManager);
 		std::shared_mutex mContextLock;
 		std::unordered_map<Guid, AssemblyContext*, GuidHash, GuidEqual> mContexts;
+		std::unordered_map<std::wstring_view, AssemblyContext*> mName2Context;
 		std::atomic<AssemblyContext*> mCoreAssembly = nullptr;
 		std::atomic<AssemblyContext*> mGenericAssembly = nullptr;
 
@@ -119,6 +120,8 @@ namespace RTM
 			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT)
 		);
 
+		TypeDescriptor* GetTypeFromFQN(std::shared_ptr<TypeStructuredName> const& tsn);
+
 		FieldTable* GenerateFieldTable(AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
 		FieldsLayout* GenerateLayout(FieldTable* table, AssemblyContext* allocatingContext, AssemblyContext* context);
@@ -129,12 +132,9 @@ namespace RTM
 
 		static bool HasVisitedType(VisitSet const& visited, TypeIdentity const& identity);
 		/// <summary>
-		/// Unlocked
+		/// Dynamically create assembly for generic use
 		/// </summary>
-		/// <param name="assembly"></param>
 		/// <returns></returns>
-		AssemblyContext* LoadAssembly(RTString assembly);
-
 		AssemblyContext* NewDynamicAssembly();
 		/// <summary>
 		/// Very dangerous operation, can only be used when failing the load
@@ -148,19 +148,14 @@ namespace RTM
 		/// <param name="view"></param>
 		/// <returns></returns>
 		RTO::StringObject* GetStringFromView(AssemblyContext* context, std::wstring_view view);
-		/// <summary>
-		/// Load assembly by guid
-		/// </summary>
-		/// <param name="guid"></param>
-		/// <returns></returns>
-		AssemblyContext* GetGenericAssembly();
 
+		AssemblyContext* GetGenericAssembly();
 		AssemblyContext* GetCoreAssembly();
 		
 		std::shared_ptr<TypeStructuredName> GetTSN(TypeIdentity const& identity);
 	public:
 		MetaManager();
-		AssemblyContext* StartUp(RTString assemblyName);
+		AssemblyContext* StartUp(std::wstring_view const& name);
 		void ShutDown();
 		~MetaManager();
 	public:
@@ -176,9 +171,15 @@ namespace RTM
 		TypeDescriptor* Instantiate(TypeDescriptor* canonical, std::vector<TypeDescriptor*> const& args);
 		
 		TypeDescriptor* GetIntrinsicTypeFromCoreType(UInt8 coreType);
+		TypeDescriptor* GetTypeFromFQN(std::wstring_view const& fqn);
+		AssemblyContext* GetAssemblyFromName(std::wstring_view const& name);
 	};
 
-	static std::wstring_view ToStringView(RTO::StringObject* stringObject);
+	static std::wstring_view ToStringView(RTO::StringObject* stringObject)
+	{
+		if (stringObject == nullptr) return {};
+		return { stringObject->GetContent(), (std::size_t)stringObject->GetCount() };
+	}
 
 	extern MetaManager* MetaData;
 }

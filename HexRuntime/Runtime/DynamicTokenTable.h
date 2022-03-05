@@ -78,6 +78,12 @@ namespace RT
 			return mIdentityMap.at(identity);
 		}
 
+		std::optional<MDToken> GetTokenByFQN(IdentityT const& identity)const {
+			if (auto it = mIdentityMap.find(identity); it != mIdentityMap.end())
+				return it->second;
+			return {};
+		}
+
 		bool DefineMetaMapUnsafe(IdentityT const& identity, MDToken token)
 		{
 			if (auto where = mIdentityMap.find(identity); where != mIdentityMap.end())

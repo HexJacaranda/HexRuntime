@@ -43,12 +43,6 @@ namespace RTM
 	MetaManager* MetaData = nullptr;
 }
 
-std::wstring_view RTM::ToStringView(RTO::StringObject* stringObject)
-{
-	if (stringObject == nullptr) return {};
-	return { stringObject->GetContent(), (std::size_t)stringObject->GetCount() };
-}
-
 RTM::AssemblyContext* RTM::MetaManager::TryQueryContextLocked(RTME::AssemblyRefMD* reference)
 {
 	std::shared_lock lock{ mContextLock };
@@ -454,82 +448,6 @@ RTM::TypeDescriptor* RTM::MetaManager::InstantiateWith(
 	}
 
 	return instantiationType;
-}
-
-RTM::AssemblyContext* RTM::MetaManager::LoadAssembly(RTString assembly)
-{
-	auto heap = new RTMM::PrivateHeap();
-	auto importer = new (heap) RTME::MDImporter(assembly, heap, RTME::ImportOption::Default);
-	auto context = new (heap) AssemblyContext(heap, importer);
-
-	auto startUp = importer->UseSession(
-		[&](auto session)
-		{
-			IF_FAIL_RET(importer->ImportAssemblyHeader(session, &context->Header));
-			IF_FAIL_RET(importer->ImportAssemblyRefTable(session, context->AssemblyRefs));
-			IF_FAIL_RET(importer->ImportTypeRefTable(session, context->TypeRefs));
-			IF_FAIL_RET(importer->ImportMemberRefTable(session, context->MemberRefs));
-			return true;
-		});
-
-	if (!startUp)
-	{
-		//Clean up assembly
-		UnLoadAssembly(context);
-		THROW("Assembly loading failed.");
-	}
-	
-	//Prepare type def entries
-	auto&& typeDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::TypeDef];	
-
-	TypeEntryTableT newTable{ new (heap) TypeDefEntry[typeDefIndex.Count], (MDToken)typeDefIndex.Count, heap->GetResource() };
-	context->Entries = std::move(newTable);
-
-	{
-		//Prepare fully qualified name mapping
-		RTME::TypeMD typeMD{};
-		importer->UseSession(
-			[&](auto session)
-			{
-				for (MDToken i = 0; i < typeDefIndex.Count; ++i)
-				{
-					IF_FAIL_RET(importer->ImportType(session, i, &typeMD));
-					auto fqn = GetStringFromToken(context, typeMD.FullyQualifiedNameToken);
-					context->Entries.DefineMetaMapUnsafe({ fqn->GetContent(), (std::size_t)fqn->GetCount() }, i);
-				}
-				return true;
-			});
-	}
-
-	//Prepare generic instantiaion def
-	auto&& genericDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericInstantiationDef];                                                   
-	context->GenericDef = new (heap) RTME::GenericInstantiationMD[genericDefIndex.Count];
-
-	importer->UseSession(
-		[&](auto session)
-		{
-			for (MDToken i = 0; i < genericDefIndex.Count; ++i)
-			{
-				IF_FAIL_RET(importer->ImportGenericInstantiation(session, i, &context->GenericDef[i]));
-			}
-			return true;
-		});
-	//Prepare generic parameter def
-	auto&& genericParamIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericParameter];
-	context->GenerciParamDef = new (heap) RTME::GenericParamterMD[genericParamIndex.Count];
-
-	importer->UseSession(
-		[&](auto session)
-		{
-			for (MDToken i = 0; i < genericParamIndex.Count; ++i)
-			{
-				IF_FAIL_RET(importer->ImportGenericParameter(session, i, &context->GenerciParamDef[i]));
-			}
-			return true;
-		});
-
-	mContexts.insert({ context->Header.GUID, context });
-	return context;
 }
 
 RTM::AssemblyContext* RTM::MetaManager::NewDynamicAssembly()
@@ -1013,7 +931,7 @@ std::shared_ptr<RTM::TypeStructuredName> RTM::MetaManager::GetTSN(TypeIdentity c
 {
 	auto fqn = identity.Canonical->GetFullQualifiedName();
 	std::wstring_view fqnView{ fqn->GetContent(), (std::size_t)fqn->GetCount() };
-	auto canonicalTSN = TypeNameParser(fqnView).Parse(true);
+	auto canonicalTSN = TypeNameParser(fqnView).Parse();
 
 	//Construct instantiation array
 	std::vector<std::wstring_view> instantiationNameList(identity.ArgumentCount);
@@ -1039,9 +957,9 @@ RTM::MetaManager::MetaManager()
 	INJECT_LOGGER(MetaManager);
 }
 
-RTM::AssemblyContext* RTM::MetaManager::StartUp(RTString assemblyName)
+RTM::AssemblyContext* RTM::MetaManager::StartUp(std::wstring_view const& name)
 {
-	return LoadAssembly(assemblyName);
+	return GetAssemblyFromName(name);
 }
 
 void RTM::MetaManager::ShutDown()
@@ -1069,15 +987,8 @@ RTM::AssemblyContext* RTM::MetaManager::GetAssemblyFromToken(AssemblyContext* co
 	auto targetAssembly = TryQueryContextLocked(&assemblyRef);
 	if (targetAssembly == nullptr)
 	{
-		std::unique_lock lock{ mContextLock };
-		//A more concurrent way should be raised
-		targetAssembly = TryQueryContext(&assemblyRef);
-		if (targetAssembly != nullptr)
-			return targetAssembly;
-
 		auto name = GetStringFromToken(context, assemblyRef.AssemblyName);
-		auto rawNameString = (RTString)name->GetContent();
-		targetAssembly = LoadAssembly(rawNameString);
+		return GetAssemblyFromName(ToStringView(name));
 	}
 
 	return targetAssembly;
@@ -1164,6 +1075,158 @@ RTM::TypeDescriptor* RTM::MetaManager::GetIntrinsicTypeFromCoreType(UInt8 coreTy
 	return GetTypeFromDefinitionToken(coreLibrary, token);
 }
 
+RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromFQN(std::shared_ptr<TypeStructuredName> const& tsn)
+{
+	//The fqn may require instantiating type dynamically
+	if (tsn->IsFullyCanonical())
+	{
+		auto assembly = GetAssemblyFromName(tsn->GetReferenceAssembly());
+		auto defToken = assembly->Entries.GetTokenByFQN(tsn->GetFullyQualifiedName());
+		if (defToken.has_value())
+			return GetTypeFromDefinitionToken(assembly, defToken.value());
+		else
+			THROW("Undefined type for assembly");
+	}
+	else
+	{
+		{
+			//Should check instantiated type to avoid unnecessary memory allocation
+			auto genericAssembly = GetGenericAssembly();
+			auto token = genericAssembly->Entries.GetTokenByFQN(tsn->GetFullyQualifiedName());
+			if (token.has_value())
+				return GetTypeFromDefinitionToken(genericAssembly, token.value());
+		}
+
+		TypeDescriptor* canonical = nullptr;
+		auto canonicalName = tsn->GetCanonicalizedName();
+		auto assembly = GetAssemblyFromName(tsn->GetReferenceAssembly());
+		auto defToken = assembly->Entries.GetTokenByFQN(canonicalName);
+		if (defToken.has_value())
+			canonical = GetTypeFromDefinitionToken(assembly, defToken.value());
+		else
+			THROW("Undefined type for assembly");
+
+		std::vector<TypeDescriptor*> args{};
+
+		for (auto&& node : tsn->GetTypeNodes())
+			for (auto&& arg : node.Arguments)
+				args.push_back(GetTypeFromFQN(arg));
+
+		return Instantiate(canonical, args);
+	}
+}
+
+RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromFQN(std::wstring_view const& fqn)
+{
+	TypeNameParser parser{ fqn };
+	auto tsn = parser.Parse();
+	return GetTypeFromFQN(tsn);
+}
+
+RTM::AssemblyContext* RTM::MetaManager::GetAssemblyFromName(std::wstring_view const& name)
+{
+	{
+		std::shared_lock lock{ mContextLock };
+		if (auto it = mName2Context.find(name); it != mName2Context.end())
+			return it->second;
+	}
+
+	auto heap = new RTMM::PrivateHeap();
+	std::wstring assembly{ name };
+	auto importer = new (heap) RTME::MDImporter(assembly.c_str(), heap, RTME::ImportOption::Default);
+	auto context = new (heap) AssemblyContext(heap, importer);
+
+	auto startUp = importer->UseSession(
+		[&](auto session)
+		{
+			IF_FAIL_RET(importer->ImportAssemblyHeader(session, &context->Header));
+			IF_FAIL_RET(importer->ImportAssemblyRefTable(session, context->AssemblyRefs));
+			IF_FAIL_RET(importer->ImportTypeRefTable(session, context->TypeRefs));
+			IF_FAIL_RET(importer->ImportMemberRefTable(session, context->MemberRefs));
+			return true;
+		});
+
+	if (!startUp)
+	{
+		UnLoadAssembly(context);
+		return nullptr;
+	}
+
+	{
+		std::shared_lock lock{ mContextLock };
+		if (auto it = mContexts.find(context->Header.GUID); it != mContexts.end())
+			return it->second;
+	}
+
+	{
+		//Prepare name 
+		context->AssemblyName = GetStringFromToken(context, context->Header.NameToken);
+
+		//Prepare type def entries
+		auto&& typeDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::TypeDef];
+
+		TypeEntryTableT newTable{ new (heap) TypeDefEntry[typeDefIndex.Count], (MDToken)typeDefIndex.Count, heap->GetResource() };
+		context->Entries = std::move(newTable);
+
+		{
+			//Prepare fully qualified name mapping
+			RTME::TypeMD typeMD{};
+			importer->UseSession(
+				[&](auto session)
+				{
+					for (MDToken i = 0; i < typeDefIndex.Count; ++i)
+					{
+						IF_FAIL_RET(importer->ImportType(session, i, &typeMD));
+						auto fqn = GetStringFromToken(context, typeMD.FullyQualifiedNameToken);
+						context->Entries.DefineMetaMapUnsafe({ fqn->GetContent(), (std::size_t)fqn->GetCount() }, i);
+					}
+					return true;
+				});
+		}
+
+		//Prepare generic instantiaion def
+		auto&& genericDefIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericInstantiationDef];
+		context->GenericDef = new (heap) RTME::GenericInstantiationMD[genericDefIndex.Count];
+
+		importer->UseSession(
+			[&](auto session)
+			{
+				for (MDToken i = 0; i < genericDefIndex.Count; ++i)
+				{
+					IF_FAIL_RET(importer->ImportGenericInstantiation(session, i, &context->GenericDef[i]));
+				}
+				return true;
+			});
+		//Prepare generic parameter def
+		auto&& genericParamIndex = importer->GetIndexTable()[(Int32)RTME::MDRecordKinds::GenericParameter];
+		context->GenerciParamDef = new (heap) RTME::GenericParamterMD[genericParamIndex.Count];
+
+		importer->UseSession(
+			[&](auto session)
+			{
+				for (MDToken i = 0; i < genericParamIndex.Count; ++i)
+				{
+					IF_FAIL_RET(importer->ImportGenericParameter(session, i, &context->GenerciParamDef[i]));
+				}
+				return true;
+			});
+	}
+
+	{
+		std::unique_lock lock{ mContextLock };
+		if (auto it = mContexts.find(context->Header.GUID); it != mContexts.end())
+		{
+			UnLoadAssembly(context);
+			return it->second;
+		}
+
+		mContexts.insert({ context->Header.GUID, context });
+		mName2Context.insert({ ToStringView(context->AssemblyName), context });
+	}
+
+	return context;
+}
+
 RTM::AssemblyContext* RTM::MetaManager::GetCoreAssembly()
 {
 	AssemblyContext* assembly = mCoreAssembly.load(std::memory_order_relaxed);
@@ -1179,17 +1242,7 @@ RTM::AssemblyContext* RTM::MetaManager::GetCoreAssembly()
 			return context->second;
 	}
 
-	{
-		std::unique_lock lock{ mContextLock };
-		if (auto context = mContexts.find(guid); context != mContexts.end())
-			return context->second;
-
-		assembly = LoadAssembly(Text("Core"));
-		mContexts[guid] = assembly;
-		mCoreAssembly.store(assembly, std::memory_order_release);
-
-		return assembly;
-	}
+	return GetAssemblyFromName(Text("Core"));
 }
 
 RTM::AssemblyContext* RTM::MetaManager::GetGenericAssembly()

@@ -10,6 +10,11 @@
 #include <mutex>
 #include <condition_variable>
 
+namespace RTO
+{
+	class StringObject;
+}
+
 namespace RTM
 {
 	struct TypeDefEntry
@@ -33,6 +38,7 @@ namespace RTM
 		RTME::GenericInstantiationMD* GenericDef = nullptr;
 		RTME::GenericParamterMD* GenerciParamDef = nullptr;
 		RTME::AssemblyHeaderMD Header = {};
+		RTO::StringObject* AssemblyName = nullptr;
 		TypeEntryTableT Entries;
 	public:
 		AssemblyContext(RTMM::PrivateHeap* heap, RTME::MDImporter* importer);

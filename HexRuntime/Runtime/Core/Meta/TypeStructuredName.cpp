@@ -11,11 +11,6 @@ std::wstring_view RTM::TypeStructuredName::GetNamespace() const
 	return mNamespace[mOriginString];
 }
 
-std::wstring_view RTM::TypeStructuredName::GetTypeName() const
-{
-	return mOriginString;
-}
-
 std::wstring_view RTM::TypeStructuredName::GetShortTypeName() const
 {
 	return mTypeNameNodes[mTypeNameNodes.size() - 1].FullRange[mOriginString];
@@ -50,7 +45,7 @@ std::shared_ptr<RTM::TypeStructuredName> RTM::TypeStructuredName::InstantiateWit
 	//Local function to handle whether we should use parameters
 	auto handleArgument = [&](TypeNameNode& newNode, std::shared_ptr<TypeStructuredName> const& oldName) {
 		//Assume suppress argument parsing is on
-		auto oldTypeName = oldName->GetTypeName();
+		auto oldTypeName = oldName->GetFullyQualifiedName();
 		if (oldTypeName == L"Canon")
 		{
 			newName.append(arguments[inValueIndex]);
@@ -105,27 +100,81 @@ std::shared_ptr<RTM::TypeStructuredName> RTM::TypeStructuredName::InstantiateWit
 	return ret;
 }
 
+
+std::wstring RTM::TypeStructuredName::GetCanonicalizedName() const
+{
+	std::wstring ret{};
+
+	ret.push_back(L'[');
+	ret.append(GetReferenceAssembly());
+	ret.push_back(L']');
+
+	ret.push_back(L'[');
+	ret.append(GetNamespace());
+	ret.push_back(L']');
+
+	Enumerable::ContractIterate(mTypeNameNodes,
+		[&](TypeNameNode const& node)
+		{
+			ret.append(node.Canonical[mOriginString]);
+			if (node.Arguments.size() > 0)
+			{
+				ret.push_back(L'<');
+
+				Enumerable::ContractIterate(node.Arguments,
+					[&](auto&& _) {
+						ret.append(CanonicalPlaceholder);
+					},
+					[&](auto&& _) {
+						ret.append(L", ");
+					});
+
+				ret.push_back(L'>');
+			}
+		},
+		[&](TypeNameNode const& _)
+		{
+			ret.push_back(L'.');
+		});
+
+	return ret;
+}
+
+bool RTM::TypeStructuredName::IsFullyCanonical() const
+{
+	for (auto&& node : mTypeNameNodes)
+	{
+		if (node.FullRange[mOriginString] == CanonicalPlaceholder)
+			return true;
+
+		for (auto&& arg : node.Arguments)
+			if (arg->GetFullyQualifiedName() != CanonicalPlaceholder)
+				return false;
+	}
+			
+	return true;
+}
+
 RTM::TypeNameParser::TypeNameParser(std::wstring_view originName)
 	:mOrigin(originName), mIndex(0)
 {
 	mParsedName = std::make_shared<TypeStructuredName>();
 }
 
-std::shared_ptr<RTM::TypeStructuredName> RTM::TypeNameParser::Parse(bool suppressArgumentParse)
+std::shared_ptr<RTM::TypeStructuredName> RTM::TypeNameParser::Parse()
 {
 	//Canonical holder
-	if (mOrigin != L"Canon")
+	if (mOrigin != CanonicalPlaceholder)
 	{
 		mParsedName->mReferenceAssembly = ParseAssembly();
 		IF_FAIL_PARSE_RET(nullptr);
 		mParsedName->mNamespace = ParseNamespace();
 		IF_FAIL_PARSE_RET(nullptr);
-
-		TypeNameNode nameNode{};
+	
 		wchar_t lastCh = L'\0';
-
 		while (true)
 		{
+			TypeNameNode nameNode{};
 			lastCh = ParseTypeNameNode(nameNode);
 			if (lastCh == L'\0')
 			{
@@ -149,6 +198,20 @@ std::shared_ptr<RTM::TypeStructuredName> RTM::TypeNameParser::Parse(bool suppres
 	mParsedName->mOriginString = std::move(mOrigin);
 	return std::move(mParsedName);
 }
+
+std::wstring_view RTM::TypeNameParser::ExtractAssembly()
+{
+	auto&& range = ParseAssembly();
+	return std::wstring_view{ mOrigin }.substr(range.Base, range.Count);
+}
+
+std::wstring_view RTM::TypeNameParser::ExtractAssembly(std::wstring_view originName)
+{
+	TypeNameParser parser{ originName };
+	auto&& range = parser.ParseAssembly();
+	return std::wstring_view{ originName }.substr(range.Base, range.Count);
+}
+
 
 RT::IndexRange RTM::TypeNameParser::ParseAssembly()
 {

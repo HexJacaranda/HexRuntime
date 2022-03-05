@@ -53,13 +53,13 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 		if (argumentsCount == 0)
 			ret = new (POOL) CallNode(method, nullptr, argumentsCount);
 		else
-			ret = new (POOL) CallNode(method, mEvalStack.Pop());
+			ret = new (POOL) CallNode(method, Pop());
 	}
 	else
 	{
 		TreeNode** arguments = new (POOL) TreeNode * [argumentsCount];
 		for (int i = 0; i < argumentsCount; ++i)
-			arguments[i] = mEvalStack.Pop();
+			arguments[i] = Pop();
 
 		ret = new (POOL) CallNode(method, arguments, argumentsCount);
 	}
@@ -111,18 +111,18 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 	if (fieldDescriptor->IsStatic())
 		field = new (POOL) StaticFieldNode(fieldDescriptor);
 	else
-		field = new (POOL) InstanceFieldNode(fieldDescriptor, mEvalStack.Pop());
+		field = new (POOL) InstanceFieldNode(fieldDescriptor, Pop());
 
 	auto ret = new (POOL) LoadNode(SLMode, field);
-	ret->TypeInfo = fieldDescriptor->GetType();
-
+	ret->TypeInfo = field->TypeInfo = fieldDescriptor->GetType();
+	
 	return ret;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMode)
 {
-	auto index = mEvalStack.Pop();
-	auto array = mEvalStack.Pop();
+	auto index = Pop();
+	auto array = Pop();
 	auto arrayElement = new (POOL) ArrayElementNode(array, index);
 	return (new (POOL) LoadNode(SLMode, arrayElement))
 		->SetType(array->TypeInfo->GetTypeArguments()[0]);
@@ -160,7 +160,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 {
-	TreeNode* value = mEvalStack.Pop();
+	TreeNode* value = Pop();
 	MDToken fieldToken = ReadAs<MDToken>();
 	auto field = RTM::MetaData->GetFieldFromToken(GetAssembly(), fieldToken);
 	auto fieldType = field->GetType();
@@ -177,7 +177,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 	else
 	{
 		//Instance field store
-		auto object = mEvalStack.Pop();
+		auto object = Pop();
 		destination = new (POOL) InstanceFieldNode(field, object);
 	}
 	return new (POOL) StoreNode(destination->SetType(fieldType), value);
@@ -185,7 +185,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreField()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 {
-	TreeNode* value = mEvalStack.Pop();
+	TreeNode* value = Pop();
 
 	auto argumentIndex = ReadAs<Int16>();
 	auto arguments = GetRawContext()->MethDescriptor->GetArguments();
@@ -200,7 +200,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArgument()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 {
-	TreeNode* value = mEvalStack.Pop();
+	TreeNode* value = Pop();
 	auto localIndex = ReadAs<Int16>();
 	auto type = Meta::MetaData->GetTypeFromToken(
 		GetAssembly(),
@@ -215,9 +215,9 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreLocal()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
 {
-	auto value = mEvalStack.Pop();
-	auto index = mEvalStack.Pop();
-	auto array = mEvalStack.Pop();
+	auto value = Pop();
+	auto index = Pop();
+	auto array = Pop();
 
 	auto elementNode = new (POOL) ArrayElementNode(array, index);
 	return new (POOL) StoreNode(
@@ -227,8 +227,8 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreArrayElement()
 
 RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreToAddress()
 {
-	auto value = mEvalStack.Pop();
-	auto address = mEvalStack.Pop();
+	auto value = Pop();
+	auto address = Pop();
 	return new (POOL) StoreNode(address, value);
 }
 
@@ -244,13 +244,13 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNew()
 	{
 		if (argumentsCount == 0)
 			return (new (POOL) NewNode(method, nullptr, argumentsCount))->SetType(type);
-		return (new (POOL) NewNode(method, mEvalStack.Pop()))->SetType(type);
+		return (new (POOL) NewNode(method, Pop()))->SetType(type);
 	}
 	else
 	{
 		TreeNode** arguments = new (POOL) TreeNode * [argumentsCount];
 		for (int i = 0; i < argumentsCount; ++i)
-			arguments[i] = mEvalStack.Pop();
+			arguments[i] = Pop();
 
 		return (new (POOL) NewNode(method, arguments, argumentsCount))->SetType(type);
 	}
@@ -266,14 +266,14 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 	auto arrayType = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Array);
 	if (dimensionCount == 1)
 	{
-		return (new (POOL) NewArrayNode(elementType, mEvalStack.Pop()))
+		return (new (POOL) NewArrayNode(elementType, Pop()))
 			->SetType(arrayType);
 	}
 	else
 	{
 		TreeNode** dimensions = new (POOL) TreeNode * [dimensionCount];
 		for (int i = 0; i < dimensionCount; ++i)
-			dimensions[i] = mEvalStack.Pop();
+			dimensions[i] = Pop();
 		return (new (POOL) NewArrayNode(elementType, dimensions, dimensionCount))
 			->SetType(arrayType);
 	}
@@ -281,8 +281,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateCompare()
 {
-	auto right = mEvalStack.Pop();
-	auto left = mEvalStack.Pop();
+	auto right = Pop();
+	auto left = Pop();
 
 	if (!left->CheckEquivalentWith(right))
 		THROW("Type check failed.");
@@ -304,7 +304,7 @@ void RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitio
 	auto returnType = GetRawContext()->MethDescriptor->GetReturnType();
 	if (returnType != nullptr)
 	{
-		ret = mEvalStack.Pop();
+		ret = Pop();
 		if (!returnType->IsAssignableFrom(ret->TypeInfo))
 			THROW("Incompatible conversion when returning");	
 	}
@@ -319,8 +319,8 @@ void RTJ::Hex::ILTransformer::GenerateReturn(BasicBlockPartitionPoint*& partitio
 
 RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmetic(UInt8 opcode)
 {
-	auto right = mEvalStack.Pop();
-	auto left = mEvalStack.Pop();
+	auto right = Pop();
+	auto left = Pop();
 	if (left->TypeInfo != right->TypeInfo)
 		THROW("Unconsistency of binary operators");
 
@@ -331,7 +331,7 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 
 RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic(UInt8 opcode)
 {
-	auto value = mEvalStack.Pop();
+	auto value = Pop();
 	auto node = new (POOL) UnaryArithmeticNode(value, opcode);
 	node->TypeInfo = value->TypeInfo;
 	return node;
@@ -339,7 +339,7 @@ RTJ::Hex::UnaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateUnaryArtithmetic
 
 RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 {
-	auto value = mEvalStack.Pop();
+	auto value = Pop();
 	UInt8 to = ReadAs<UInt8>();
 	if (CoreTypes::IsValidCoreType(to))
 		THROW("Invalid cast between primitive types");
@@ -352,7 +352,7 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 
 RTJ::Hex::CastNode* RTJ::Hex::ILTransformer::GenerateCast()
 {
-	auto value = mEvalStack.Pop();
+	auto value = Pop();
 	MDToken typeRef = ReadAs<MDToken>();
 	auto type = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
 
@@ -366,7 +366,7 @@ RTJ::Hex::CastNode* RTJ::Hex::ILTransformer::GenerateCast()
 
 RTJ::Hex::UnBoxNode* RTJ::Hex::ILTransformer::GenerateUnBox()
 {
-	auto value = mEvalStack.Pop();
+	auto value = Pop();
 	MDToken typeRef = ReadAs<MDToken>();
 	auto targetType = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
 
@@ -380,7 +380,7 @@ RTJ::Hex::UnBoxNode* RTJ::Hex::ILTransformer::GenerateUnBox()
 
 RTJ::Hex::BoxNode* RTJ::Hex::ILTransformer::GenerateBox()
 {
-	auto value = mEvalStack.Pop();
+	auto value = Pop();
 	auto objectType = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Object);
 
 	auto node = new (POOL) BoxNode(value);
@@ -388,9 +388,20 @@ RTJ::Hex::BoxNode* RTJ::Hex::ILTransformer::GenerateBox()
 	return node;
 }
 
+void RTJ::Hex::ILTransformer::Push(TreeNode* value)
+{
+	mEvalStack.Push(value);
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::Pop()
+{
+	return mEvalStack.Pop();
+}
+
+
 void RTJ::Hex::ILTransformer::GenerateJccPP(BasicBlockPartitionPoint*& partitions)
 {
-	auto value = mEvalStack.Pop();
+	auto value = Pop();
 	auto jccOffset = ReadAs<Int32>();
 	auto currentPoint = new (POOL) BasicBlockPartitionPoint(PPKind::Conditional, GetOffset(), value);
 	currentPoint->TargetILOffset = jccOffset;
@@ -465,7 +476,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 							stmtCurrent = TryGenerateStatement(node, \
 																stmtPrevious == nullptr ? 0 : stmtPrevious->EndOffset,\
 																CRITICAL); \
-							if (stmtCurrent == nullptr) { mEvalStack.Push(node); } \
+							if (stmtCurrent == nullptr) { Push(node); } \
 							else LinkedList::AppendTwoWay(stmtHead, stmtPrevious, stmtCurrent)
 
 	//Try generate statement for operation and thread it if possible
@@ -489,7 +500,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 				IL_TRY_GEN_STMT_CRITICAL(callNode, true);
 			}
 			else
-				mEvalStack.Push(callNode);
+				Push(callNode);
 			break;
 		}
 		case OpCodes::Ret:
@@ -544,31 +555,37 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		}
 
 		case OpCodes::LdArg:
-			mEvalStack.Push(GenerateLoadArgument(SLMode::Direct));
+			Push(GenerateLoadArgument(SLMode::Direct));
 			break;
 		case OpCodes::LdArgA:
-			mEvalStack.Push(GenerateLoadArgument(SLMode::Indirect));
+			Push(GenerateLoadArgument(SLMode::Indirect));
 			break;
 		case OpCodes::LdLoc:
-			mEvalStack.Push(GenerateLoadLocalVariable(SLMode::Direct));
+			Push(GenerateLoadLocalVariable(SLMode::Direct));
 			break;
 		case OpCodes::LdLocA:
-			mEvalStack.Push(GenerateLoadLocalVariable(SLMode::Indirect));
+			Push(GenerateLoadLocalVariable(SLMode::Indirect));
 			break;
 		case OpCodes::LdElem:
-			mEvalStack.Push(GenerateLoadArrayElement(SLMode::Direct));
+			Push(GenerateLoadArrayElement(SLMode::Direct));
 			break;
 		case OpCodes::LdElemA:
-			mEvalStack.Push(GenerateLoadArrayElement(SLMode::Indirect));
+			Push(GenerateLoadArrayElement(SLMode::Indirect));
+			break;
+		case OpCodes::LdFld:
+			Push(GenerateLoadField(SLMode::Direct));
+			break;
+		case OpCodes::LdFldA:
+			Push(GenerateLoadField(SLMode::Indirect));
 			break;
 		case OpCodes::LdStr:
-			mEvalStack.Push(GenerateLoadString());
+			Push(GenerateLoadString());
 			break;
 		case OpCodes::LdC:
-			mEvalStack.Push(GenerateLoadConstant());
+			Push(GenerateLoadConstant());
 			break;
 		case OpCodes::LdNull:
-			mEvalStack.Push(&NullNode::Instance());
+			Push(&NullNode::Instance());
 			break;
 
 		//---------------------------------------------------
@@ -583,7 +600,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		case OpCodes::And:
 		case OpCodes::Or:
 		case OpCodes::Xor:
-			mEvalStack.Push(GenerateBinaryArithmetic(instruction));
+			Push(GenerateBinaryArithmetic(instruction));
 			break;
 
 		//---------------------------------------------------
@@ -592,7 +609,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 
 		case OpCodes::Not:
 		case OpCodes::Neg:
-			mEvalStack.Push(GenerateUnaryArtithmetic(instruction));
+			Push(GenerateUnaryArtithmetic(instruction));
 			break;
 
 		//---------------------------------------------------
@@ -600,7 +617,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		//---------------------------------------------------
 
 		case OpCodes::Conv:
-			mEvalStack.Push(GenerateConvert());
+			Push(GenerateConvert());
 			break;
 
 		//---------------------------------------------------
@@ -608,15 +625,15 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		//---------------------------------------------------
 
 		case OpCodes::Cast:
-			mEvalStack.Push(GenerateCast());
+			Push(GenerateCast());
 			break;
 
 		case OpCodes::Box:
-			mEvalStack.Push(GenerateBox());
+			Push(GenerateBox());
 			break;
 
 		case OpCodes::UnBox:
-			mEvalStack.Push(GenerateUnBox());
+			Push(GenerateUnBox());
 			break;
 
 		//------------------------------------------------------
@@ -624,7 +641,7 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		//------------------------------------------------------
 
 		case OpCodes::Dup:
-			mEvalStack.Push(GenerateDuplicate());
+			Push(GenerateDuplicate());
 			break;
 		case OpCodes::Pop:
 		{
@@ -645,22 +662,22 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 			// ------------------
 			// is not allowed.
 
-			IL_TRY_GEN_STMT_CRITICAL(mEvalStack.Pop(), true);
+			IL_TRY_GEN_STMT_CRITICAL(Pop(), true);
 			break;
 		}
 
 		case OpCodes::Cmp:
-			mEvalStack.Push(GenerateCompare());
+			Push(GenerateCompare());
 			break;
 
 		//------------------------------------------------------
 		//GC related opcodes.
 		//------------------------------------------------------
 		case OpCodes::New:
-			mEvalStack.Push(GenerateNew());
+			Push(GenerateNew());
 			break;
 		case OpCodes::NewArr:
-			mEvalStack.Push(GenerateNewArray());
+			Push(GenerateNewArray());
 			break;
 
 		default:

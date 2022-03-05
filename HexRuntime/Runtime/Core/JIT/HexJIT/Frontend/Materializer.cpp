@@ -124,6 +124,38 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
 
 RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
 {
+	auto morph = [&](TreeNode*& root) {
+		TraverseTreeBottomUp(
+			mJITContext->Traversal.Space,
+			mJITContext->Traversal.Count,
+			root,
+			[&](TreeNode*& node) {
+				switch (node->Kind)
+				{
+				case NodeKinds::Call:
+					node = Morph(node->As<CallNode>());
+					break;
+				case NodeKinds::New:
+					node = Morph(node->As<NewNode>());
+					break;
+				case NodeKinds::NewArray:
+					node = Morph(node->As<NewArrayNode>());
+					break;
+				case NodeKinds::Load:
+					node = Morph(node->As<LoadNode>());
+					break;
+				case NodeKinds::Store:
+					node = Morph(node->As<StoreNode>());
+					break;
+				case NodeKinds::InstanceField:
+					node = Morph(node->As<InstanceFieldNode>());
+					break;
+				case NodeKinds::Array:
+					node = Morph(node->As<ArrayElementNode>());
+					break;
+				}
+			});
+	};
 	auto bbHead = mJITContext->BBs[0];
 
 	for (BasicBlock* bbIterator = bbHead;
@@ -137,36 +169,12 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
 			mPreviousStmt = mCurrentStmt,
 			mCurrentStmt = mCurrentStmt->Next)
 		{
-			TraverseTreeBottomUp(
-				mJITContext->Traversal.Space, 
-				mJITContext->Traversal.Count, 
-				mCurrentStmt->Now,
-				[&](TreeNode*& node) {
-					switch (node->Kind)
-					{
-					case NodeKinds::Call:
-						node = Morph(node->As<CallNode>());
-						break;
-					case NodeKinds::New:
-						node = Morph(node->As<NewNode>());
-						break;
-					case NodeKinds::NewArray:
-						node = Morph(node->As<NewArrayNode>());
-						break;
-					case NodeKinds::Load:
-						node = Morph(node->As<LoadNode>());
-						break;
-					case NodeKinds::Store:
-						node = Morph(node->As<StoreNode>());
-						break;
-					case NodeKinds::InstanceField:
-						node = Morph(node->As<InstanceFieldNode>());
-						break;
-					case NodeKinds::Array:
-						node = Morph(node->As<ArrayElementNode>());
-						break;
-					}
-				});
+			morph(mCurrentStmt->Now);
+		}
+
+		if (bbIterator->BranchConditionValue != nullptr)
+		{
+			morph(bbIterator->BranchConditionValue);
 		}
 	}
 	return bbHead;

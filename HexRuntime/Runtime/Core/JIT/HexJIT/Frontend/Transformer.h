@@ -81,6 +81,9 @@ namespace RTJ::Hex
 		UnBoxNode* GenerateUnBox();
 		BoxNode* GenerateBox();
 
+		void Push(TreeNode* value);
+		TreeNode* Pop();
+
 		void GenerateJccPP(BasicBlockPartitionPoint*& partitions);
 		void GenerateJmpPP(BasicBlockPartitionPoint*& partitions);
 		void GenerateReturn(BasicBlockPartitionPoint*& partitions);
