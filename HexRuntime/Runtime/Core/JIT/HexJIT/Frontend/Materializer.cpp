@@ -1,11 +1,13 @@
 #include "Materializer.h"
 #include "..\JITHelper.h"
 #include "..\..\..\Meta\MetaManager.h"
+#include "..\..\..\Exception\RuntimeException.h"
 #include <ranges>
 
 #define POOL (mJITContext->Memory)
 #define MORPH_ARG(HELPER) (new (POOL) MorphedCallNode(node, &JITCall::HELPER, CALLING_CONV_OF(HELPER), argument))
 #define MORPH_ARGS(HELPER, NUMS) (new (POOL) MorphedCallNode(node, &JITCall::HELPER, CALLING_CONV_OF(HELPER), arguments, NUMS))
+#define MORPH_FIELD(EXPR) EXPR = Morph(EXPR)
 
 RTJ::Hex::Morpher::Morpher(HexJITContext* context) :
 	mJITContext(context)
@@ -17,6 +19,30 @@ void RTJ::Hex::Morpher::InsertCall(MorphedCallNode* node)
 	auto stmt = new(POOL) Statement(node, mCurrentStmt->ILOffset, mCurrentStmt->ILOffset);
 	//Insert call
 	LinkedList::InsertBefore(mStmtHead, mPreviousStmt, stmt);
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(TreeNode* node)
+{
+	switch (node->Kind)
+	{
+	case NodeKinds::Call:
+		return Morph(node->As<CallNode>());
+	case NodeKinds::New:
+		return Morph(node->As<NewNode>());
+	case NodeKinds::NewArray:
+		return Morph(node->As<NewArrayNode>());
+	case NodeKinds::Array:
+		return Morph(node->As<ArrayElementNode>());
+	case NodeKinds::InstanceField:
+		return Morph(node->As<InstanceFieldNode>());
+	case NodeKinds::StaticField:
+		THROW("Not supported");
+		return Morph(node->As<StaticFieldNode>());
+	default:
+		TraverseChildren(node, [&](TreeNode*& child) {
+			child = Morph(child);
+		});
+	}
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
@@ -40,6 +66,12 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 
 	auto argument = new (POOL) LoadNode(SLMode::Direct, methodConstant);
 
+	ForeachInlined(node->Arguments, node->ArgumentCount, 
+		[&](TreeNode*& node) 
+		{
+			node = Morph(node);
+		});
+
 	return (new (POOL) MorphedCallNode(node, nativeMethod, callingConv, argument))
 		->SetType(node->TypeInfo);
 }
@@ -49,11 +81,24 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
 	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
 	methodConstant->Pointer = node->Method;
 	auto argument = new (POOL) LoadNode(SLMode::Indirect, methodConstant);
+
+	ForeachInlined(node->Arguments, node->ArgumentCount,
+		[&](TreeNode*& node)
+		{
+			node = Morph(node);
+		});
+
 	return MORPH_ARG(NewObject)->SetType(node->TypeInfo);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 {
+	ForeachInlined(node->Dimensions, node->DimensionCount,
+		[&](TreeNode*& node)
+		{
+			node = Morph(node);
+		});
+
 	if (node->DimensionCount == 1)
 	{
 		//Single-dimensional
@@ -81,6 +126,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 {
+	MORPH_FIELD(node->Destination);
+	MORPH_FIELD(node->Source);
+
 	if (node->Destination->Is(NodeKinds::OffsetOf) &&
 		CoreTypes::IsRef(node->Destination->TypeInfo->GetCoreType()))
 	{
@@ -99,6 +147,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 {
+	//TODO: To propagate address-taken semantic
 	if (node->Source->Is(NodeKinds::OffsetOf) &&
 		CoreTypes::IsRef(node->Source->TypeInfo->GetCoreType()))
 	{
@@ -110,6 +159,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(ArrayElementNode* node)
 {
+	MORPH_FIELD(node->Array);
+	MORPH_FIELD(node->Index);
+
 	auto arrayOffset = new (POOL) ArrayOffsetOfNode(node->Array, node->Index, sizeof(RTO::ArrayObject), node->TypeInfo->GetLayoutSize());
 	arrayOffset->SetType(node->TypeInfo);
 	return arrayOffset;
@@ -117,6 +169,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(ArrayElementNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
 {
+	MORPH_FIELD(node->Source);
+
 	auto offset = new (POOL) OffsetOfNode(node->Source->As<LocalVariableNode>(), node->Field->GetOffset());
 	offset->SetType(node->TypeInfo);
 	return offset;
@@ -124,38 +178,6 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
 
 RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
 {
-	auto morph = [&](TreeNode*& root) {
-		TraverseTreeBottomUp(
-			mJITContext->Traversal.Space,
-			mJITContext->Traversal.Count,
-			root,
-			[&](TreeNode*& node) {
-				switch (node->Kind)
-				{
-				case NodeKinds::Call:
-					node = Morph(node->As<CallNode>());
-					break;
-				case NodeKinds::New:
-					node = Morph(node->As<NewNode>());
-					break;
-				case NodeKinds::NewArray:
-					node = Morph(node->As<NewArrayNode>());
-					break;
-				case NodeKinds::Load:
-					node = Morph(node->As<LoadNode>());
-					break;
-				case NodeKinds::Store:
-					node = Morph(node->As<StoreNode>());
-					break;
-				case NodeKinds::InstanceField:
-					node = Morph(node->As<InstanceFieldNode>());
-					break;
-				case NodeKinds::Array:
-					node = Morph(node->As<ArrayElementNode>());
-					break;
-				}
-			});
-	};
 	auto bbHead = mJITContext->BBs[0];
 
 	for (BasicBlock* bbIterator = bbHead;
@@ -169,12 +191,12 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Morpher::PassThrough()
 			mPreviousStmt = mCurrentStmt,
 			mCurrentStmt = mCurrentStmt->Next)
 		{
-			morph(mCurrentStmt->Now);
+			MORPH_FIELD(mCurrentStmt->Now);
 		}
 
 		if (bbIterator->BranchConditionValue != nullptr)
 		{
-			morph(bbIterator->BranchConditionValue);
+			MORPH_FIELD(bbIterator->BranchConditionValue);
 		}
 	}
 	return bbHead;

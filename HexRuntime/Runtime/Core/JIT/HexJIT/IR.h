@@ -995,4 +995,42 @@ namespace RTJ::Hex
 				std::forward<Fn>(action)(bbIterator->BranchConditionValue, true);
 		}
 	}
+
+	template<class Fn>
+	static void TraverseChildren(TreeNode* source, Fn&& action)
+	{
+		switch (source->Kind)
+		{
+			//Binary access
+			CASE_BINARY
+			{
+				BinaryNodeAccessProxy * proxy = (BinaryNodeAccessProxy*)source;
+				std::forward<Fn>(action)(proxy->First);
+				std::forward<Fn>(action)(proxy->Second);
+				break;
+			}
+			CASE_UNARY
+			{
+				UnaryNodeAccessProxy * proxy = (UnaryNodeAccessProxy*)source;
+				std::forward<Fn>(action)(proxy->Value);
+				break;
+			}
+			case NodeKinds::MorphedCall:
+			{
+				auto call = source->As<MorphedCallNode>();
+				std::forward<Fn>(action)(call->Origin);
+			}
+			//Multiple access 
+			CASE_MULTIPLE
+			{
+				MultipleNodeAccessProxy * proxy = (MultipleNodeAccessProxy*)source;
+				ForeachInlined(proxy->Values, proxy->Count,
+					[&](TreeNode*& node)
+					{
+						std::forward<Fn>(action)(node);
+					});
+				break;
+			}
+		}
+	}
 }

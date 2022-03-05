@@ -19,6 +19,7 @@ namespace RTJ::Hex
 		Morpher(HexJITContext* context);
 	private:
 		void InsertCall(MorphedCallNode* node);
+		TreeNode* Morph(TreeNode* node);
 		TreeNode* Morph(CallNode* node);
 		TreeNode* Morph(NewNode* node);
 		TreeNode* Morph(NewArrayNode* node);
