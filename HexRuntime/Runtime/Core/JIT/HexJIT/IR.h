@@ -285,25 +285,26 @@ namespace RTJ::Hex
 		RTM::MethodDescriptor* Method;
 	};
 
-
-
-	/// <summary>
-	/// Store or Load constant
-	/// </summary>
-	struct SLMode
+	enum class AccessMode
 	{
-		static constexpr UInt8 Direct = 0x00;
-		static constexpr UInt8 Indirect = 0x01;
+		Value, //Load the origin value
+		Address, //Load the address
+		Content, //Load the content from address
 	};
 
 	struct StoreNode : BinaryNode
 	{
-		StoreNode(TreeNode* destination, TreeNode* source)
+		StoreNode(
+			TreeNode* destination, 
+			TreeNode* source,
+			AccessMode mode = AccessMode::Value)
 			:BinaryNode(NodeKinds::Store),
 			Destination(destination),
-			Source(source) {}
+			Source(source),
+			Mode(mode) {}
 		TreeNode* Destination = nullptr;
 		TreeNode* Source = nullptr;
+		AccessMode Mode;
 	};
 
 	/// <summary>
@@ -313,16 +314,16 @@ namespace RTJ::Hex
 	/// </summary>
 	struct LoadNode : UnaryNode
 	{
-		LoadNode(UInt8 loadType, TreeNode* source)
+		LoadNode(AccessMode mode, TreeNode* source)
 			:UnaryNode(NodeKinds::Load),
 			Source(source),
-			LoadType(loadType)
+			Mode(mode)
 		{}
 		/// <summary>
 		/// Only allows array element, field, argument and local
 		/// </summary>
 		TreeNode* Source = nullptr;
-		UInt8 LoadType = SLMode::Direct;
+		AccessMode Mode = AccessMode::Value;
 	};
 
 	struct ArrayElementNode : BinaryNode
@@ -1008,7 +1009,7 @@ namespace RTJ::Hex
 				std::forward<Fn>(action)(proxy->First);
 				std::forward<Fn>(action)(proxy->Second);
 				break;
-			}
+			}		
 			CASE_UNARY
 			{
 				UnaryNodeAccessProxy * proxy = (UnaryNodeAccessProxy*)source;

@@ -58,11 +58,12 @@ namespace RTJ::Hex
 		/// <param name="opcode">opcode value</param>
 		ForcedInline void DecodeInstruction(UInt8& opcode);
 		CallNode* GenerateCall();
-		TreeNode* GenerateLoadLocalVariable(UInt8 SLMode);
-		TreeNode* GenerateLoadArgument(UInt8 SLMode);
-		TreeNode* GenerateLoadField(UInt8 SLMode);
-		TreeNode* GenerateLoadArrayElement(UInt8 SLMode);
+		TreeNode* GenerateLoadLocalVariable(AccessMode mode);
+		TreeNode* GenerateLoadArgument(AccessMode mode);
+		TreeNode* GenerateLoadField(AccessMode mode);
+		TreeNode* GenerateLoadArrayElement(AccessMode mode);
 		TreeNode* GenerateLoadString();
+		TreeNode* GenerateLoadIndirectly();
 		TreeNode* GenerateLoadConstant();
 		StoreNode* GenerateStoreField();
 		StoreNode* GenerateStoreArgument();

@@ -17,7 +17,7 @@ namespace RTJ::Hex
 		{
 			auto load = node->As<LoadNode>();
 			output << L"load";
-			if (load->LoadType == SLMode::Indirect)
+			if (load->Mode == AccessMode::Address)
 				output << L" (address)";
 			output << std::endl;
 			break;
@@ -60,7 +60,11 @@ namespace RTJ::Hex
 		case NodeKinds::Phi:
 			output << L"phi (ssa)" << std::endl; break;
 		case NodeKinds::OffsetOf:
-			output << L"offset of" << std::endl; break;
+		{
+			auto offset = node->As<OffsetOfNode>();
+			output << L"offset of - 0x" << std::hex << offset->Offset << std::endl;
+			break;
+		}
 		case NodeKinds::Store:
 			output << L"store" << std::endl; break;
 		case NodeKinds::Array:

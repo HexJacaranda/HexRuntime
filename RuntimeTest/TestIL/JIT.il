@@ -556,5 +556,28 @@
             .ret
         }
     }
+
+    .method public static float TestLocalStructAddress() managed
+    {
+        .local
+        {
+            [JIT][Test]Struct X
+            float& Z
+        }
+        .code
+        {
+            .ldloc X
+            .ldflda [JIT][Test]Struct::Y
+            .stloc Z
+            
+            .ldloc Z
+            .ldc float 2.0
+            .stta
+
+            .ldloc Z
+            .ldind
+            .ret
+        }
+    }
 }
 

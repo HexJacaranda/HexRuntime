@@ -558,7 +558,7 @@ namespace RTJ::Hex::X86
 		{
 			auto load = target->As<LoadNode>();
 			UInt8 newOptions = options;
-			if (load->LoadType == SLMode::Indirect)
+			if (load->Mode == AccessMode::Address)
 				newOptions |= OperandOptions::AddressOf;
 		
 			auto value = ValueAs<LocalVariableNode>(load);

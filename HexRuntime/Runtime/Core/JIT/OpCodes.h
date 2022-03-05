@@ -87,6 +87,11 @@ namespace RTJ
 		/// </summary>
 		IL(LdNull, 0x0C, 0x01);
 
+		/// <summary>
+		/// Load content from pointer or ref<>
+		/// </summary>
+		IL(LdInd, 0x0D, 0x11);
+
 		//------------------------------------------------------
 		//Store related instructions, 0x20 ~ 0x2F space reserved
 		//------------------------------------------------------

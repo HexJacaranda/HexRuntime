@@ -30,6 +30,17 @@ RT::ObservableArray<RTM::TypeDescriptor*> RTM::TypeDescriptor::GetTypeArguments(
 		return { mTypeArguments, count };
 }
 
+RTM::TypeDescriptor* RTM::TypeDescriptor::GetFirstTypeArgument() const
+{
+	Int32 count = mColdMD->GenericParameterCount;
+	if (count == 1)
+		return mTypeArgumentInline;
+	else if (count > 1)
+		return mTypeArguments[0];
+	else
+		return nullptr;
+}
+
 RT::UInt8 RTM::TypeDescriptor::GetCoreType() const
 {
 	return mColdMD->CoreType;

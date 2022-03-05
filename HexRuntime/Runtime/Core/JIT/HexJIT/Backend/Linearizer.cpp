@@ -11,7 +11,7 @@
 			} \
 			if (localNode != nullptr) \
 			{	\
-				auto loadNode = (new (POOL) LoadNode(SLMode::Direct, localNode))->SetType(localNode->TypeInfo); \
+				auto loadNode = (new (POOL) LoadNode(AccessMode::Value, localNode))->SetType(localNode->TypeInfo); \
 				REPLACE = loadNode; \
 			} \
 		}
@@ -39,7 +39,7 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 			LinkedList::AppendRangeTwoWay(mStmtHead, mPreviousStmt, stmts.GetHead(), stmts.GetTail());
 		if (localNode != nullptr)
 		{
-			auto loadNode = (new (POOL) LoadNode(SLMode::Direct, localNode))->SetType(localNode->TypeInfo);
+			auto loadNode = (new (POOL) LoadNode(AccessMode::Value, localNode))->SetType(localNode->TypeInfo);
 			root = loadNode;
 		}
 	};
@@ -152,8 +152,9 @@ RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(LoadNode* 
 	default:
 	{
 		TreeNode* localNode = nullptr;
-		DoubleLinkList<Statement> ret{};
-		FLATTEN_AND_UPDATE(ret, node->Source, Flatten(source, localNode, requestJITVariable));
+		DoubleLinkList<Statement> ret = Flatten(source, localNode, requestJITVariable);
+		if (localNode != nullptr)
+			node->Source = localNode;
 		return ret;
 	}
 	}

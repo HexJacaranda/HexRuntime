@@ -69,7 +69,7 @@ RTJ::Hex::CallNode* RTJ::Hex::ILTransformer::GenerateCall()
 	return ret;
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLMode)
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(AccessMode mode)
 {
 	auto localIndex = ReadAs<Int16>();
 	auto&& locals = GetRawContext()->MethDescriptor->GetLocalVariables();
@@ -81,12 +81,17 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadLocalVariable(UInt8 SLM
 	if (localIndex >= locals.Count)
 		THROW("Local variable index out of range.");
 
+	//Different node type if this is a address-taken load
+	auto retType = local->TypeInfo;
+	if (mode == AccessMode::Address)
+		retType = Meta::MetaData->InstantiateRefType(retType);
+
 	//Keep uniformity for convenience of traversal in SSA building
-	return (new (POOL) LoadNode(SLMode, local))
-		->SetType(localType);
+	return (new (POOL) LoadNode(mode, local))
+		->SetType(retType);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(AccessMode mode)
 {
 	auto localIndex = ReadAs<Int16>();
 	auto&& locals = GetRawContext()->MethDescriptor->GetArguments();
@@ -97,12 +102,18 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArgument(UInt8 SLMode)
 
 	if (localIndex >= locals.Count)
 		THROW("Argument index out of range.");
+
+	//Different node type if this is a address-taken load
+	auto retType = local->TypeInfo;
+	if (mode == AccessMode::Address)
+		retType = Meta::MetaData->InstantiateRefType(retType);
+
 	//Keep uniformity for convenience of traversal in SSA building
-	return (new (POOL) LoadNode(SLMode, local))
-		->SetType(localType);
+	return (new (POOL) LoadNode(mode, local))
+		->SetType(retType);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(AccessMode mode)
 {
 	TreeNode* field = nullptr;
 	auto fieldToken = ReadAs<MDToken>();
@@ -113,19 +124,33 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadField(UInt8 SLMode)
 	else
 		field = new (POOL) InstanceFieldNode(fieldDescriptor, Pop());
 
-	auto ret = new (POOL) LoadNode(SLMode, field);
-	ret->TypeInfo = field->TypeInfo = fieldDescriptor->GetType();
-	
-	return ret;
+	field->TypeInfo = fieldDescriptor->GetType();
+
+	//Different node type if this is a address-taken load
+	auto retType = field->TypeInfo;
+	if (mode == AccessMode::Address)
+		retType = Meta::MetaData->InstantiateRefType(retType);
+
+	return (new (POOL) LoadNode(mode, field))
+		->SetType(retType);
 }
 
-RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(UInt8 SLMode)
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadArrayElement(AccessMode mode)
 {
 	auto index = Pop();
 	auto array = Pop();
-	auto arrayElement = new (POOL) ArrayElementNode(array, index);
-	return (new (POOL) LoadNode(SLMode, arrayElement))
-		->SetType(array->TypeInfo->GetTypeArguments()[0]);
+
+	auto elementType = array->TypeInfo->GetFirstTypeArgument();
+	auto arrayElement = (new (POOL) ArrayElementNode(array, index))
+		->SetType(elementType);
+
+	//Different node type if this is a address-taken load
+	auto retType = elementType;
+	if (mode == AccessMode::Address)
+		retType = Meta::MetaData->InstantiateRefType(retType);
+
+	return (new (POOL) LoadNode(mode, arrayElement))
+		->SetType(retType);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
@@ -135,6 +160,20 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadString()
 	ret->StringToken = stringToken;
 	ret->TypeInfo = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::String);
 	return ret;
+}
+
+RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadIndirectly()
+{
+	auto origin = Pop();
+	
+	auto type = origin->TypeInfo;
+	if (type->GetCoreType() != CoreTypes::InteriorRef)
+		THROW("Only interior<> supported");
+
+	auto contentType = type->GetFirstTypeArgument();
+
+	return (new (POOL) LoadNode(AccessMode::Content, origin))
+		->SetType(contentType);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadConstant()
@@ -229,7 +268,7 @@ RTJ::Hex::StoreNode* RTJ::Hex::ILTransformer::GenerateStoreToAddress()
 {
 	auto value = Pop();
 	auto address = Pop();
-	return new (POOL) StoreNode(address, value);
+	return new (POOL) StoreNode(address, value, AccessMode::Content);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNew()
@@ -262,8 +301,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateNewArray()
 	//Read type reference token
 	auto typeRef = ReadAs<MDToken>();
 	auto elementType = Meta::MetaData->GetTypeFromToken(GetAssembly(), typeRef);
-	//TODO: make instantiated array type
-	auto arrayType = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::Array);
+	auto arrayType = Meta::MetaData->InstantiateArrayType(elementType);
 	if (dimensionCount == 1)
 	{
 		return (new (POOL) NewArrayNode(elementType, Pop()))
@@ -555,28 +593,28 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		}
 
 		case OpCodes::LdArg:
-			Push(GenerateLoadArgument(SLMode::Direct));
+			Push(GenerateLoadArgument(AccessMode::Value));
 			break;
 		case OpCodes::LdArgA:
-			Push(GenerateLoadArgument(SLMode::Indirect));
+			Push(GenerateLoadArgument(AccessMode::Address));
 			break;
 		case OpCodes::LdLoc:
-			Push(GenerateLoadLocalVariable(SLMode::Direct));
+			Push(GenerateLoadLocalVariable(AccessMode::Value));
 			break;
 		case OpCodes::LdLocA:
-			Push(GenerateLoadLocalVariable(SLMode::Indirect));
+			Push(GenerateLoadLocalVariable(AccessMode::Address));
 			break;
 		case OpCodes::LdElem:
-			Push(GenerateLoadArrayElement(SLMode::Direct));
+			Push(GenerateLoadArrayElement(AccessMode::Value));
 			break;
 		case OpCodes::LdElemA:
-			Push(GenerateLoadArrayElement(SLMode::Indirect));
+			Push(GenerateLoadArrayElement(AccessMode::Address));
 			break;
 		case OpCodes::LdFld:
-			Push(GenerateLoadField(SLMode::Direct));
+			Push(GenerateLoadField(AccessMode::Value));
 			break;
 		case OpCodes::LdFldA:
-			Push(GenerateLoadField(SLMode::Indirect));
+			Push(GenerateLoadField(AccessMode::Address));
 			break;
 		case OpCodes::LdStr:
 			Push(GenerateLoadString());
@@ -586,6 +624,9 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 			break;
 		case OpCodes::LdNull:
 			Push(&NullNode::Instance());
+			break;
+		case OpCodes::LdInd:
+			Push(GenerateLoadIndirectly());
 			break;
 
 		//---------------------------------------------------

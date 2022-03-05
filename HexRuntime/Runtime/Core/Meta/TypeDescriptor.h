@@ -74,6 +74,7 @@ namespace RTM
 		TypeDescriptor* GetParentType()const;
 		TypeDescriptor* GetEnclosingType()const;
 		TypeDescriptor* GetCanonicalType()const;
+		TypeDescriptor* GetFirstTypeArgument()const;
 		FieldTable* GetFieldTable()const;
 		MethodTable* GetMethodTable()const;
 		InterfaceDispatchTable* GetInterfaceTable()const;

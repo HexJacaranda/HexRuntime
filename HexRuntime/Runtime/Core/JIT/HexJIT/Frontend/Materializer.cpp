@@ -42,6 +42,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(TreeNode* node)
 		TraverseChildren(node, [&](TreeNode*& child) {
 			child = Morph(child);
 		});
+		return node;
 	}
 }
 
@@ -64,7 +65,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 		callingConv = CALLING_CONV_OF(ManagedVirtualCall);
 	}
 
-	auto argument = new (POOL) LoadNode(SLMode::Direct, methodConstant);
+	auto argument = new (POOL) LoadNode(AccessMode::Value, methodConstant);
 
 	ForeachInlined(node->Arguments, node->ArgumentCount, 
 		[&](TreeNode*& node) 
@@ -80,7 +81,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
 {
 	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
 	methodConstant->Pointer = node->Method;
-	auto argument = new (POOL) LoadNode(SLMode::Indirect, methodConstant);
+	auto argument = new (POOL) LoadNode(AccessMode::Address, methodConstant);
 
 	ForeachInlined(node->Arguments, node->ArgumentCount,
 		[&](TreeNode*& node)
@@ -104,7 +105,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 		//Single-dimensional
 		auto arguments = new (POOL) TreeNode * [2]
 		{ 
-			new (POOL) LoadNode(SLMode::Direct, new (POOL) ConstantNode(node->ElementType)),
+			new (POOL) LoadNode(AccessMode::Value, new (POOL) ConstantNode(node->ElementType)),
 			node->Dimension
 		};
 		return MORPH_ARGS(NewSZArray, 2)->SetType(node->TypeInfo);
@@ -115,8 +116,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 		//TODO: Maybe we should generate scoped stack allocation for the third arguments
 		auto arguments = new (POOL) TreeNode * [3]
 		{
-			new (POOL) LoadNode(SLMode::Direct, new (POOL) ConstantNode(node->ElementType)),
-			new (POOL) LoadNode(SLMode::Direct, new (POOL) ConstantNode(node->DimensionCount)),
+			new (POOL) LoadNode(AccessMode::Value, new (POOL) ConstantNode(node->ElementType)),
+			new (POOL) LoadNode(AccessMode::Value, new (POOL) ConstantNode(node->DimensionCount)),
 			nullptr
 		};
 
@@ -132,7 +133,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 	if (node->Destination->Is(NodeKinds::OffsetOf) &&
 		CoreTypes::IsRef(node->Destination->TypeInfo->GetCoreType()))
 	{
-		auto fieldRef = new (POOL) LoadNode(SLMode::Indirect, node->Destination);
+		auto fieldRef = new (POOL) LoadNode(AccessMode::Address, node->Destination);
 
 		auto arguments = new (POOL) TreeNode * [2]{
 			fieldRef,
@@ -151,7 +152,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 	if (node->Source->Is(NodeKinds::OffsetOf) &&
 		CoreTypes::IsRef(node->Source->TypeInfo->GetCoreType()))
 	{
-		auto argument = new (POOL) LoadNode(SLMode::Indirect, node->Source);
+		auto argument = new (POOL) LoadNode(AccessMode::Address, node->Source);
 		return MORPH_ARG(ReadBarrierForRef)->SetType(node->TypeInfo);
 	}
 	return node;
