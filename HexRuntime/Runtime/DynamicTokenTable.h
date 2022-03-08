@@ -17,14 +17,14 @@ namespace RT
 		mutable std::shared_mutex mDynamicLock;
 	private:
 		MetaT& GetMetaByTokenUnsafe(MDToken token) {
-			if (token <= mCompiledMetaTokenCount)
+			if (token < mCompiledMetaTokenCount)
 				return mCompiledMetaTokenTable[token];
 
 			MDToken dynamicIndex = token - mCompiledMetaTokenCount;
 			return *mDynamicMetaTokenTable[dynamicIndex];
 		}
 		MetaT const& GetMetaByTokenUnsafe(MDToken token)const {
-			if (token <= mCompiledMetaTokenCount)
+			if (token < mCompiledMetaTokenCount)
 				return mCompiledMetaTokenTable[token];
 
 			MDToken dynamicIndex = token - mCompiledMetaTokenCount;
@@ -97,16 +97,14 @@ namespace RT
 			{
 				std::shared_lock lock{ mDynamicLock };
 
-				if (auto where = mIdentityMap.find(identity);
-					where != mIdentityMap.end())
+				if (auto where = mIdentityMap.find(identity); where != mIdentityMap.end())
 					return { where->second, &GetMetaByTokenUnsafe(where->second) };
 			}
 
 			{
 				std::unique_lock lock{ mDynamicLock };
 
-				if (auto where = mIdentityMap.find(identity);
-					where != mIdentityMap.end())
+				if (auto where = mIdentityMap.find(identity); where != mIdentityMap.end())
 					return { where->second, &GetMetaByTokenUnsafe(where->second) };
 				else
 				{

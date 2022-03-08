@@ -1239,10 +1239,18 @@ RTM::AssemblyContext* RTM::MetaManager::GetCoreAssembly()
 		std::shared_lock lock{ mContextLock };
 
 		if (auto context = mContexts.find(guid); context != mContexts.end())
+		{
+			//In case other loaded this assembly
+			if (assembly == nullptr)
+				mCoreAssembly.store(assembly, std::memory_order_release);
 			return context->second;
+		}
 	}
 
-	return GetAssemblyFromName(Text("Core"));
+	assembly = GetAssemblyFromName(Text("Core"));
+	mCoreAssembly.store(assembly, std::memory_order_release);
+
+	return assembly;
 }
 
 RTM::AssemblyContext* RTM::MetaManager::GetGenericAssembly()
