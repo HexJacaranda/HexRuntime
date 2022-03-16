@@ -17,8 +17,15 @@ namespace RTJ::Hex
 		{
 			auto load = node->As<LoadNode>();
 			output << L"load";
-			if (load->Mode == AccessMode::Address)
-				output << L" (address)";
+			switch (load->Mode)
+			{
+			case AccessMode::Address:
+				output << L" (address)"; break;
+			case AccessMode::Content:
+				output << L" (content)"; break;
+			case AccessMode::Value:
+				output << L" (value)"; break;
+			}
 			output << std::endl;
 			break;
 		}
@@ -66,7 +73,15 @@ namespace RTJ::Hex
 			break;
 		}
 		case NodeKinds::Store:
-			output << L"store" << std::endl; break;
+		{
+			auto store = node->As<StoreNode>();
+			output << L"store" ; 
+			if (store->Mode == AccessMode::Content)
+				output << L" (to address)";
+
+			output << std::endl;
+			break;
+		}			
 		case NodeKinds::Array:
 			output << L"array index" << std::endl; break;
 		case NodeKinds::Compare:

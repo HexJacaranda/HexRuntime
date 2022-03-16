@@ -41,7 +41,7 @@ namespace RTJ::Hex
 		bool IsJITGenerated()const {
 			return Flags & LocalAttachedFlags::JITGenerated;
 		}
-		LocalVariableAttachedBase(UInt32 offset): Offset(offset){}
+		LocalVariableAttachedBase(UInt32 flags): Flags(flags){}
 	};
 
 	template<LocalOrArgument T>

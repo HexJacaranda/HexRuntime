@@ -39,6 +39,10 @@
 #define M_F InstructionFlags::M_
 #define RMI_F InstructionFlags::RMI
 
+
+#define NREG RTP::Register::X86::RegisterSet<RTP::CurrentWidth>
+#define NREG64 RTP::Register::X86::RegisterSet<RTP::Platform::Bit64>
+
 namespace RTJ::Hex::X86
 {
 	struct InstructionFlags
@@ -420,10 +424,22 @@ namespace RTJ::Hex::X86
 		/// Only allocate register yet do not read variable from memory
 		/// </summary>
 		VAL AllocateOnly = 0b00000100;
+
+
+		VAL MemorySemanticMask = 0b00011000;
+		/// <summary>
+		/// Value semantic
+		/// </summary>
+		VAL ValueOf = 0b00000000;
 		/// <summary>
 		/// AddressOf semantic
 		/// </summary>
 		VAL AddressOf = 0b00001000;
+		/// <summary>
+		/// ContentOf semantic
+		/// </summary>
+		VAL ContentOf = 0b00010000;
+
 		/// <summary>
 		/// Invalidate variable if possible
 		/// </summary>
@@ -572,6 +588,7 @@ namespace RTJ::Hex::X86
 		static constexpr Int32 CodeAlignment = 8;
 		static constexpr std::array<UInt8, 16> NegR4SSEConstant = { 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80 };
 		static constexpr std::array<UInt8, 16> NegR8SSEConstant = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00 ,0x00, 0x00, 0x00, 0x00, 0x00, 0x80 };
+		static constexpr auto R8UnavailableMask = ~(BR(NREG::DI) | BR(NREG::SI));
 	private:
 		void Emit(Instruction instruction, Operand const& left, Operand const& right);
 		void Emit(Instruction instruction, Operand const& operand);

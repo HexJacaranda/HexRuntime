@@ -7,9 +7,6 @@
 				instruction.Length = NativePlatformInstruction::NAME.size(); \
 				instruction.Flags = NativePlatformInstruction::NAME##_FLG; }
 
-#define NREG RTP::Register::X86::RegisterSet<RTP::CurrentWidth>
-#define NREG64 RTP::Register::X86::RegisterSet<RTP::Platform::Bit64>
-
 #define USE_DISP(OPERAND, VAR)  {(OPERAND).Kind = OperandPreference::Displacement; \
 								(OPERAND).M.Base = NREG::BP; \
 								(OPERAND).M.Displacement = DebugOffset32; \
@@ -142,6 +139,17 @@ namespace RTJ::Hex::X86
 			switch (source->Kind)
 			{
 			case NodeKinds::Load:
+			{
+				//[Var1, Var2] -> Same Reg?
+
+				//auto load = source->As<LoadNode>();
+				//if (load->Mode == AccessMode::Value &&
+				//	ValueIs(load, NodeKinds::LocalVariable))
+				//{
+				//	auto sourceVariable = ValueAs<LocalVariableNode>(load)->LocalIndex;
+				//	
+				//}
+			}
 			case NodeKinds::Constant:
 				destinationOperand = UseOperandFrom(session, destination, OperandOptions::AllocateOnly);
 				if (destinationOperand.IsAdvancedAddressing())
@@ -439,6 +447,7 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::CodeGenForBooleanStore(TreeNode* expression)
 	{
 		bool usedByAdjacentJcc = ST_VAR.has_value() ? IsUsedByAdjacentJcc(ST_VAR.value()) : false;
+		auto mask = NREG::Common & ~(MSK_REG(NREG::SI) | MSK_REG(NREG::DI));
 
 		switch (expression->Kind)
 		{
@@ -475,7 +484,7 @@ namespace RTJ::Hex::X86
 				
 				if (ST_VAR.has_value())
 				{
-					UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(ST_VAR.value(), NREG::Common, CoreTypes::Bool, false);
+					UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(ST_VAR.value(), mask, CoreTypes::Bool, false);
 					Emit(instruction, Operand::FromRegister(nativeReg));
 					//Set result register
 					RE_REG = nativeReg;
@@ -501,7 +510,7 @@ namespace RTJ::Hex::X86
 				auto variable = ValueAs<LocalVariableNode>(unary);
 				RTAssert(variable->TypeInfo->GetCoreType() == CoreTypes::Bool);
 
-				UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(variable->LocalIndex, NREG::Common, CoreTypes::Bool);
+				UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(variable->LocalIndex, mask, CoreTypes::Bool);
 				Operand operand = Operand::FromRegister(nativeReg);
 				ASM_C(TEST_MR_I1, I1, operand, operand);
 
@@ -552,14 +561,22 @@ namespace RTJ::Hex::X86
 	{
 		auto coreType = target->TypeInfo->GetCoreType();
 		auto mask = maskOpt.value_or(CoreTypes::IsIntegerLike(coreType) ? NREG::Common : NREG::CommonXMM);
+
+		//Disable partial register
+		if (CoreTypes::GetCoreTypeSize(coreType) == 1)
+			mask &= R8UnavailableMask;
+
 		switch (target->Kind)
 		{
 		case NodeKinds::Load:
 		{
 			auto load = target->As<LoadNode>();
 			UInt8 newOptions = options;
-			if (load->Mode == AccessMode::Address)
-				newOptions |= OperandOptions::AddressOf;
+			switch (load->Mode)
+			{
+			case AccessMode::Address: newOptions |= OperandOptions::AddressOf; break;
+			case AccessMode::Content: newOptions |= OperandOptions::ContentOf; break;
+			}
 		
 			auto value = ValueAs<LocalVariableNode>(load);
 			switch (value->Kind)
@@ -578,6 +595,17 @@ namespace RTJ::Hex::X86
 		{
 			auto local = target->As<LocalVariableNode>();
 			auto variable = local->LocalIndex;
+
+			switch (options & OperandOptions::MemorySemanticMask)
+			{
+			case OperandOptions::AddressOf:
+			{
+				
+			}
+			case OperandOptions::ContentOf:
+
+			}
+
 			//Force register
 			if (options & OperandOptions::ForceRegister)
 			{
@@ -819,8 +847,13 @@ namespace RTJ::Hex::X86
 		}
 	}
 
-	UInt8 X86NativeCodeGenerator::AllocateRegisterAndGenerateCodeFor(UInt64 mask, UInt8 coreType)
+	UInt8 X86NativeCodeGenerator::AllocateRegisterAndGenerateCodeFor(UInt64 originMask, UInt8 coreType)
 	{
+		auto mask = originMask;
+		//Disable partial register
+		if (CoreTypes::GetCoreTypeSize(coreType) == 1)
+			mask &= R8UnavailableMask;
+
 		auto freeReg = mRegContext->TryGetFreeRegister(USE_MASK);
 		if (freeReg.has_value())
 		{
@@ -1324,8 +1357,13 @@ namespace RTJ::Hex::X86
 		//}
 	}
 
-	UInt8 X86NativeCodeGenerator::AllocateRegisterAndGenerateCodeFor(UInt16 variable, UInt64 mask, UInt8 coreType, bool requireLoading)
+	UInt8 X86NativeCodeGenerator::AllocateRegisterAndGenerateCodeFor(UInt16 variable, UInt64 originMask, UInt8 coreType, bool requireLoading)
 	{
+		auto mask = originMask;
+		//Disable partial register
+		if (CoreTypes::GetCoreTypeSize(coreType) == 1)
+			mask &= R8UnavailableMask;
+
 		auto [reg, furtherOperation] = mRegContext->AllocateRegisterFor(variable, mask);
 		if (furtherOperation)
 		{

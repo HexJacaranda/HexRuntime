@@ -113,8 +113,8 @@ namespace RTM
 		/// <param name="INJECT"></param>
 		void ResolveOrInstantiateType(
 			AssemblyContext* originContext,
-			TypeDescriptor* canonicalType,
-			TypeDescriptor* targetType,
+			TypeIdentity const& identity,
+			TypeDescriptor* type,
 			UInt8 metaOption,
 			MDToken definitionToken,
 			INJECT(LOADING_CONTEXT, INSTANTIATION_CONTEXT)

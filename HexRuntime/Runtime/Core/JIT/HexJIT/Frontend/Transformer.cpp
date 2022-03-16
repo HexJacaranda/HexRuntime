@@ -167,7 +167,9 @@ RTJ::Hex::TreeNode* RTJ::Hex::ILTransformer::GenerateLoadIndirectly()
 	auto origin = Pop();
 	
 	auto type = origin->TypeInfo;
-	if (type->GetCoreType() != CoreTypes::InteriorRef)
+	auto interior = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::InteriorRef);
+
+	if (type->GetCanonicalType() != interior)
 		THROW("Only interior<> supported");
 
 	auto contentType = type->GetFirstTypeArgument();

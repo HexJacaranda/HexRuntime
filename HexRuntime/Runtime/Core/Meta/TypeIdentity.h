@@ -15,6 +15,9 @@ namespace RTM
 			TypeDescriptor* SingleArgument = nullptr;
 		};
 
+		TypeIdentity()
+			:Canonical(nullptr), ArgumentCount(0) {}
+
 		TypeIdentity(TypeDescriptor* normal)
 			:Canonical(normal), ArgumentCount(0) {}
 

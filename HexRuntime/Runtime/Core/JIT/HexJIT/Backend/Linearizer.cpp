@@ -2,28 +2,14 @@
 #include "..\..\..\Exception\RuntimeException.h"
 
 #define POOL (mJITContext->Memory)
-#define FLATTEN_AND_UPDATE(ORIGIN_SEQ, REPLACE, EXPR) \
-		{ \
-			auto _statements = EXPR; \
-			if (!_statements.IsEmpty()) \
-			{ \
-				ORIGIN_SEQ.Append(_statements); \
-			} \
-			if (localNode != nullptr) \
-			{	\
-				auto loadNode = (new (POOL) LoadNode(AccessMode::Value, localNode))->SetType(localNode->TypeInfo); \
-				REPLACE = loadNode; \
-			} \
-		}
+#define FLATTEN(TARGET) auto&& [stmts, transformed] = Flatten(node, (TARGET)); \
+						(TARGET) = transformed
 
-#define FLATTEN(ORIGIN_SEQ, EXPR) \
-		{ \
-			auto _statements = EXPR; \
-			if (!_statements.IsEmpty()) \
-				ORIGIN_SEQ.Append(_statements); \
-		}
+#define FLATTEN_KEEP(TARGET) auto&& [stmts, transformed] = Flatten(node, (TARGET), true); \
+						(TARGET) = transformed
 
-#define REQ_JIT_VAR(TYPE) (new (POOL) LocalVariableNode(RequestJITVariable(TYPE)))->SetType(TYPE)
+#define REQ_JIT_VARIABLE(TYPE) (new (POOL) LocalVariableNode(RequestJITVariable(TYPE)))->SetType((TYPE));
+#define NEW_LOAD_VALUE(LOCAL_VARIABLE) (new (POOL) LoadNode(AccessMode::Value, LOCAL_VARIABLE))->SetType(LOCAL_VARIABLE->TypeInfo)
 
 RTJ::Hex::Linearizer::Linearizer(HexJITContext* context) : mJITContext(context)
 {
@@ -32,22 +18,18 @@ RTJ::Hex::Linearizer::Linearizer(HexJITContext* context) : mJITContext(context)
 RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 {
 	auto&& bbHead = mJITContext->BBs[0];
-	auto layDown = [&](TreeNode*& root, bool requestVariable = false) {
-		TreeNode* localNode = nullptr;
-		auto stmts = Flatten(root, localNode, requestVariable);
+
+	auto flatten = [&](TreeNode*& root) {
+		auto&& [stmts, transformed] = Flatten(nullptr, root);
 		if (!stmts.IsEmpty())
 			LinkedList::AppendRangeTwoWay(mStmtHead, mPreviousStmt, stmts.GetHead(), stmts.GetTail());
-		if (localNode != nullptr)
-		{
-			auto loadNode = (new (POOL) LoadNode(AccessMode::Value, localNode))->SetType(localNode->TypeInfo);
-			root = loadNode;
-		}
+		root = transformed;
 	};
 
 	for (BasicBlock* bbIterator = bbHead;
 		bbIterator != nullptr;
 		bbIterator = bbIterator->Next)
-	{
+	{ 
 		mStmtHead = bbIterator->Now;
 		mPreviousStmt = nullptr;
 
@@ -56,276 +38,235 @@ RTJ::Hex::BasicBlock* RTJ::Hex::Linearizer::PassThrough()
 			mPreviousStmt = mCurrentStmt,
 			mCurrentStmt = mCurrentStmt->Next)
 		{
-			layDown(mCurrentStmt->Now);
+			flatten(mCurrentStmt->Now);
 		}
 		if (bbIterator->BranchConditionValue != nullptr)
-			layDown(bbIterator->BranchConditionValue, true);
+			flatten(bbIterator->BranchConditionValue);
 
 		bbIterator->Now = mStmtHead;
 	}
 	return bbHead;
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, MorphedCallNode* node, bool shouldKeep)
+{
+	if (node->Origin->Is(NodeKinds::Call))
+		return Flatten(parent, node->Origin->As<MultipleNodeAccessProxy>());
+	else
+		return Flatten(parent, node->As<MultipleNodeAccessProxy>());
+}
+
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, MultipleNodeAccessProxy* node, bool shouldKeep)
+{
+	StmtList methodStmts{};
+	StmtList computationStmts{};
+	StmtList simpleStmts{};
+
+	ForeachInlined(node->Values, node->Count, 
+		[&](TreeNode*& argument) 
+		{
+			auto&& [stmts, transformed] = Flatten(node, argument);
+
+			if (argument->Is(NodeKinds::MorphedCall))
+				methodStmts.Append(stmts);
+			else if (
+				ValueIs(argument, NodeKinds::Constant) ||
+				ValueIs(argument, NodeKinds::LocalVariable))
+			{
+				simpleStmts.Append(stmts);
+			}
+			else
+				computationStmts.Append(stmts);
+
+			argument = transformed;
+		});	
+
+	StmtList finalChain{};
+	finalChain.Append(methodStmts);
+	finalChain.Append(computationStmts);
+	finalChain.Append(simpleStmts);
+
+	if (shouldKeep)
+		return { finalChain, node };
+	else
+	{
+		auto local = REQ_JIT_VARIABLE(node->TypeInfo);
+		auto newLoad = NEW_LOAD_VALUE(local);
+		auto stmt = new (POOL) Statement(new (POOL) StoreNode(local, node), GetCurrentOffset(), GetCurrentOffset());
+		finalChain.Append(stmt);
+		
+		return { finalChain, newLoad };
+	}
+}
+
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, OffsetOfNode* node, bool shouldKeep)
+{
+	RTAssert(parent != nullptr);
+	StmtList retStmts{};
+
+	FLATTEN(node->Base);
+	retStmts.Append(stmts);
+
+	if (shouldKeep || (parent != nullptr && parent->Is(NodeKinds::Store)))
+		return { retStmts, node };
+	else if (parent->Is(NodeKinds::Load))
+	{
+		auto loadParent = parent->As<LoadNode>();
+
+		auto local = REQ_JIT_VARIABLE(parent->TypeInfo);
+		auto newLoad = NEW_LOAD_VALUE(local);
+		auto stmt = new (POOL) Statement(new (POOL) StoreNode(local, loadParent), GetCurrentOffset(), GetCurrentOffset());
+
+		//Update 
+		retStmts.Append(stmt);
+		return { retStmts, newLoad };
+	}
+	else
+		THROW("Inpossible parent node type");
+}
+
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, LocalVariableNode* node, bool shouldKeep)
+{
+	RTAssert(parent != nullptr);
+	StmtList retStmts{};
+
+	if (shouldKeep || (parent != nullptr && parent->Is(NodeKinds::Store)))
+		return { retStmts, node };
+	else if (parent->Is(NodeKinds::Load))
+	{	
+		auto loadParent = parent->As<LoadNode>();
+		if (loadParent->Mode == AccessMode::Value)
+			return { retStmts, parent };
+
+		auto local = REQ_JIT_VARIABLE(parent->TypeInfo);
+		auto newLoad = NEW_LOAD_VALUE(local);
+		auto stmt = new (POOL) Statement(new (POOL) StoreNode(local, loadParent), GetCurrentOffset(), GetCurrentOffset());
+
+		//Update 
+		retStmts.Append(stmt);
+		return { retStmts, newLoad };
+	}
+	else
+		THROW("Impossible parent node type");
+}
+
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, ArrayOffsetOfNode* node, bool shouldKeep)
+{
+	RTAssert(parent != nullptr);
+
+	StmtList retStmts{};
+	{
+		FLATTEN(node->Array);
+		retStmts.Append(stmts);
+	}
+	{
+		FLATTEN(node->Index);
+		retStmts.Append(stmts);
+	}
+
+	if (shouldKeep || (parent != nullptr && parent->Is(NodeKinds::Store)))
+		return { retStmts, node };
+	else if (parent->Is(NodeKinds::Load))
+	{
+		auto loadParent = parent->As<LoadNode>();
+
+		auto local = REQ_JIT_VARIABLE(parent->TypeInfo);
+		auto newLoad = NEW_LOAD_VALUE(local);
+		auto stmt = new (POOL) Statement(new (POOL) StoreNode(local, loadParent), GetCurrentOffset(), GetCurrentOffset());
+
+		//Update 
+		retStmts.Append(stmt);
+		return { retStmts, newLoad };
+	}
+	else
+		THROW("Impossible parent node type");
+}
+
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, TreeNode* node, bool shouldKeep)
 {
 	switch (node->Kind)
 	{
-	case NodeKinds::Compare:
-	case NodeKinds::BinaryArithmetic:
-		return FlattenBinary(node, generatedLocal, requestJITVariable);
-	case NodeKinds::Convert:
-	case NodeKinds::Cast:
-	case NodeKinds::Box:
-	case NodeKinds::UnBox:
-	case NodeKinds::UnaryArithmetic:
-	case NodeKinds::Duplicate:
-		return FlattenUnary(node, generatedLocal, requestJITVariable);
-	case NodeKinds::Call:
-	case NodeKinds::New:
-	case NodeKinds::NewArray:
-		return FlattenMultiple(node, generatedLocal, requestJITVariable);
 	case NodeKinds::Store:
-		return Flatten(node->As<StoreNode>());
+		return Flatten(parent, node->As<StoreNode>(), shouldKeep);
 	case NodeKinds::Load:
-		return Flatten(node->As<LoadNode>(), generatedLocal, requestJITVariable);
+		return Flatten(parent, node->As<LoadNode>(), shouldKeep);
 	case NodeKinds::MorphedCall:
-		return Flatten(node->As<MorphedCallNode>(), generatedLocal, requestJITVariable);
-	case NodeKinds::OffsetOf:
-		return Flatten(node->As<OffsetOfNode>(), generatedLocal, requestJITVariable);
+		return Flatten(parent, node->As<MorphedCallNode>(), shouldKeep);
 	case NodeKinds::ArrayOffsetOf:
-		return Flatten(node->As<ArrayOffsetOfNode>(), generatedLocal, requestJITVariable);
-	default:
-		break;
-	}
-}
-
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(ArrayOffsetOfNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
-{
-	DoubleLinkList<Statement> ret{};
-
-	{
-		TreeNode* localNode = nullptr;
-		FLATTEN_AND_UPDATE(ret, node->Array, Flatten(node->Array, localNode));
-	}
-
-	{
-		TreeNode* localNode = nullptr;
-		FLATTEN_AND_UPDATE(ret, node->Index, Flatten(node->Index, localNode));
-	}
-	
-	if (requestJITVariable)
-	{
-		auto refType = Meta::MetaData->InstantiateRefType(node->TypeInfo);
-		generatedLocal = REQ_JIT_VAR(refType);
-	}
-
-	return ret;
-}
-
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(OffsetOfNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
-{
-	DoubleLinkList<Statement> ret{};
-
-	TreeNode* localNode = nullptr;
-	FLATTEN_AND_UPDATE(ret, node->Base, Flatten(node->Base, localNode));
-
-	if (requestJITVariable)
-	{
-		auto refType = Meta::MetaData->InstantiateRefType(node->TypeInfo);
-		generatedLocal = REQ_JIT_VAR(refType);
-		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
-	}
-
-	return ret;
-}
-
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(LoadNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
-{
-	auto source = node->Source;
-
-	switch (source->Kind)
-	{
+		return Flatten(parent, node->As<ArrayOffsetOfNode>(), shouldKeep);
+	case NodeKinds::OffsetOf:
+		return Flatten(parent, node->As<OffsetOfNode>(), shouldKeep);
+	case NodeKinds::LocalVariable:
+		return Flatten(parent, node->As<LocalVariableNode>(), shouldKeep);
 	case NodeKinds::Constant:
 	case NodeKinds::Null:
-	case NodeKinds::LocalVariable:
-		return {};
+		return { {}, node };	
 	default:
 	{
-		TreeNode* localNode = nullptr;
-		DoubleLinkList<Statement> ret = Flatten(source, localNode, requestJITVariable);
-		if (localNode != nullptr)
-			node->Source = localNode;
-		return ret;
-	}
-	}
-}
+		//Other compound operation
+		StmtList retStmts{};
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(StoreNode* node)
-{
-	RT::DoubleLinkList<RTJ::Hex::Statement> ret{};
-	bool requestSourceVariable = true;
+		TraverseChildren(node,
+			[&](TreeNode*& child)
+			{
+				FLATTEN(child);
+				retStmts.Append(stmts);
+			});
 
-	auto&& destination = node->Destination;
-	switch (destination->Kind)
-	{
-	case NodeKinds::LocalVariable:
-		//Should not generate for directly store
-		requestSourceVariable = false;
-		break;
-	default:
-	{
-		TreeNode* localNode = nullptr;
-		/* The destination of store node is special, we need to 
-		*  preserve the semantic of somewhat address-related
-		*  operation.
-		*
-		*  For example, the destination ought to be a InstanceField
-		*  or something else, but if we generate JIT variable for 
-		*  InstanceField, then finally it will have nothing to do with 
-		*  the origin field. So we either choose to make a address-like 
-		*  node of InstanceField or just ignore and use the laid down 
-		*  origin InstanceFiled. But if we really do the former one, it 
-		*  will cause problems for other JIT flows.
-		*/
-		FLATTEN(ret, Flatten(destination, localNode, false));
-	}
-	}
-
-	auto&& source = node->Source;
-	switch (source->Kind)
-	{
-	case NodeKinds::MorphedCall:
-	{
-		TreeNode* localNode = nullptr;
-		FLATTEN(ret, Flatten(source->As<MorphedCallNode>(), localNode, false));
-		break;
-	}
-	default:
-	{
-		TreeNode* localNode = nullptr;
-		FLATTEN_AND_UPDATE(ret, source, Flatten(source, localNode, requestSourceVariable));
-	}
-	}
-
-	return ret;
-}
-
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenUnary(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
-{
-	auto single = node->As<UnaryNodeAccessProxy>();
-
-	RT::DoubleLinkList<RTJ::Hex::Statement> ret{};
-	TreeNode* localNode = nullptr;
-	FLATTEN_AND_UPDATE(ret, single->Value, Flatten(single->Value, localNode));
-
-	if (requestJITVariable)
-	{
-		if (single->TypeInfo == nullptr)
-			THROW("Cannot require JIT variable from void");
-		generatedLocal = REQ_JIT_VAR(single->TypeInfo);
-		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
-	}
-
-	return ret;
-}
-
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenBinary(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
-{
-	auto single = node->As<BinaryNodeAccessProxy>();
-	RT::DoubleLinkList<RTJ::Hex::Statement> ret{};
-
-	{
-		TreeNode* localNode = nullptr;
-		FLATTEN_AND_UPDATE(ret, single->First, Flatten(single->First, localNode));
-	}
-
-	{
-		TreeNode* localNode = nullptr;
-		FLATTEN_AND_UPDATE(ret, single->Second, Flatten(single->Second, localNode));
-	}
-	
-	if (requestJITVariable)
-	{
-		if (single->TypeInfo == nullptr)
-			THROW("Cannot require JIT variable from void");
-		generatedLocal = REQ_JIT_VAR(single->TypeInfo);
-		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
-	}
-
-	return ret;
-}
-
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::FlattenMultiple(TreeNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
-{
-	auto call = node->As<CallNode>();
-
-	/*
-	* First we need to sort out the evaluation order of arguments
-	* 1. Method call
-	* 2. Non-trivial expression (complex computation)
-	* 3. Trivial expression (direct read on variable or array or sth)
-	* 4. Constant
-	*/
-	DoubleLinkList<Statement> methodSequence{};
-	DoubleLinkList<Statement> computationSequence{};
-
-	ForeachInlined(call->Arguments, call->ArgumentCount,
-		[&](TreeNode*& argument)
+		if (shouldKeep)
+			return { retStmts, node };
+		else
 		{
-			TreeNode* localNode = nullptr;
-			switch (argument->Kind)
-			{
-			case NodeKinds::MorphedCall:
-			{
-				FLATTEN_AND_UPDATE(methodSequence, argument, Flatten(argument->As<MorphedCallNode>(), localNode));
-				break;
-			}
-			default:
-			{
-				FLATTEN_AND_UPDATE(computationSequence, argument, Flatten(argument, localNode));
-				break;
-			}
-			}
-		});
+			auto local = REQ_JIT_VARIABLE(node->TypeInfo);
+			auto newLoad = NEW_LOAD_VALUE(local);
+			auto stmt = new (POOL) Statement(new (POOL) StoreNode(local, node), GetCurrentOffset(), GetCurrentOffset());
+			retStmts.Append(stmt);
 
-	//Join
-	methodSequence.Append(computationSequence);
-
-	if (requestJITVariable)
-	{
-		if (call->TypeInfo == nullptr)
-			THROW("Cannot require JIT variable from void");
-		generatedLocal = REQ_JIT_VAR(call->TypeInfo);
-
-		//Append itself
-		methodSequence.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
+			return { retStmts, newLoad };
+		}
 	}
-
-	return methodSequence;
+	break;
+	}
 }
 
-RT::DoubleLinkList<RTJ::Hex::Statement> RTJ::Hex::Linearizer::Flatten(MorphedCallNode* node, TreeNode*& generatedLocal, bool requestJITVariable)
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, LoadNode* node, bool shouldKeep)
 {
-	DoubleLinkList<Statement> ret{};
-
-	TreeNode* localNode = nullptr;
-	ret.Append(FlattenMultiple(node, localNode, false));
-	
-	//Flatten origin value
-	if (node->Is(NodeKinds::Call))
-		FLATTEN_AND_UPDATE(ret, node->Origin, Flatten(node->Origin, localNode, false));
-
-	if (requestJITVariable)
+	if (shouldKeep || parent == nullptr || parent->Is(NodeKinds::Store))
 	{
-		if (node->TypeInfo == nullptr)
-			THROW("Cannot require JIT variable from void");
-		generatedLocal = REQ_JIT_VAR(node->TypeInfo);
+		FLATTEN_KEEP(node->Source);
+		return { stmts, node };
+	}
+	return Flatten(node, node->Source);
+}
 
-		//Append itself
-		ret.Append(new (POOL) Statement(new (POOL) StoreNode(generatedLocal, node), mCurrentStmt->ILOffset, mCurrentStmt->ILOffset));
+RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, StoreNode* node, bool shouldKeep)
+{
+	auto retStmts = StmtList{};
+
+	{
+		FLATTEN(node->Destination);
+		retStmts.Append(stmts);
 	}
 
-	return ret;
+	{
+		if (node->Destination->Is(NodeKinds::LocalVariable))
+		{
+			FLATTEN_KEEP(node->Source);
+			retStmts.Append(stmts);
+		}
+		else
+		{
+			FLATTEN(node->Source);
+			retStmts.Append(stmts);
+		}		
+	}
+
+	return { retStmts , node };
+}
+
+RT::Int32 RTJ::Hex::Linearizer::GetCurrentOffset() const
+{
+	return mCurrentStmt->ILOffset;
 }
 
 RT::Int32 RTJ::Hex::Linearizer::RequestJITVariable(RTM::Type* type)

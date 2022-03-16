@@ -269,7 +269,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefinitionTokenInternal(
 				INSTANTIATION_SCOPE(scope);
 				ResolveOrInstantiateType(
 					defineContext,
-					canonicalType,
+					identity,
 					instantiationType,
 					MetaOptions::Generic,
 					newDefinitionToken,
@@ -301,7 +301,7 @@ RTM::TypeDescriptor* RTM::MetaManager::GetTypeFromDefinitionTokenInternal(
 
 				ResolveOrInstantiateType(
 					defineContext,
-					nullptr,
+					{},
 					newTypeDescriptor,
 					MetaOptions::Canonical,
 					definition,
@@ -436,7 +436,7 @@ RTM::TypeDescriptor* RTM::MetaManager::InstantiateWith(
 			INSTANTIATION_SCOPE(scope);
 			ResolveOrInstantiateType(
 				defineContext,
-				canonical,
+				identity,
 				instantiationType,
 				MetaOptions::Generic,
 				newDefinitionToken,
@@ -479,7 +479,7 @@ RTO::StringObject* RTM::MetaManager::GetStringFromView(AssemblyContext* context,
 
 void RTM::MetaManager::ResolveOrInstantiateType(
 	AssemblyContext* context, 
-	TypeDescriptor* canonicalType,
+	TypeIdentity const& identity,
 	TypeDescriptor* type, 
 	UInt8 metaOption,
 	MDToken definitionToken, 
@@ -489,7 +489,8 @@ void RTM::MetaManager::ResolveOrInstantiateType(
 	*  memory in global generic assembly
 	*/
 	AssemblyContext* allocatingContext = context;
-	
+	auto canonicalType = identity.Canonical;
+
 	auto&& importer = context->Importer;
 	//For performance, use a session across the whole meta data resolving
 	auto session = importer->NewSession();
@@ -515,6 +516,12 @@ void RTM::MetaManager::ResolveOrInstantiateType(
 	type->mColdMD = meta;
 	type->mContext = context;
 	type->mSelf = definitionToken;
+	type->mCanonical = canonicalType;
+
+	//Set type arguments
+	if (canonicalType != nullptr) {
+		type->mTypeArguments = identity.Arguments;
+	}
 
 	//For canonical or half-open type, return directly
 	if (type->IsGeneric() &&
@@ -602,6 +609,10 @@ RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(AssemblyContext* allocatin
 	fieldTable->mFieldCount = meta->FieldCount;
 	fieldTable->mFields = new (allocatingContext->Heap) FieldDescriptor[meta->FieldCount];
 	auto fieldMDs = new (allocatingContext->Heap) RTME::FieldMD[meta->FieldCount];
+
+	//Set base token
+	if (meta->FieldCount > 0)
+		fieldTable->mBaseToken = meta->FieldTokens[0];
 
 	for (Int32 i = 0; i < meta->FieldCount; ++i)
 	{

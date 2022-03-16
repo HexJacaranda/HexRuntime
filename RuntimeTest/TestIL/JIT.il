@@ -534,6 +534,13 @@
 {
     .field public instance int32 X
     .field public instance float Y
+    .field public instance [JIT][Test]Struct2 Z
+}
+
+.struct public instance Struct2
+.namespace Test
+{
+    .field public instance float X
 }
 
 .class public instance JITTest2
@@ -567,7 +574,8 @@
         .code
         {
             .ldloc X
-            .ldflda [JIT][Test]Struct::Y
+            .ldflda [JIT][Test]Struct::Z
+            .ldflda [JIT][Test]Struct2::X
             .stloc Z
             
             .ldloc Z

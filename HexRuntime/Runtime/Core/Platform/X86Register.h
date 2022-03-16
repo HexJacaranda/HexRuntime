@@ -83,6 +83,6 @@ namespace RTP::Register::X86
 		MSK InsideOpcodeXMM = RegisterSet<Platform::Bit32>::InsideOpcodeXMM;
 	};
 }
+
 #undef REG
 #undef MSK
-#undef BR

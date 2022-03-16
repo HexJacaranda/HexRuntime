@@ -743,6 +743,24 @@ namespace RuntimeTest
 
 			Assert::AreEqual(1.0f, ret);
 		}
+
+		TEST_METHOD(TestLocalStructAddress)
+		{
+			SetUpMethod(L"TestLocalStructAddress");
+			using Fn = Float(__fastcall*)();
+			auto bb = PassThrough<ILTransformer>(Context);
+			ViewIR(bb);
+			PassThrough<Morpher>(Context);
+			ViewIR(bb);
+			PassThrough<Linearizer>(Context);
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+
+			Fn method = (Fn)Dump();
+			auto ret = method();
+
+			Assert::AreEqual(2.0f, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest2::Assembly = nullptr;

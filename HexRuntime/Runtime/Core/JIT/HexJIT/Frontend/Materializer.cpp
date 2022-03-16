@@ -14,9 +14,32 @@ RTJ::Hex::Morpher::Morpher(HexJITContext* context) :
 {
 }
 
+void RTJ::Hex::Morpher::Set(UInt8 flag)
+{
+	mStatus |= flag;
+}
+
+void RTJ::Hex::Morpher::Unset(UInt8 flag)
+{
+	mStatus &= ~flag;
+}
+
+bool RTJ::Hex::Morpher::Has(UInt8 flag)
+{
+	return mStatus & flag;
+}
+
+RTJ::Hex::LoadNode* RTJ::Hex::Morpher::ChangeToAddressTaken(LoadNode* origin)
+{
+	auto loadAddress = new (POOL) LoadNode(AccessMode::Address, origin->Source);
+	auto ref = Meta::MetaData->InstantiateRefType(origin->Source->TypeInfo);
+	loadAddress->SetType(ref);
+	return loadAddress;
+}
+
 void RTJ::Hex::Morpher::InsertCall(MorphedCallNode* node)
 {
-	auto stmt = new(POOL) Statement(node, mCurrentStmt->ILOffset, mCurrentStmt->ILOffset);
+	auto stmt = new (POOL) Statement(node, mCurrentStmt->ILOffset, mCurrentStmt->ILOffset);
 	//Insert call
 	LinkedList::InsertBefore(mStmtHead, mPreviousStmt, stmt);
 }
@@ -35,6 +58,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(TreeNode* node)
 		return Morph(node->As<ArrayElementNode>());
 	case NodeKinds::InstanceField:
 		return Morph(node->As<InstanceFieldNode>());
+	case NodeKinds::Store:
+		return Morph(node->As<StoreNode>());
+	case NodeKinds::Load:
+		return Morph(node->As<LoadNode>());
 	case NodeKinds::StaticField:
 		THROW("Not supported");
 		return Morph(node->As<StaticFieldNode>());
@@ -130,8 +157,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 	MORPH_FIELD(node->Destination);
 	MORPH_FIELD(node->Source);
 
-	if (node->Destination->Is(NodeKinds::OffsetOf) &&
-		CoreTypes::IsRef(node->Destination->TypeInfo->GetCoreType()))
+	if (CoreTypes::IsRef(node->Destination->TypeInfo->GetCoreType()))
 	{
 		auto fieldRef = new (POOL) LoadNode(AccessMode::Address, node->Destination);
 
@@ -148,13 +174,44 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 {
+	auto source = node->Source;
+	auto sourceType = source->TypeInfo;
 	//TODO: To propagate address-taken semantic
-	if (node->Source->Is(NodeKinds::OffsetOf) &&
-		CoreTypes::IsRef(node->Source->TypeInfo->GetCoreType()))
+	switch (node->Mode)
 	{
-		auto argument = new (POOL) LoadNode(AccessMode::Address, node->Source);
-		return MORPH_ARG(ReadBarrierForRef)->SetType(node->TypeInfo);
+	case AccessMode::Address:
+	{
+		//Only 
+		With(MorphStatus::AddressTaken, [&]() {
+			MORPH_FIELD(node->Source);
+		});
+		break;
+	}	
+	case AccessMode::Value:
+		//Need to promote struct load to address form
+		if (sourceType->IsStruct() && Has(MorphStatus::AddressTaken))
+		{
+			node = ChangeToAddressTaken(node);
+			Use(MorphStatus::AddressTaken, [&]() {
+				MORPH_FIELD(node->Source);
+			});
+
+			return node;
+		}
+
+		//Need to replace it with read barrier
+		if (CoreTypes::IsRef(sourceType->GetCoreType()) &&
+			(source->Is(NodeKinds::InstanceField) || source->Is(NodeKinds::Array)))
+		{
+			auto argument = new (POOL) LoadNode(AccessMode::Address, node->Source);
+			return MORPH_ARG(ReadBarrierForRef)->SetType(node->TypeInfo);
+		}
+		break;
+	case AccessMode::Content:
+		MORPH_FIELD(node->Source);
+		break;
 	}
+
 	return node;
 }
 
@@ -170,10 +227,12 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(ArrayElementNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
 {
-	MORPH_FIELD(node->Source);
+	Use(MorphStatus::AddressTaken, [&]() {
+		MORPH_FIELD(node->Source);
+	});
 
 	auto offset = new (POOL) OffsetOfNode(node->Source->As<LocalVariableNode>(), node->Field->GetOffset());
-	offset->SetType(node->TypeInfo);
+	offset->SetType(node->TypeInfo);							
 	return offset;
 }
 
