@@ -12,9 +12,22 @@ namespace RTP
 	{
 	public:
 		ETY = UInt16;
-		VAL Invalid = 0x0000;
-		VAL Memory = 0x0001;
-		VAL Register = 0x0002;
+		/// <summary>
+		/// Flatten model, content is laid out in-place
+		/// </summary>
+		VAL AsStruct = 0x0000;
+
+		/// <summary>
+		/// Indirect model, content is accessed by address
+		/// </summary>
+		VAL AsRef = 0x0010;
+		VAL SemanticMask = 0x00F0;
+
+		VAL Register = 0x0000;
+		VAL Stack = 0x0001;
+		VAL PlaceMask = 0x000F;
+
+		VAL Invalid = 0xFFFF;
 	};
 
 	struct AddressConstraint
@@ -29,11 +42,17 @@ namespace RTP
 		UInt8 SingleRegister = 0;
 		UInt16 Flags = 0;
 
-		bool HasMemory()const {
-			return Flags & AddressConstraintFlags::Memory;
+		bool InRegister()const {
+			return (Flags & AddressConstraintFlags::PlaceMask) == AddressConstraintFlags::Register;
 		}
-		bool HasRegister()const {
-			return Flags & AddressConstraintFlags::Register;
+		bool InStack()const {
+			return (Flags & AddressConstraintFlags::PlaceMask) == AddressConstraintFlags::Register;
+		}
+		bool IsStructLike()const {
+			return (Flags & AddressConstraintFlags::SemanticMask) == AddressConstraintFlags::AsStruct;
+		}
+		bool IsRefLike()const {
+			return (Flags & AddressConstraintFlags::SemanticMask) == AddressConstraintFlags::AsRef;
 		}
 	};
 
@@ -57,10 +76,6 @@ namespace RTP
 	struct PlatformCallingConvention
 	{ 
 		Int32 ArgumentCount;
-		/* For address constraint here, theoretically only SREG and MEM can be supported by common platforms. 
-		* Specially, SREG | MEM indicates that it's placed on stack and address passed in register (See some 
-		* calling convetions in X86-64)
-		*/
 		AddressConstraint* ArgumentPassway;
 		AddressConstraint ReturnPassway;
 		/* Should be accessed like RegisterStates[Register] */

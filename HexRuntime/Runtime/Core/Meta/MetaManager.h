@@ -102,15 +102,6 @@ namespace RTM
 			VAL ShareMD = 0b10;
 		};
 
-		/// <summary>
-		/// Resolve or instantiate type
-		/// </summary>
-		/// <param name="originContext">should be the assembly of canonical type</param>
-		/// <param name="canonicalType"></param>
-		/// <param name="targetType"></param>
-		/// <param name="tokenKind"></param>
-		/// <param name="definitionToken"></param>
-		/// <param name="INJECT"></param>
 		void ResolveOrInstantiateType(
 			AssemblyContext* originContext,
 			TypeIdentity const& identity,
@@ -124,7 +115,7 @@ namespace RTM
 
 		FieldTable* GenerateFieldTable(AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 
-		FieldsLayout* GenerateLayout(FieldTable* table, AssemblyContext* allocatingContext, AssemblyContext* context);
+		FieldsLayout* GenerateLayout(FieldTable* table, AssemblyContext* allocatingContext, AssemblyContext* context, UInt8 coreType);
 
 		MethodTable* GenerateMethodTable(Type* current, AssemblyContext* allocatingContext, INJECT(IMPORT_CONTEXT, LOADING_CONTEXT, INSTANTIATION_CONTEXT));
 

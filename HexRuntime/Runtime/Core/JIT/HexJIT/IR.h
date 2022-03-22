@@ -530,7 +530,7 @@ namespace RTJ::Hex
 
 	static bool ValueIs(TreeNode* value, NodeKinds kind)
 	{
-		if (value == nullptr)
+		if (value == nullptr || !value->Is(NodeKinds::Load))
 			return false;
 		
 		return ((UnaryNodeAccessProxy*)value)->Value->Is(kind);
@@ -853,6 +853,8 @@ namespace RTJ::Hex
 	template<class Fn>
 	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
+		if (source == nullptr)
+			return;
 		using NodeReference = TreeNode**;
 		NodeReference* stack = (NodeReference*)stackSpace;
 
@@ -919,6 +921,9 @@ namespace RTJ::Hex
 	template<class Fn>
 	static void TraverseTreeBottomUp(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)
 	{
+		if (source == nullptr)
+			return;
+
 		using NodeReference = TreeNode**;
 		NodeReference* stack = (NodeReference*)stackSpace;
 

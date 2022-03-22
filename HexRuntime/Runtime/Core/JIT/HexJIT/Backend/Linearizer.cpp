@@ -231,11 +231,23 @@ RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, TreeNode
 
 RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, LoadNode* node, bool shouldKeep)
 {
-	if (shouldKeep || parent == nullptr || parent->Is(NodeKinds::Store))
+	if(parent != nullptr && parent->Is(NodeKinds::Store))
+	{
+		FLATTEN_KEEP(node->Source);
+
+		auto store = parent->As<StoreNode>();
+		if (store->Destination == node)
+			return { stmts, node->Source };
+		else
+			return { stmts, node };
+	}
+
+	if (shouldKeep)
 	{
 		FLATTEN_KEEP(node->Source);
 		return { stmts, node };
 	}
+
 	return Flatten(node, node->Source);
 }
 

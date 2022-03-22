@@ -734,7 +734,9 @@ namespace RuntimeTest
 		{
 			SetUpMethod(L"TestStructLocal");
 			using Fn = Float(__fastcall*)();
-			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>(Context);
+			auto bb = PassThrough<ILTransformer, Morpher>(Context);
+			ViewIR(bb);
+			PassThrough<Linearizer>(Context);
 			ViewIR(bb);
 			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
 

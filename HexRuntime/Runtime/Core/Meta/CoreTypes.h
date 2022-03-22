@@ -145,8 +145,14 @@ namespace RTC
 		inline static bool IsPrimitive(UInt8 coreType) {
 			return coreType < Struct;
 		}
+		inline static bool IsStruct(UInt8 coreType) {
+			return coreType <= Struct;
+		}
 		inline static bool IsRef(UInt8 coreType) {
 			return coreType > Struct;
+		}
+		inline static bool IsCategoryRef(UInt8 coreType) {
+			return coreType > Struct && coreType != InteriorRef;
 		}
 		inline static bool IsValidCoreType(UInt8 coreType) {
 			return coreType <= Delegate || coreType >= SIMD128;

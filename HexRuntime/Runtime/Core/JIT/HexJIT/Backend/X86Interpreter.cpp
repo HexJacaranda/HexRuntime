@@ -104,7 +104,6 @@ namespace RTJ::Hex::X86
 		RCS(session);
 
 		bool shouldNotEmit = false;
-
 		auto source = store->Source;
 		auto destination = store->Destination;
 		//Special handle for morphed call
@@ -113,72 +112,68 @@ namespace RTJ::Hex::X86
 
 		/*---------------Handle the destination operand---------------*/
 		Operand destinationOperand{};
-		switch (destination->Kind)
+		switch (store->Mode)
 		{
-		case NodeKinds::OffsetOf:
-		case NodeKinds::ArrayOffsetOf:
+		case AccessMode::Content:
 		{
-			destinationOperand = UseOperandFrom(session, destination);
+			auto origin = UseOperandFrom(session, destination, OperandOptions::ForceRegister);
+			RTAssert(origin.IsRegister());
+			destinationOperand = Operand::FromDisplacement(origin.Register, 0);
 			break;
 		}
-		case NodeKinds::LocalVariable:
+		case AccessMode::Value:
 		{
-			auto local = destination->As<LocalVariableNode>();
-			//Set generation context
-			ST_VAR = local->LocalIndex;
-			//TODO: Volatile requires immediate memory write
-
-			/*If it's a local store, then we should consider the store action of JIT generated variable
-			* 1. Source is immediate, no 'result' register from operation is available and thus
-			* we need to require a register if necessary
-			* 2. Source is local variable
-			* 3. Source is operation, then we will expect a register as result and cancel emitting
-			* the store instruction
-			*/
-
-			switch (source->Kind)
+			switch (destination->Kind)
 			{
-			case NodeKinds::Load:
+			case NodeKinds::LocalVariable:
 			{
-				//[Var1, Var2] -> Same Reg?
-
-				//auto load = source->As<LoadNode>();
-				//if (load->Mode == AccessMode::Value &&
-				//	ValueIs(load, NodeKinds::LocalVariable))
-				//{
-				//	auto sourceVariable = ValueAs<LocalVariableNode>(load)->LocalIndex;
-				//	
-				//}
-			}
-			case NodeKinds::Constant:
-				destinationOperand = UseOperandFrom(session, destination, OperandOptions::AllocateOnly);
-				if (destinationOperand.IsAdvancedAddressing())
-					MarkVariableLanded(ST_VAR.value());
+				ST_VAR = destination->As<LocalVariableNode>()->LocalIndex;
 				break;
+			}
+			case NodeKinds::OffsetOf:
+			case NodeKinds::ArrayOffsetOf:
+			{
+				destinationOperand = UseOperandFrom(session, destination, OperandOptions::ReserveAsMemory);
+				RTAssert(destinationOperand.IsAdvancedAddressing());
+				break;
+			}
 			}
 			break;
 		}
 		default:
-			THROW("Destination node kind not allowed");
+			THROW("Unexpected store mode");
 		}
 
 		/*---------------Handle the source operand---------------*/
-		Operand sourceOperand{};
-		
+		Operand sourceOperand{};	
 		switch (source->Kind)
 		{
 		case NodeKinds::Load:
 		{
+			auto load = source->As<LoadNode>();
 			UInt8 options = OperandOptions::None;
-			if (destinationOperand.IsAdvancedAddressing())
+			if (destinationOperand.IsAdvancedAddressing() || destinationOperand.IsEmpty())
 				options |= OperandOptions::ForceRegister;
 
 			sourceOperand = UseOperandFrom(session, source, options);
+
+			if (sourceOperand.IsRegister() && ST_VAR.has_value())
+			{
+				shouldNotEmit = true;
+				mRegContext->Establish(ST_VAR.value(), sourceOperand.Register);
+				MarkVariableOnFly(ST_VAR.value());
+			}
 			break;
 		}
 		case NodeKinds::Constant:
 		{
-			sourceOperand = UseOperandFrom(session, source);
+			sourceOperand = UseOperandFrom(session, source, OperandOptions::ForceRegister);
+			if (ST_VAR.has_value())
+			{
+				shouldNotEmit = true;
+				mRegContext->Establish(ST_VAR.value(), sourceOperand.Register);
+				MarkVariableOnFly(ST_VAR.value());
+			}
 			break;
 		}
 		default:
@@ -219,6 +214,12 @@ namespace RTJ::Hex::X86
 		Emit(instruction, destinationOperand, sourceOperand);
 	}
 
+	bool X86NativeCodeGenerator::IsLanded(UInt16 variable, BasicBlock* bb)
+	{
+		if (bb == nullptr) bb = mCurrentBB;
+		return mVariableLanded[bb->Index].Contains(variable);
+	}
+
 	void X86NativeCodeGenerator::MarkVariableOnFly(UInt16 variable, BasicBlock* bb)
 	{
 		if (bb == nullptr) bb = mCurrentBB;
@@ -229,8 +230,13 @@ namespace RTJ::Hex::X86
 	{
 		if (bb == nullptr) bb = mCurrentBB;
 		//Mark
-		mContext->GetLocalBase(variable)->Flags |= LocalAttachedFlags::ShouldGenerateLayout;
+		MarkVariableGenerateLayout(variable);
 		mVariableLanded[bb->Index].Add(variable);
+	}
+
+	void X86NativeCodeGenerator::MarkVariableGenerateLayout(UInt16 variable)
+	{
+		mContext->GetLocalBase(variable)->Flags |= LocalAttachedFlags::ShouldGenerateLayout;
 	}
 
 	void X86NativeCodeGenerator::InvalidateVaraible(UInt16 variable)
@@ -247,7 +253,7 @@ namespace RTJ::Hex::X86
 			auto index = LocalVariableNode::GetIndex(variable);
 			auto&& passway = callingConv->ArgumentPassway[index];
 			//TODO: Anything further? (for object in ref)
-			if (passway.HasRegister() && !passway.HasMemory())
+			if (passway.InRegister())
 			{
 				auto reg = passway.SingleRegister;
 				if (reg != currentReg.value())
@@ -288,10 +294,19 @@ namespace RTJ::Hex::X86
 		if (nativeReg.has_value())
 		{
 			MarkVariableLanded(variable, bb);
+
+			if (LocalVariableNode::IsArgument(variable))
+			{
+				auto&& arg = GetCallingConv()->ArgumentPassway[LocalVariableNode::GetIndex(variable)];
+				//Struct address in register
+				if (arg.IsRefLike())
+					return EmitStoreR2M(nativeReg.value(), variable, CoreTypes::InteriorRef);
+			}
+
 			EmitStoreR2M(
 				nativeReg.value(),
 				variable,
-				mContext->GetLocalType(variable)->GetCoreType());			
+				mContext->GetLocalType(variable)->GetCoreType());
 		}
 	}
 
@@ -447,7 +462,7 @@ namespace RTJ::Hex::X86
 	void X86NativeCodeGenerator::CodeGenForBooleanStore(TreeNode* expression)
 	{
 		bool usedByAdjacentJcc = ST_VAR.has_value() ? IsUsedByAdjacentJcc(ST_VAR.value()) : false;
-		auto mask = NREG::Common & ~(MSK_REG(NREG::SI) | MSK_REG(NREG::DI));
+		auto mask = R8UnavailableMask;
 
 		switch (expression->Kind)
 		{
@@ -560,7 +575,7 @@ namespace RTJ::Hex::X86
 		std::optional<UInt64> maskOpt)
 	{
 		auto coreType = target->TypeInfo->GetCoreType();
-		auto mask = maskOpt.value_or(CoreTypes::IsIntegerLike(coreType) ? NREG::Common : NREG::CommonXMM);
+		auto mask = GetMaskFor(coreType, maskOpt);
 
 		//Disable partial register
 		if (CoreTypes::GetCoreTypeSize(coreType) == 1)
@@ -582,10 +597,9 @@ namespace RTJ::Hex::X86
 			switch (value->Kind)
 			{
 			case NodeKinds::LocalVariable:
-				return UseOperandFrom(session, value, newOptions, maskOpt);
 			case NodeKinds::ArrayOffsetOf:
-				return UseOperandFrom(session, value, newOptions, maskOpt);
 			case NodeKinds::OffsetOf:
+			case NodeKinds::Constant:
 				return UseOperandFrom(session, value, newOptions, maskOpt);
 			default:
 				THROW("Unknown load source");
@@ -594,100 +608,7 @@ namespace RTJ::Hex::X86
 		case NodeKinds::LocalVariable:
 		{
 			auto local = target->As<LocalVariableNode>();
-			auto variable = local->LocalIndex;
-
-			switch (options & OperandOptions::MemorySemanticMask)
-			{
-			case OperandOptions::AddressOf:
-			{
-				
-			}
-			case OperandOptions::ContentOf:
-
-			}
-
-			//Force register
-			if (options & OperandOptions::ForceRegister)
-			{
-				auto nativeReg = AllocateRegisterAndGenerateCodeFor(
-					variable,
-					USE_MASK,
-					coreType,
-					options & OperandOptions::AllocateOnly);
-
-				if (options & OperandOptions::InvalidateVariable)
-					InvalidateVaraible(variable);
-
-				MARK_UNSPILLABLE(nativeReg);
-				return Operand::FromRegister(nativeReg);
-			}
-
-			//Force memory
-			if (options & OperandOptions::ForceMemory)
-			{
-				if (options & OperandOptions::AddressOf)
-				{
-					THROW("Not implemented");
-				}
-				else
-				{
-					Operand operand{};
-					USE_DISP(operand, variable);
-					return operand;
-				}
-			}
-
-			//AutoRMI
-			auto [reg, furtherOperation] = mRegContext->AllocateRegisterFor(variable, USE_MASK);
-			if (furtherOperation)
-			{
-				if (IsVariableUnusedFromNow(variable))
-				{
-					//Consider liveness
-					Operand operand{};
-					USE_DISP(operand, variable);
-					return operand;
-				}
-				else
-				{
-					//Spill someone else
-					auto newRegister = mRegContext->TryGetFreeRegister(USE_MASK);
-					if (!newRegister.has_value())
-					{
-						auto [spillVariable, spillReg] = RetriveSpillCandidate(USE_MASK, mLiveness);
-						SpillAndGenerateCodeFor(spillVariable, coreType);
-						//Assign to spill variable
-						newRegister = spillReg;
-					}
-
-					if (!(options & OperandOptions::AllocateOnly))
-					{
-						//Requires loading
-						if (reg.has_value())
-						{
-							//Do register transfer
-							EmitLoadR2R(newRegister.value(), reg.value(), coreType);
-							mRegContext->ReturnRegister(reg.value());
-						}
-						else
-						{
-							//Do variable load
-							EmitLoadM2R(newRegister.value(), variable, coreType);
-						}
-					}
-
-					if (!(options & OperandOptions::InvalidateVariable))
-						mRegContext->Establish(variable, newRegister.value());
-					
-					MARK_UNSPILLABLE(newRegister.value());
-					return Operand::FromRegister(newRegister.value());
-				}
-			}
-			else
-			{
-				MARK_UNSPILLABLE(reg.value());
-				return Operand::FromRegister(reg.value());
-			}
+			return UseLocal(session, local, options, USE_MASK);
 		}
 		case NodeKinds::Constant:
 		{
@@ -697,49 +618,7 @@ namespace RTJ::Hex::X86
 		case NodeKinds::OffsetOf:
 		{
 			auto offset = target->As<OffsetOfNode>();
-			RTAssert(ValueIs(offset->Base, NodeKinds::LocalVariable));
-			Operand source{};
-			{
-				RCS(newSession);
-				source = UseOperandFrom(newSession, offset->Base, OperandOptions::ForceRegister);
-
-				//Make sure it's register
-				RTAssert(source.IsRegister());
-				MARK_UNSPILLABLE(source.Register);
-			}
-
-			if (options & OperandOptions::AddressOf)
-			{
-				//Address semantic, Use LEA
-				THROW("Not implemented");
-			}
-
-			if (options & OperandOptions::ForceRegister)
-			{
-				//Register as result
-				UInt8 nativeReg = AllocateRegisterAndGenerateCodeFor(USE_MASK, coreType);
-				RE_REG = nativeReg;
-
-				Operand sourceM = Operand::FromDisplacement(source.Register, offset->Offset);
-				Operand destination = Operand::FromRegister(nativeReg);
-
-				Instruction instruction = RetriveBinaryInstruction(
-					SemanticGroup::MOV,
-					coreType,
-					OperandPreference::Register,
-					OperandPreference::Displacement);
-
-				Emit(instruction, destination, sourceM);
-				//Restore the 
-				MARK_SPILLABLE(source.Register);
-				MARK_UNSPILLABLE(nativeReg);
-				return destination;
-			}
-			else
-			{
-				//Use [rxx + offset] as operand
-				return Operand::FromDisplacement(source.Register, offset->Offset);
-			}
+			return UseOffsetOf(session, offset, options, maskOpt);
 		}
 		case NodeKinds::ArrayOffsetOf:
 		{
@@ -834,6 +713,350 @@ namespace RTJ::Hex::X86
 			THROW("Not implemented");
 			break;
 		}
+	}
+
+	Operand X86NativeCodeGenerator::UseAddressOfLocal(RegisterConflictSession& session, LocalVariableNode* local, UInt8 options, std::optional<UInt64> maskOpt)
+	{
+		auto mask = maskOpt.value_or(NREG::Common);
+
+		auto isRef = CoreTypes::IsRef(local->TypeInfo->GetCoreType());
+		auto localIndex = local->LocalIndex;
+
+		//Need to check if local is on register
+		auto currentRegister = mRegContext->TryGetRegister(localIndex);
+
+		if (currentRegister.has_value())
+		{
+			if (IsAsRefSemantic(localIndex))
+			{
+				MARK_UNSPILLABLE(currentRegister.value());
+				Operand::FromRegister(currentRegister.value());
+			}
+			LandVariableFor(localIndex);
+		}
+			
+		Operand onStackAddress{};
+		USE_DISP(onStackAddress, localIndex);
+
+		if (IsAsRefSemantic(localIndex))
+		{
+			auto nativeReg = AllocateRegisterAndGenerateCodeFor(mask, CoreTypes::InteriorRef);
+			auto resultOperand = Operand::FromRegister(nativeReg);
+			MARK_UNSPILLABLE(nativeReg);
+
+			ASM_C(MOV_RM_IU, InteriorRef, resultOperand, onStackAddress);
+			return resultOperand;
+		}
+		else
+		{
+			if (options & OperandOptions::ForceRegister)
+			{
+				auto nativeReg = AllocateRegisterAndGenerateCodeFor(mask, CoreTypes::InteriorRef);
+				auto resultOperand = Operand::FromRegister(nativeReg);
+				MARK_UNSPILLABLE(nativeReg);
+
+				ASM_C(LEA_IU, InteriorRef, resultOperand, onStackAddress);
+				return resultOperand;
+			}
+			return onStackAddress;
+		}
+	}
+
+	Operand X86NativeCodeGenerator::UseContentOfLocal(RegisterConflictSession& session, LocalVariableNode* local, UInt8 options, std::optional<UInt64> maskOpt)
+	{
+		auto refType = local->TypeInfo;
+		auto interiorRef = Meta::MetaData->GetIntrinsicTypeFromCoreType(CoreTypes::InteriorRef);
+		if (refType->GetCanonicalType() != interiorRef)
+			THROW("Unexpected type of local variable");
+		auto contentCoreType = refType->GetFirstTypeArgument()->GetCoreType();
+
+		auto addressRegisterMask = NREG::Common;
+		//If value register is compatible with address register, try to reduce extra usage
+		if ((CoreTypes::IsIntegerLike(contentCoreType) ||
+			CoreTypes::IsCategoryRef(contentCoreType)) &&
+			maskOpt.has_value())
+		{
+			addressRegisterMask = maskOpt.value();
+		}
+		
+		auto refValue = UseLocal(session, local, OperandOptions::ForceRegister, addressRegisterMask);
+		auto instruction = RetriveBinaryInstruction(
+			SemanticGroup::MOV,
+			contentCoreType,
+			OperandPreference::Register,
+			OperandPreference::Displacement);
+
+		auto memory = Operand::FromDisplacement(refValue.Register, 0);
+		if (maskOpt == addressRegisterMask)
+		{
+			Emit(instruction, refValue, memory);
+			return refValue;
+		}
+		else
+		{
+			auto valueRegisterMask = GetMaskFor(contentCoreType, maskOpt);
+			auto newRegister = AllocateRegisterAndGenerateCodeFor(valueRegisterMask, contentCoreType);
+			auto resultOperand = Operand::FromRegister(newRegister);
+			MARK_UNSPILLABLE(newRegister);
+			Emit(instruction, resultOperand, memory);
+			return resultOperand;
+		}
+	}
+
+	Operand X86NativeCodeGenerator::UseLocal(RegisterConflictSession& session, LocalVariableNode* local, UInt8 options, std::optional<UInt64> maskOpt)
+	{
+		switch (options & OperandOptions::MemorySemanticMask)
+		{
+		case OperandOptions::AddressOf:
+		{
+			return UseAddressOfLocal(session, local, options, maskOpt);
+		}
+		case OperandOptions::ContentOf:
+		{
+			return UseContentOfLocal(session, local, options, maskOpt);
+		}
+		}
+
+		//Load value
+		auto variable = local->LocalIndex;
+		auto coreType = local->TypeInfo->GetCoreType();
+		auto mask = GetMaskFor(coreType, maskOpt);
+
+		//Force register
+		if (options & OperandOptions::ForceRegister)
+		{
+			auto nativeReg = AllocateRegisterAndGenerateCodeFor(
+				variable,
+				USE_MASK,
+				coreType,
+				!(options & OperandOptions::AllocateOnly));
+
+			if (options & OperandOptions::InvalidateVariable)
+				InvalidateVaraible(variable);
+
+			MARK_UNSPILLABLE(nativeReg);
+			return Operand::FromRegister(nativeReg);
+		}
+
+		//AutoRMI
+		auto [reg, furtherOperation] = mRegContext->AllocateRegisterFor(variable, USE_MASK);
+		if (furtherOperation)
+		{
+			if (IsVariableUnusedFromNow(variable))
+			{
+				//Consider liveness
+				Operand operand{};
+				USE_DISP(operand, variable);
+				return operand;
+			}
+			else
+			{
+				//Spill someone else
+				auto newRegister = mRegContext->TryGetFreeRegister(USE_MASK);
+				if (!newRegister.has_value())
+				{
+					auto [spillVariable, spillReg] = RetriveSpillCandidate(USE_MASK, mLiveness);
+					SpillAndGenerateCodeFor(spillVariable, coreType);
+					//Assign to spill variable
+					newRegister = spillReg;
+				}
+
+				if (!(options & OperandOptions::AllocateOnly))
+				{
+					//Requires loading
+					if (reg.has_value())
+					{
+						//Do register transfer
+						EmitLoadR2R(newRegister.value(), reg.value(), coreType);
+						mRegContext->ReturnRegister(reg.value());
+					}
+					else
+					{
+						//Do variable load
+						EmitLoadM2R(newRegister.value(), variable, coreType);
+					}
+				}
+
+				if (!(options & OperandOptions::InvalidateVariable))
+					mRegContext->Establish(variable, newRegister.value());
+
+				MARK_UNSPILLABLE(newRegister.value());
+				return Operand::FromRegister(newRegister.value());
+			}
+		}
+		else
+		{
+			MARK_UNSPILLABLE(reg.value());
+			return Operand::FromRegister(reg.value());
+		}
+	}
+
+	Operand X86NativeCodeGenerator::UseOffsetOf(RegisterConflictSession& session, OffsetOfNode* offset, UInt8 options, std::optional<UInt64> maskOpt)
+	{
+		auto mask = maskOpt.value_or(NREG::Common);
+		/*Obviously, normal offset of indirect model is different from flatten model
+		* 1. Ref on stack: fetch -> add
+		* 2. Ref on register: add with register
+		* 3. Struct on stack: add with bp
+		* 4. Struct (ref) is the same with ref
+		*/
+
+		auto base = offset->Base;
+		RTAssert(base->Is(NodeKinds::Load));
+		RTAssert(ValueIs(base, NodeKinds::LocalVariable));
+		auto local = ValueAs<LocalVariableNode>(base);
+		auto validOffset = offset->Offset > 0;
+		auto coreType = offset->TypeInfo->GetCoreType();
+
+		auto originAddress = UseObjectAddressOfLocal(session, local, options, maskOpt);
+
+		if (originAddress.IsRegister())
+		{
+			//Adjust to offset
+			auto targetAddress = Operand::FromDisplacement(originAddress.Register, offset->Offset);
+			MARK_UNSPILLABLE(originAddress.Register);
+			if (options & OperandOptions::ReserveAsMemory)
+				return targetAddress;
+
+			if (options & OperandOptions::AddressOf)
+			{
+				if (validOffset)
+					ASM_C(LEA_IU, InteriorRef, originAddress, targetAddress);
+				return originAddress;
+			}
+			
+			if (options & OperandOptions::ForceRegister)
+			{
+				//Load value
+				auto instruction = RetriveBinaryInstruction(
+					SemanticGroup::MOV, coreType, OperandPreference::Register, OperandPreference::Displacement);
+
+				Operand destination = originAddress;
+				//See if address register is suitable for result value
+				auto valueMask = GetMaskFor(coreType, maskOpt);
+				if (!(valueMask & MSK_REG(originAddress.Register)))
+				{
+					//Does not fit
+					auto newRegister = AllocateRegisterAndGenerateCodeFor(valueMask, coreType);
+					MARK_SPILLABLE(originAddress.Register);
+					destination = Operand::FromRegister(newRegister);
+					MARK_UNSPILLABLE(newRegister);
+				}
+
+				Emit(instruction, destination, targetAddress);
+				return destination;
+			}
+			else
+			{
+				return targetAddress;
+			}
+		}
+		else
+		{
+			originAddress.M.Displacement = offset->Offset;
+
+			if (options & OperandOptions::ReserveAsMemory)
+				return originAddress;
+
+			if (options & OperandOptions::AddressOf)
+			{
+				auto resultRegister = AllocateRegisterAndGenerateCodeFor(mask, CoreTypes::InteriorRef);
+				auto resultOperand = Operand::FromRegister(resultRegister);
+				ASM_C(LEA_IU, InteriorRef, resultOperand, originAddress);
+
+				return resultOperand;
+			}
+			else if (options & OperandOptions::ForceRegister)
+			{
+				auto valueMask = GetMaskFor(coreType, maskOpt);
+				auto newRegister = AllocateRegisterAndGenerateCodeFor(valueMask, coreType);
+				auto registerOperand = Operand::FromRegister(newRegister);
+				MARK_UNSPILLABLE(newRegister);
+
+				auto instruction = RetriveBinaryInstruction(
+					SemanticGroup::MOV, coreType, OperandPreference::Register, OperandPreference::Displacement);
+
+				Emit(instruction, registerOperand, originAddress);
+				return registerOperand;
+			}
+			else
+				return originAddress;
+		}
+	}
+
+	Operand X86NativeCodeGenerator::UseObjectAddressOfLocal(RegisterConflictSession& session, LocalVariableNode* local, UInt8 options, std::optional<UInt64> maskOpt)
+	{
+		/*If it's a ref, get the ref value, which means address of object.
+		* If it's a struct, get the address of struct
+		*/
+		auto mask = maskOpt.value_or(NREG::Common);
+
+		auto isRef = CoreTypes::IsRef(local->TypeInfo->GetCoreType());
+		auto localIndex = local->LocalIndex;
+
+		//Need to check if local is on register
+		auto currentRegister = mRegContext->TryGetRegister(localIndex);
+
+		if (currentRegister.has_value())
+		{
+			//Ref, and struct (ref) on register can be directly used
+			if (isRef || IsAsRefSemantic(localIndex))
+				return Operand::FromRegister(currentRegister.value());
+			else
+			{
+				//Normal struct requires landing
+				LandVariableFor(localIndex);
+				Operand address{};
+				USE_DISP(address, localIndex);
+
+				return address;
+			}
+		}
+		else
+		{
+			//Vice versa, Ref and struct (ref) on stack requires an indirect access
+			if (isRef || IsAsRefSemantic(localIndex))
+			{
+				Operand onStackAddress{};
+				USE_DISP(onStackAddress, localIndex);
+
+				auto resultRegister = AllocateRegisterAndGenerateCodeFor(mask, CoreTypes::InteriorRef);
+				auto resultOperand = Operand::FromRegister(resultRegister);
+				ASM_C(MOV_RM_IU, InteriorRef, resultOperand, onStackAddress);
+
+				return resultOperand;
+			}
+			else
+			{
+				Operand address{};
+				USE_DISP(address, localIndex);
+
+				return address;
+			}
+		}
+	}
+
+	bool X86NativeCodeGenerator::IsAsRefSemantic(UInt16 variable) const
+	{
+		if (!LocalVariableNode::IsArgument(variable))
+			return false;
+		auto index = LocalVariableNode::GetIndex(variable);
+		auto&& arg = GetCallingConv()->ArgumentPassway[index];
+		return arg.IsRefLike();
+	}
+
+	UInt64 X86NativeCodeGenerator::GetMaskFor(UInt8 coreType, std::optional<UInt64> mask)
+	{
+		if (mask.has_value())
+			return mask.value();
+
+		if (CoreTypes::IsFloatLike(coreType))
+			return NREG::CommonXMM;
+
+		if (CoreTypes::GetCoreTypeSize(coreType) == 1)
+			return NREG::Common & R8UnavailableMask;
+
+		return NREG::Common;
 	}
 
 	void X86NativeCodeGenerator::SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType)
@@ -949,7 +1172,7 @@ namespace RTJ::Hex::X86
 	}
 
 	void X86NativeCodeGenerator::Finalize()
-	{
+	{		
 		auto stackInfo = StackFrameGenerator(mContext).Generate();
 		auto nonVolatiles = GetUsedNonVolatileRegisters();
 		GeneratePrologue(stackInfo, nonVolatiles);
@@ -984,8 +1207,41 @@ namespace RTJ::Hex::X86
 		}
 	}
 
+	void X86NativeCodeGenerator::MarkStructUsageGenerateLayout(TreeNode* target)
+	{
+		TraverseTree(mContext->Traversal.Space, mContext->Traversal.Count, target, 
+			[&](TreeNode* value) 
+			{
+				if (ValueIs(value, NodeKinds::LocalVariable))
+				{
+					auto load = value->As<LoadNode>();
+					switch (load->Mode)
+					{
+					case AccessMode::Address:
+					case AccessMode::Content:
+						auto local = ValueAs<LocalVariableNode>(value);
+						if (CoreTypes::IsStruct(local->TypeInfo->GetCoreType()))
+							MarkVariableGenerateLayout(local->LocalIndex);
+						break;
+					}
+				}
+			});
+	}
+
 	void X86NativeCodeGenerator::FixUpDisplacement()
 	{
+		auto findAdditionalOffset = [&](Int32 bb, Int32 offset) -> std::optional<Int32> {
+			auto it = mVariableDispOffset.find(bb);
+			if (it == mVariableDispOffset.end())
+				return {};
+
+			auto offsetIt = it->second.find(offset);
+			if (offsetIt != it->second.end())
+				return offsetIt->second;
+			else
+				return {};
+		};
+
 		for (auto&& [variable, maps] : mVariableDispFix)
 		{
 			auto varBase = mContext->GetLocalBase(variable);
@@ -993,7 +1249,14 @@ namespace RTJ::Hex::X86
 				THROW("Unexpected usage of local variable. Please check if ShouldGenerateLayout is set.");
 			for (auto&& [bb, offsets] : maps)
 				for (auto offset : offsets)
-					RewritePageImmediate(mContext->BBs[bb]->NativeCode, offset, varBase->Offset);
+				{
+					auto finalOffset = varBase->Offset;
+					//Provide ability to use offset of variable(flatten model) on stack
+					auto addtionalOffset = findAdditionalOffset(bb, offset);
+					finalOffset += addtionalOffset.value_or(0);
+
+					RewritePageImmediate(mContext->BBs[bb]->NativeCode, offset, finalOffset);
+				}
 		}
 	}
 
@@ -1180,7 +1443,7 @@ namespace RTJ::Hex::X86
 			UInt16 index = LocalVariableNode::ArgumentFlag | i;
 			UInt8 coreType = mContext->GetLocalType(index)->GetCoreType();
 			auto&& arg = callingConv->ArgumentPassway[i];
-			if (!arg.HasMemory() && arg.HasRegister())
+			if (arg.InRegister())
 				mRegContext->Establish(index, arg.SingleRegister);
 		}
 	}
@@ -1202,12 +1465,7 @@ namespace RTJ::Hex::X86
 
 		ASM(PUSH_R_IU, REG(BP));
 		ASM(MOV_RM_IU, REG(BP), REG(SP));
-		if (info->StackSize <= std::numeric_limits<UInt8>::max())
-			ASM_C(SUB_MI_I1, I1, REG(SP), IMM8_U(info->StackSize))
-		else if (info->StackSize <= std::numeric_limits<UInt16>::max())
-			ASM_C(SUB_MI_IU, I2, REG(SP), IMM16_U(info->StackSize))
-		else
-			ASM(SUB_MI_IU, REG(SP), IMM32_U(info->StackSize))
+		ASM(SUB_MI_IU, REG(SP), IMM32_U(info->StackSize))
 	}
 
 	void X86NativeCodeGenerator::GenerateEpilogue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters)
@@ -1215,12 +1473,7 @@ namespace RTJ::Hex::X86
 		mEmitPage = mEpiloguePage = new EmitPage(16);
 		if (info->StackSize > 0)
 		{
-			if (info->StackSize <= std::numeric_limits<UInt8>::max())
-				ASM_C(ADD_MI_I1, I1, REG(SP), IMM8_U(info->StackSize))
-			else if (info->StackSize <= std::numeric_limits<UInt16>::max())
-				ASM_C(ADD_MI_IU, I2, REG(SP), IMM16_U(info->StackSize))
-			else
-				ASM(ADD_MI_IU, REG(SP), IMM32_U(info->StackSize))
+			ASM(ADD_MI_IU, REG(SP), IMM32_U(info->StackSize))
 			ASM(POP_R_IU, REG(BP));
 		}
 
@@ -1253,13 +1506,20 @@ namespace RTJ::Hex::X86
 			for (mCurrentStmt = bb->Now; mCurrentStmt != nullptr; mCurrentStmt = mCurrentStmt->Next, mLiveness++)
 			{
 				if (mCurrentStmt->Now != nullptr)
+				{
+					MarkStructUsageGenerateLayout(mCurrentStmt->Now);
 					CodeGenFor(mCurrentStmt->Now);
+				}
 			}
 			
 			switch (bb->BranchKind)
 			{
-			case PPKind::Conditional:PreCodeGenForJcc(bb->BranchConditionValue); break;
-			case PPKind::Ret:PreCodeGenForRet(bb->ReturnValue); break;
+			case PPKind::Conditional:
+				MarkStructUsageGenerateLayout(bb->BranchConditionValue);
+				PreCodeGenForJcc(bb->BranchConditionValue); break;
+			case PPKind::Ret:
+				MarkStructUsageGenerateLayout(bb->ReturnValue);
+				PreCodeGenForRet(bb->ReturnValue); break;
 			}
 
 			//Compute code size
@@ -1542,6 +1802,7 @@ namespace RTJ::Hex::X86
 				if (immLoad) USE_INS(MOV_RI_IU)
 				else MR_USE_INS(MOV_MR_IU, MOV_RM_IU)
 				break;
+			case CoreTypes::InteriorRef:
 			case CoreTypes::Ref:
 				MR_USE_INS(MOV_MR_IU, MOV_RM_IU);
 				break;
@@ -2097,19 +2358,16 @@ namespace RTJ::Hex::X86
 				if (coreType == CoreTypes::Struct)
 					THROW("Not implemented");
 
-				//Make use of AllocateRegisterAndGenerateCodeFor
-				AllocateRegisterAndGenerateCodeFor(
-					variable->LocalIndex,
-					MSK_REG(returnPassReg),
-					coreType);
+				RCS(session);
+				UseOperandFrom(session, returnValue, OperandOptions::ForceRegister, MSK_REG(returnPassReg));
 			}
 			break;
 			case NodeKinds::Constant:
 			{
 				//Make use of UseImmediate
 				UseImmediate(returnValue->As<ConstantNode>(), true, MSK_REG(returnPassReg));
-			}
-			break;
+				break;
+			}		
 			default:
 				THROW("Return type not supported");
 			}
@@ -2223,6 +2481,7 @@ namespace RTJ::Hex::X86
 			setREXIfContains8RegSwitch(left);
 			setREXIfContains8RegSwitch(right);
 			break;
+		case CoreTypes::InteriorRef:
 		case CoreTypes::Ref:
 			if (!x64) break;
 		case CoreTypes::I8:
@@ -2523,15 +2782,20 @@ namespace RTJ::Hex::X86
 		}
 		else if (Disp32.has_value())
 		{
+			auto disp = Disp32.value();
 			if (IS_TRK(Displacement))
 			{
 				REP_TRK(Displacement) = mEmitPage->CurrentOffset();
 				REP_TRK_SIZE(Displacement) = sizeof(UInt32);
 			}
-			Int32 offset = WritePage(mEmitPage, Disp32.value());
+			Int32 offset = WritePage(mEmitPage, disp);
 			//Add fix up
 			if (trackingVariable.has_value())
+			{
 				mVariableDispFix[trackingVariable.value()][mCurrentBB->Index].push_back(offset);
+				if (disp != DebugOffset32)
+					mVariableDispOffset[mCurrentBB->Index][offset] = disp;
+			}
 		}
 
 		if (Immediate.has_value())

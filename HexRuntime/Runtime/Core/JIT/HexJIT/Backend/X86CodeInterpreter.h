@@ -211,6 +211,8 @@ namespace RTJ::Hex::X86
 
 		INS_1(PUSH_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x50);
 		INS_1(POP_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x58);
+
+		INS_1(LEA_IU, RM_F, 0x8D);
 	};
 
 	struct Instruction
@@ -283,14 +285,14 @@ namespace RTJ::Hex::X86
 
 	struct Operand
 	{
-		OperandPreference Kind;
+		OperandPreference Kind = OperandPreference::Empty;
+		bool UseRIPAddressing = false;
 		union 
 		{
 			UInt8 ImmediateCoreType;
 			//This is used to ref the variable when Kind is displacement
 			std::optional<UInt16> RefVariable;
-		};
-		bool UseRIPAddressing = false;
+		};	
 		union
 		{
 			UInt8 Register;
@@ -319,6 +321,9 @@ namespace RTJ::Hex::X86
 		}
 		bool IsImmediate()const {
 			return Kind == OperandPreference::Immediate;
+		}
+		bool IsEmpty()const {
+			return Kind == OperandPreference::Empty;
 		}
 		static Operand FromRegister(UInt8 value)
 		{
@@ -415,7 +420,7 @@ namespace RTJ::Hex::X86
 		/// <summary>
 		/// Force to use memory
 		/// </summary>
-		VAL ForceMemory = 0b00000010;
+		VAL ReserveAsMemory = 0b00000010;
 		/// <summary>
 		/// Automantically determine which to use
 		/// </summary>
@@ -443,7 +448,7 @@ namespace RTJ::Hex::X86
 		/// <summary>
 		/// Invalidate variable if possible
 		/// </summary>
-		VAL InvalidateVariable = 0b00010000;
+		VAL InvalidateVariable = 0b00100000;
 	};
 
 	struct ImmediateSegment
@@ -571,8 +576,14 @@ namespace RTJ::Hex::X86
 
 		EmitPage* mProloguePage = nullptr;
 		EmitPage* mEpiloguePage = nullptr;
+
+		using VariableFixUpMap = std::unordered_map<UInt16, std::unordered_map<Int32, std::vector<Int32>>>;
+		using VariableOffsetMap = std::unordered_map<Int32, std::unordered_map<Int32, Int32>>;
 		//[Variable] -> <BB, Offsets>
-		std::unordered_map<UInt16, std::unordered_map<Int32, std::vector<Int32>>> mVariableDispFix;
+		VariableFixUpMap mVariableDispFix;
+		//[BB] -> <ImmOffset, Offset>
+		VariableOffsetMap mVariableDispOffset;
+
 		//[BB] -> Local Page Offset
 		std::unordered_map<Int32, JumpFixUp> mJmpOffsetFix;
 		//For immediate memory fix up (currently only for float and double)
@@ -612,7 +623,7 @@ namespace RTJ::Hex::X86
 		/// <returns></returns>
 		UInt8 AllocateRegisterAndGenerateCodeFor(UInt64 mask, UInt8 coreType);
 		Operand UseImmediate(
-			ConstantNode* constant,
+			ConstantNode* constant, 
 			bool forceRegister = false,
 			UInt64 additionalMask = std::numeric_limits<UInt64>::max());
 
@@ -622,14 +633,51 @@ namespace RTJ::Hex::X86
 			UInt8 options = OperandOptions::None,
 			std::optional<UInt64> mask = {});
 
+		Operand UseAddressOfLocal(
+			RegisterConflictSession& session,
+			LocalVariableNode* local,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> mask = {});
+
+		Operand UseContentOfLocal(RegisterConflictSession& session,
+			LocalVariableNode* local,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> maskOpt = {});
+
+		Operand UseLocal(RegisterConflictSession& session,
+			LocalVariableNode* local,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> maskOpt = {});
+
+		Operand UseOffsetOf(
+			RegisterConflictSession& session,
+			OffsetOfNode* offset,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> maskOpt = {});
+
+		Operand UseObjectAddressOfLocal(RegisterConflictSession& session,
+			LocalVariableNode* local,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> maskOpt = {});
+
+		bool IsAsRefSemantic(UInt16 variable)const;
+		UInt64 GetMaskFor(UInt8 coreType, std::optional<UInt64> mask = {});
+
 		void SpillAndGenerateCodeFor(UInt16 variable, UInt8 coreType);
 		std::tuple<UInt16, UInt8> RetriveSpillCandidate(UInt64 mask, Int32 livenessIndex);
 		UInt16 RetriveLongLived(UInt16 left, UInt16 right);
 
 		RTP::PlatformCallingConvention* GetCallingConv()const;
 
+		bool IsLanded(UInt16 variable, BasicBlock* bb = nullptr);
 		void MarkVariableOnFly(UInt16 variable, BasicBlock* bb = nullptr);
 		void MarkVariableLanded(UInt16 variable, BasicBlock* bb = nullptr);
+		void MarkVariableGenerateLayout(UInt16 variable);
+		/// <summary>
+		/// Land variable may applies for struct argument that is passed as pointer in register
+		/// </summary>
+		/// <param name="variable"></param>
+		/// <param name="bb"></param>
 		void LandVariableFor(UInt16 variable, BasicBlock* bb = nullptr);
 		/// <summary>
 		/// Special care for arguments on register
@@ -658,6 +706,7 @@ namespace RTJ::Hex::X86
 		void Finalize();
 		void FixUpDisplacement();
 		void FixUpImmediateDisplacement(EmitPage* finalPage);
+		void MarkStructUsageGenerateLayout(TreeNode* target);
 
 		void GenerateBranch();
 		void AssemblyCode();

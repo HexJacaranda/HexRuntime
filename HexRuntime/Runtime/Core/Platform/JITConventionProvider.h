@@ -3,6 +3,7 @@
 #include "..\..\ObservableArray.h"
 #include "PlatformSpecialization.h"
 #include "..\Platform\X86Register.h"
+#include "..\Exception\RuntimeException.h"
 
 namespace RTP
 {
@@ -81,24 +82,25 @@ namespace RTP
 				case CallingArgumentType::Float:
 				{
 					if (fRegIndex < fRegisters.size())
-						return AddressConstraint(fRegisters[fRegIndex++], AddressConstraintFlags::Register);
-					return AddressConstraint(AddressConstraintFlags::Memory);
+						return AddressConstraint(fRegisters[fRegIndex++], 
+							AddressConstraintFlags::Register | AddressConstraintFlags::AsStruct);
+
+					return AddressConstraint(AddressConstraintFlags::Stack | AddressConstraintFlags::AsStruct);
 				}
 				case CallingArgumentType::Integer:
 				{
 					if (iRegIndex < iRegisters.size())
-						return AddressConstraint(iRegisters[iRegIndex++], AddressConstraintFlags::Register);
-					return AddressConstraint(AddressConstraintFlags::Memory);
+						return AddressConstraint(iRegisters[iRegIndex++], AddressConstraintFlags::Register | AddressConstraintFlags::AsStruct);
+					return AddressConstraint(AddressConstraintFlags::Stack | AddressConstraintFlags::AsStruct);
 				}
 				case CallingArgumentType::Struct:
 				{
 					if (iRegIndex < iRegisters.size())
-						return AddressConstraint(iRegisters[iRegIndex++],
-							AddressConstraintFlags::Register | AddressConstraintFlags::Memory);
-					return AddressConstraint(AddressConstraintFlags::Memory);
+						return AddressConstraint(iRegisters[iRegIndex++], AddressConstraintFlags::Register | AddressConstraintFlags::AsRef);
+					return AddressConstraint(AddressConstraintFlags::Stack | AddressConstraintFlags::AsRef);
 				}
 				default:
-					return AddressConstraint(AddressConstraintFlags::Invalid);
+					THROW("Unexpected calling argument");
 				}
 			};
 
@@ -114,15 +116,16 @@ namespace RTP
 				switch (returnArg.Type)
 				{
 				case CallingArgumentType::Float:
-					returnCons = AddressConstraint(RegSet::XMM0, AddressConstraintFlags::Register);
+					returnCons = AddressConstraint(RegSet::XMM0, AddressConstraintFlags::Register | AddressConstraintFlags::AsStruct);
 					break;
 				case CallingArgumentType::Integer:
-					returnCons = AddressConstraint(RegSet::AX, AddressConstraintFlags::Register);
+					returnCons = AddressConstraint(RegSet::AX, AddressConstraintFlags::Register | AddressConstraintFlags::AsStruct);
 					break;
 				case CallingArgumentType::Struct:
-					returnCons = AddressConstraint(RegSet::AX,
-						AddressConstraintFlags::Register | AddressConstraintFlags::Memory);
+					returnCons = AddressConstraint(RegSet::AX, AddressConstraintFlags::Register | AddressConstraintFlags::AsRef);
 					break;
+				default:
+					THROW("Unexpected calling argument");
 				}
 			}
 			callingConv->ReturnPassway = returnCons;

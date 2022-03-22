@@ -63,7 +63,7 @@ namespace RuntimeTest
 			auto int32Type = meta.GetIntrinsicTypeFromCoreType(CoreTypes::I4);
 			auto refInt32Type = meta.InstantiateRefType(int32Type);
 
-			Assert::AreEqual(CoreTypes::Struct, refInt32Type->GetCoreType());
+			Assert::AreEqual(CoreTypes::InteriorRef, refInt32Type->GetCoreType());
 			Assert::AreEqual(L"[Core][global]Interior<[Core][global]Int32>", refInt32Type->GetFullQualifiedName()->GetContent());
 		}
 
@@ -71,10 +71,10 @@ namespace RuntimeTest
 		{
 			MetaManager meta{};
 			auto int32Type = meta.GetIntrinsicTypeFromCoreType(CoreTypes::I4);
-			auto refInt32Type = meta.InstantiateArrayType(int32Type);
+			auto arrayInt32Type = meta.InstantiateArrayType(int32Type);
 
-			Assert::AreEqual(CoreTypes::Ref, refInt32Type->GetCoreType());
-			Assert::AreEqual(L"[Core][global]Array<[Core][global]Int32>", refInt32Type->GetFullQualifiedName()->GetContent());
+			Assert::AreEqual(CoreTypes::Array, arrayInt32Type->GetCoreType());
+			Assert::AreEqual(L"[Core][global]Array<[Core][global]Int32>", arrayInt32Type->GetFullQualifiedName()->GetContent());
 		}
 
 		TEST_METHOD(InstantiatingTest)

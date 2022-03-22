@@ -101,7 +101,7 @@ RT::Int32 RTM::TypeDescriptor::GetLayoutSize() const
 		coreType == CoreTypes::Ref)
 		return CoreTypes::GetCoreTypeSize(coreType);
 	
-	if (coreType != CoreTypes::Struct)
+	if (coreType == CoreTypes::Struct)
 		return mFieldTable->GetLayout()->Size;
 
 	return CoreTypes::GetCoreTypeSize(CoreTypes::Ref);

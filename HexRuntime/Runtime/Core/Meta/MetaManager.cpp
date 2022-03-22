@@ -637,7 +637,7 @@ RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(AssemblyContext* allocatin
 	return fieldTable;
 }
 
-RTM::FieldsLayout* RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* allocatingContext, AssemblyContext* context)
+RTM::FieldsLayout* RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyContext* allocatingContext, AssemblyContext* context, UInt8 coreType)
 {
 	auto fieldLayout = new (allocatingContext->Heap) FieldsLayout();
 	fieldLayout->Align = sizeof(IntPtr);
@@ -649,9 +649,7 @@ RTM::FieldsLayout* RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyC
 	{
 		auto coreType = type->GetCoreType();
 		Int32 fieldSize = 0;
-		if (CoreTypes::IsPrimitive(coreType) ||
-			coreType == CoreTypes::InteriorRef ||
-			coreType == CoreTypes::Ref)
+		if (CoreTypes::IsPrimitive(coreType) || CoreTypes::IsCategoryRef(coreType))
 			fieldSize = CoreTypes::GetCoreTypeSize(coreType);
 		else if (coreType == CoreTypes::Struct)
 		{
@@ -668,6 +666,13 @@ RTM::FieldsLayout* RTM::MetaManager::GenerateLayout(FieldTable* table, AssemblyC
 	};
 
 	Int32 offset = 0;
+	if (CoreTypes::IsStruct(coreType) ||
+		CoreTypes::IsPrimitive(coreType) ||
+		coreType == CoreTypes::InteriorRef)
+	{
+		//Type pointer inside object
+		offset += sizeof(IntPtr);
+	}
 
 	for (Int32 i = 0; i < table->mFieldCount; ++i)
 	{

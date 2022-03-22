@@ -154,21 +154,51 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 {
+	switch (node->Mode)
+	{
+	case AccessMode::Value:
+	{
+		auto destination = node->Destination;
+		if (destination->Is(NodeKinds::InstanceField) &&
+			CoreTypes::IsRef(destination->TypeInfo->GetCoreType()))
+		{
+			MORPH_FIELD(node->Destination);
+			MORPH_FIELD(node->Source);
+			auto fieldRef = new (POOL) LoadNode(AccessMode::Address, node->Destination);
+
+			auto arguments = new (POOL) TreeNode * [2]{
+				fieldRef,
+				node->Source
+			};
+
+			//Replace store directly with write barrier since store is always a stmt
+			return MORPH_ARGS(WriteBarrierForRef, 2);
+		}
+		break;
+	}
+	case AccessMode::Content:
+	{
+		auto destinationType = node->Destination->TypeInfo;
+		auto refValueType = destinationType->GetFirstTypeArgument();
+		if (CoreTypes::IsCategoryRef(refValueType->GetCoreType()))
+		{
+			MORPH_FIELD(node->Destination);
+			MORPH_FIELD(node->Source);
+			auto arguments = new (POOL) TreeNode * [2]{
+				node->Destination,
+				node->Source
+			};
+
+			//Replace store directly with write barrier since store is always a stmt
+			return MORPH_ARGS(WriteBarrierForRef, 2);
+		}
+		break;
+	}
+	}
+
 	MORPH_FIELD(node->Destination);
 	MORPH_FIELD(node->Source);
 
-	if (CoreTypes::IsRef(node->Destination->TypeInfo->GetCoreType()))
-	{
-		auto fieldRef = new (POOL) LoadNode(AccessMode::Address, node->Destination);
-
-		auto arguments = new (POOL) TreeNode * [2]{
-			fieldRef,
-			node->Source
-		};
-
-		//Replace store directly with write barrier since store is always a stmt
-		return MORPH_ARGS(WriteBarrierForRef, 2);
-	}
 	return node;
 }
 
@@ -176,7 +206,24 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 {
 	auto source = node->Source;
 	auto sourceType = source->TypeInfo;
-	//TODO: To propagate address-taken semantic
+
+	//Should collapse the load chain if possible
+	if (source->Is(NodeKinds::Load))
+	{
+		auto sourceLoad = source->As<LoadNode>();
+		switch (node->Mode)
+		{
+		case AccessMode::Value:
+			node->Source = sourceLoad->Source;
+			break;
+		case AccessMode::Address:
+		case AccessMode::Content:
+			if (sourceLoad->Mode == AccessMode::Value)
+				node->Source = sourceLoad->Source;
+			break;
+		}
+	}
+
 	switch (node->Mode)
 	{
 	case AccessMode::Address:
@@ -206,6 +253,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(LoadNode* node)
 			auto argument = new (POOL) LoadNode(AccessMode::Address, node->Source);
 			return MORPH_ARG(ReadBarrierForRef)->SetType(node->TypeInfo);
 		}
+
+		MORPH_FIELD(node->Source);
 		break;
 	case AccessMode::Content:
 		MORPH_FIELD(node->Source);
