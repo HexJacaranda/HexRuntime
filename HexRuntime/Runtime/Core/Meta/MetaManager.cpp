@@ -632,7 +632,7 @@ RTM::FieldTable* RTM::MetaManager::GenerateFieldTable(AssemblyContext* allocatin
 	}
 
 	//Compute layout
-	fieldTable->mLayout = GenerateLayout(fieldTable, allocatingContext, context);
+	fieldTable->mLayout = GenerateLayout(fieldTable, allocatingContext, context, meta->CoreType);
 	
 	return fieldTable;
 }

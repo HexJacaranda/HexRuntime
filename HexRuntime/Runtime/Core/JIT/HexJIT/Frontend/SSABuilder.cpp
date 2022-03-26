@@ -258,28 +258,17 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 			mJITContext->Traversal.Count,
 			node, 
 			[&](TreeNode*& value) {
-				if (!value->Is(NodeKinds::Load))
-					return;
-
-				auto load = value->As<LoadNode>();
-				auto kind = load->Source->Kind;
-				auto index = -1;
-
-				LocalVariableNode* local = nullptr;
-				if (kind == NodeKinds::LocalVariable)
+				if (ValueIs(value, NodeKinds::LocalVariable))
 				{
-					local = load->Source->As<LocalVariableNode>();
-					index = local->LocalIndex;
-				}
-
-				if (index != -1 && IsVariableTrackable(local))
-				{
-					auto readValue = ReadVariable(local, bbIndex);
-					if (IsUseUndefined(readValue))
-						//Use origin node
-						value = local;
-					else
-						value = readValue;
+					auto local = ValueAs<LocalVariableNode>(value);
+					if (IsVariableTrackable(local)) {
+						auto readValue = ReadVariable(local, bbIndex);
+						if (IsUseUndefined(readValue))
+							//Use origin node
+							value = local;
+						else
+							value = readValue;
+					}
 				}
 			});
 	};
