@@ -9,7 +9,8 @@
 #include "../HexRuntime/Runtime/Core/Memory/SegmentHeap.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Transformer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
-#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSAOptimizer.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/ConstantFolder.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/FlowGraphPruner.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/SSAReducer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/Linearizer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Materializer.h"
@@ -269,46 +270,46 @@ namespace RuntimeTest
 		TEST_METHOD(SSABuildingTest)
 		{
 			SetUpMethod(L"SSABuildTest");
-			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder>();
+			auto bb = PassThrough<ILTransformer, SSABuilder>();
 			ViewIR(bb);
 		}
 
 		TEST_METHOD(SSAOptimizingTest)
 		{
 			SetUpMethod(L"SSAOptimizationTest");
-			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAOptimizer>();
+			auto bb = PassThrough<ILTransformer, SSABuilder, ConstantFolder, FlowGraphPruner>();
 			ViewIR(bb);
 
-			Assert::AreEqual(Hex::PPKind::Unconditional, bb->BranchKind, L"First bb should be unconditional");
+			Assert::AreEqual(PPKind::Unconditional, bb->BranchKind, L"First bb should be unconditional");
 			Assert::AreEqual(bb->BranchedBB, bb->Next, L"Branch should be next BB");
 		}
 
 		TEST_METHOD(SSAReducingTest)
 		{
 			SetUpMethod(L"SSAOptimizationTest");
-			auto bb = PassThrough<Hex::ILTransformer, Hex::SSABuilder, Hex::SSAReducer>();
+			auto bb = PassThrough<ILTransformer, SSABuilder, SSAReducer>();
 			ViewIR(bb);
 
-			for (Hex::BasicBlock* bbIterator = bb;
+			for (BasicBlock* bbIterator = bb;
 				bbIterator != nullptr;
 				bbIterator = bbIterator->Next)
 			{
-				for (Hex::Statement* stmtIterator = bbIterator->Now;
+				for (Statement* stmtIterator = bbIterator->Now;
 					stmtIterator != nullptr && stmtIterator->Now != nullptr;
 					stmtIterator = stmtIterator->Next)
 				{
-					Hex::TraverseTree(
+					TraverseTree(
 						context->Traversal.Space,
 						context->Traversal.Count,
 						stmtIterator->Now,
-						[](Hex::TreeNode*& node)
+						[](TreeNode*& node)
 						{
 							switch (node->Kind)
 							{
-							case Hex::NodeKinds::Use:
-							case Hex::NodeKinds::ValueDef:
-							case Hex::NodeKinds::ValueUse:
-							case Hex::NodeKinds::Phi:
+							case NodeKinds::Use:
+							case NodeKinds::ValueDef:
+							case NodeKinds::ValueUse:
+							case NodeKinds::Phi:
 								Assert::Fail(L"SSA node should not exist");
 							}
 						});

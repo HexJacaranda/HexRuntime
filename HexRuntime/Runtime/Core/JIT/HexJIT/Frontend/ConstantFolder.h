@@ -8,7 +8,7 @@
 
 namespace RTJ::Hex
 {
-	class SSAOptimizer : public IHexJITFlow
+	class ConstantFolder : public IHexJITFlow
 	{
 		RTMM::SegmentHeap* mMemory;
 		HexJITContext* mJITContext;	
@@ -26,10 +26,8 @@ namespace RTJ::Hex
 		TreeNode* Fold(TreeNode* node);
 		//Call for each root node of stmt
 		void FoldConstant(TreeNode*& stmtRoot);
-		//Prune the unnecessary BBIns to possibly eliminate dead code
-		void PruneFlowGraph(BasicBlock* basicBlock);
 	public:
-		SSAOptimizer(HexJITContext* context);
+		ConstantFolder(HexJITContext* context);
 		virtual BasicBlock* PassThrough() final;
 	};
 }

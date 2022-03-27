@@ -90,6 +90,10 @@ namespace RTJ::Hex
 		/// </summary>
 		std::vector<BasicBlock*> BBs;
 		/// <summary>
+		/// All BBs that are alive
+		/// </summary>
+		std::vector<BasicBlock*> AliveBBs;
+		/// <summary>
 		/// Topologically sorted basic block
 		/// </summary>
 		std::vector<BasicBlock*> TopologicallySortedBBs;

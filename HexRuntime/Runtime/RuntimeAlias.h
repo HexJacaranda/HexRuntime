@@ -18,6 +18,7 @@ namespace Runtime
 	using Float = float;
 	using Double = double;
 	using Boolean = bool;
+	using Char = wchar_t;
 
 	using MDToken = UInt32;
 

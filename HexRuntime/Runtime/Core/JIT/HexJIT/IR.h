@@ -213,6 +213,7 @@ namespace RTJ::Hex
 		{
 			ConstantStorage Storage;
 			Boolean Bool;
+			Char Char;
 			Int8 I1;
 			Int16 I2;
 			Int32 I4;
@@ -654,6 +655,12 @@ namespace RTJ::Hex
 	using VariableSet = SmallSet<UInt16>;
 	using LivenessMapT = std::vector<VariableSet>;
 
+	struct BBFlags
+	{
+		ETY = UInt16;
+		VAL Reachable = 0x01;
+	};
+
 	struct BasicBlock
 	{
 		//IL sequential connection
@@ -696,6 +703,7 @@ namespace RTJ::Hex
 
 		EmitPage* NativeCode = nullptr;
 	public:
+		UInt16 Flags;
 		std::vector<BasicBlock*> BBIn;
 	public:
 		template<class Fn>
@@ -711,12 +719,17 @@ namespace RTJ::Hex
 			if (branch != nullptr && branch != next)
 				std::forward<Fn>(action)(branch);
 		}
+
 		bool IsUnreachable()const {
-			return BBIn.empty() && Prev != nullptr;
+			return !IsReachable();
+		}
+
+		bool IsReachable()const {
+			return Flags & BBFlags::Reachable;
 		}
 
 		static bool ReachableFn(BasicBlock* bb) {
-			return !bb->IsUnreachable();
+			return bb->IsReachable();
 		}
 	};
 

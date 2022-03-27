@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -39,8 +39,9 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPage.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\EmitPageProvider.h" />
-    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\ConstantFolder.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\FlowGraphPruner.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.h" />
@@ -116,12 +117,13 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\FlowGraphPruner.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITDebugView.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\SSAOptimizer.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\ConstantFolder.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\IR.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITHelper.cpp" />

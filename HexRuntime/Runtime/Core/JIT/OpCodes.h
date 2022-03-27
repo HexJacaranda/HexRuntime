@@ -181,6 +181,16 @@ namespace RTJ
 		/// Followed by uint8(from), uint8(to) operand type
 		/// </summary>
 		IL(Conv, 0x3A, UnaryOpBae);
+
+		/// <summary>
+		/// Left shift
+		/// </summary>
+		IL(Shl , 0x3B, BinaryOpBae);
+
+		/// <summary>
+		/// Right shift
+		/// </summary>
+		IL(Shr, 0x3C, BinaryOpBae);
 		
 		//-----------------------------------------------------
 		//Flow control instructions, 0x40 ~ 0x4F space reserved
@@ -283,6 +293,11 @@ namespace RTJ
 		/// Unbox object to value type
 		/// </summary>
 		IL(UnBox, 0x72, 0x11);
+
+		/// <summary>
+		/// Is certian type
+		/// </summary>
+		IL(Is, 0x73, 0x11);
 
 		//-----------------------------------------------------
 		//Other instructions, 0xF0 ~ 0xFE space reserved
