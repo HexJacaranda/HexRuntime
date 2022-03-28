@@ -50,7 +50,7 @@ namespace RTJ::Hex::JITCall
 #define JIT_ARG_IP JIT_ARG(2 * sizeof(void*), Platform::CallingArgumentType::Integer)
 #define JIT_NO_RET JIT_ARG(0, 0)
 
-	RTO::Object* JIT_NATIVE NewObject(Type* type);
+	RTO::Object* JIT_NATIVE NewObject(Type* type, RTM::MethodDescriptor* methodDescriptor);
 	JIT_CALLING_CONV(NewObject);
 
 	RTO::ArrayObject* JIT_NATIVE NewSZArray(Type* elementType, Int32 count);

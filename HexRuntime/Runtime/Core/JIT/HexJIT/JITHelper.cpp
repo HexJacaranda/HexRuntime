@@ -2,7 +2,7 @@
 
 namespace RTJ::Hex::JITCall
 {
-	JIT_CALLING_CONV_IMPL(NewObject) = { JIT_ARG_P, JIT_ARG_P };
+	JIT_CALLING_CONV_IMPL(NewObject) = { JIT_ARG_P, JIT_ARG_P ,JIT_ARG_P };
 
 	JIT_CALLING_CONV_IMPL(NewSZArray) = { JIT_ARG_P, JIT_ARG_P, JIT_ARG_I4 };
 
@@ -25,7 +25,7 @@ namespace RTJ::Hex::JITCall
 	JIT_CALLING_CONV_IMPL(ReadBarrierForInteriorRef) = { JIT_NO_RET, JIT_ARG_P };
 }
 
-RTO::Object* JIT_NATIVE RTJ::Hex::JITCall::NewObject(Type* type)
+RTO::Object* JIT_NATIVE RTJ::Hex::JITCall::NewObject(Type* type, RTM::MethodDescriptor* methodDescriptor)
 {
 	return nullptr;
 }

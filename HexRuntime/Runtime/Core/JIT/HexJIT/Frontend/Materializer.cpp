@@ -106,9 +106,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
 {
-	auto methodConstant = new (POOL) ConstantNode(CoreTypes::Ref);
-	methodConstant->Pointer = node->Method;
-	auto argument = new (POOL) LoadNode(AccessMode::Address, methodConstant);
+	auto arguments = new (POOL) TreeNode * [2]{
+		new (POOL) ConstantNode(node->TypeInfo),
+		new (POOL) ConstantNode(node->Method)
+	};
 
 	ForeachInlined(node->Arguments, node->ArgumentCount,
 		[&](TreeNode*& node)
@@ -116,7 +117,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewNode* node)
 			node = Morph(node);
 		});
 
-	return MORPH_ARG(NewObject)->SetType(node->TypeInfo);
+	return MORPH_ARGS(NewObject, 2)->SetType(node->TypeInfo);
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
@@ -132,7 +133,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 		//Single-dimensional
 		auto arguments = new (POOL) TreeNode * [2]
 		{ 
-			new (POOL) LoadNode(AccessMode::Value, new (POOL) ConstantNode(node->ElementType)),
+			new (POOL) ConstantNode(node->ElementType),
 			node->Dimension
 		};
 		return MORPH_ARGS(NewSZArray, 2)->SetType(node->TypeInfo);
@@ -143,8 +144,8 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(NewArrayNode* node)
 		//TODO: Maybe we should generate scoped stack allocation for the third arguments
 		auto arguments = new (POOL) TreeNode * [3]
 		{
-			new (POOL) LoadNode(AccessMode::Value, new (POOL) ConstantNode(node->ElementType)),
-			new (POOL) LoadNode(AccessMode::Value, new (POOL) ConstantNode(node->DimensionCount)),
+			new (POOL) ConstantNode(node->ElementType),
+			new (POOL) ConstantNode(node->DimensionCount),
 			nullptr
 		};
 
