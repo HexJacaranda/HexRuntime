@@ -500,9 +500,6 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITDebugView.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.cpp">
       <Filter>源文件\JIT</Filter>
     </ClCompile>

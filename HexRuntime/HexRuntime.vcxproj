@@ -114,7 +114,6 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\RegisterAllocationContext.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\SSAReducer.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\StackFrameGenerator.cpp" />
-    <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86CodeInterpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\FlowGraphPruner.cpp" />

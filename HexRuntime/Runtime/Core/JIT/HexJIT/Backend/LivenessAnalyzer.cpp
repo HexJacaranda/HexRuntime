@@ -55,6 +55,14 @@ namespace RTJ::Hex
 	void LivenessAnalyzer::BuildLivenessDurationPhaseTwo()
 	{
 		BitSet stableMap(mContext->BBs.size());
+		
+		//Set unreachable BB to stable since they won't change
+		for (Int32 i = 0; i < stableMap.Count(); i++)
+		{
+			auto&& bb = mContext->BBs[i];
+			if (bb->IsUnreachable())
+				stableMap.SetOne(i);
+		}
 
 		while (!stableMap.IsOne())
 		{

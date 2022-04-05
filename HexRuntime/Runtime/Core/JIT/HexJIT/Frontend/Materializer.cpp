@@ -161,7 +161,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(StoreNode* node)
 	{
 		auto destination = node->Destination;
 		if (destination->Is(NodeKinds::InstanceField) &&
-			CoreTypes::IsRef(destination->TypeInfo->GetCoreType()))
+			CoreTypes::IsCategoryRef(destination->TypeInfo->GetCoreType()))
 		{
 			MORPH_FIELD(node->Destination);
 			MORPH_FIELD(node->Source);

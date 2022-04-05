@@ -692,6 +692,7 @@ namespace RTJ::Hex::X86
 		void CodeGenForJmp(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForJcc(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForBooleanStore(TreeNode* expression);
+		void CodeGenForShift(Int32 localCount, LocalVariableNode* locals[2], ConstantNode* constant);
 		bool ShouldStoreBoolean(UInt16 variable);
 		bool IsUsedByAdjacentJcc(UInt16 variable);
 

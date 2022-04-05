@@ -387,19 +387,19 @@ namespace RTJ::Hex::X86
 			if (useImm32) USE_INS(JCC_EQ_I4)
 			else USE_INS(JCC_EQ_I1); break;
 		case CmpCondition::NE:
-			if (useImm32) USE_INS(JCC_EQ_I4)
+			if (useImm32) USE_INS(JCC_NE_I4)
 			else USE_INS(JCC_NE_I1); break;
 		case CmpCondition::GT:
-			if (useImm32) USE_INS(JCC_EQ_I4)
+			if (useImm32) USE_INS(JCC_GT_I4)
 			else USE_INS(JCC_GT_I1); break;
 		case CmpCondition::LT:
-			if (useImm32) USE_INS(JCC_EQ_I4)
+			if (useImm32) USE_INS(JCC_LT_I4)
 			else USE_INS(JCC_LT_I1); break;
 		case CmpCondition::GE:
-			if (useImm32) USE_INS(JCC_EQ_I4)
+			if (useImm32) USE_INS(JCC_GE_I4)
 			else USE_INS(JCC_GE_I1); break;
 		case CmpCondition::LE:
-			if (useImm32) USE_INS(JCC_EQ_I4)
+			if (useImm32) USE_INS(JCC_GE_I4)
 			else USE_INS(JCC_LE_I1); break;
 		default:
 			THROW("Unexpected condition");
@@ -566,6 +566,11 @@ namespace RTJ::Hex::X86
 			break;
 		}
 		}
+	}
+
+	void X86NativeCodeGenerator::CodeGenForShift(Int32 localCount, LocalVariableNode* locals[2], ConstantNode* constant)
+	{
+
 	}
 
 	Operand X86NativeCodeGenerator::UseOperandFrom(
@@ -2155,8 +2160,12 @@ namespace RTJ::Hex::X86
 						destinationRegMask = MSK_REG(NREG::AX);
 					}
 					break;
+				case OpCodes::Shl:
+				case OpCodes::Shr:
+					//Special treat for shift
+					CodeGenForShift(localCount, locals, constant);
+					break;
 				}
-				
 			}
 
 			group = (SemanticGroup)((UInt8)SemanticGroup::ADD + (binaryArithmetic->Opcode - OpCodes::Add));
