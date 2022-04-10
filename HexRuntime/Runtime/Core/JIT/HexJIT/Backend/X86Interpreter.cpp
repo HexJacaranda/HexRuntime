@@ -619,6 +619,8 @@ namespace RTJ::Hex::X86
 		}
 
 		CodeGenForConvertCore(from, to, origin, converted);
+
+		return converted;
 	}
 
 	void X86NativeCodeGenerator::CodeGenForConvertCore(UInt8 from, UInt8 to, Operand const& origin, Operand const& converted)
@@ -676,15 +678,19 @@ namespace RTJ::Hex::X86
 			case CoreTypes::I1:
 				ASM(MOVZX_RM_I2_I1, converted, origin); break;
 			case CoreTypes::R4:
+			{
 				auto i4 = REGV(origin.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::I2, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::R4, i4, converted);
 				break;
+			}
 			case CoreTypes::R8:
+			{
 				auto i4 = REGV(origin.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::I2, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::R8, i4, converted);
 				break;
+			}
 			}
 			break;
 		case CoreTypes::I1:
@@ -698,15 +704,19 @@ namespace RTJ::Hex::X86
 				ASM(MOVSX_RM_I2_I1, converted, origin); break;
 			case CoreTypes::I1: return;
 			case CoreTypes::R4:
+			{
 				auto i4 = REGV(origin.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::I1, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::R4, i4, converted);
 				break;
+			}
 			case CoreTypes::R8:
+			{
 				auto i4 = REGV(origin.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::I1, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::R8, i4, converted);
 				break;
+			}
 			}
 			break;
 		case CoreTypes::R4:
@@ -717,15 +727,19 @@ namespace RTJ::Hex::X86
 			case CoreTypes::I4:
 				ASM(CVTTSS2SI_RM, converted, origin); break;
 			case CoreTypes::I2:
+			{
 				auto i4 = REGV(converted.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::R4, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::I2, i4, converted);
 				break;
+			}
 			case CoreTypes::I1:
+			{
 				auto i4 = REGV(converted.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::R4, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::I1, i4, converted);
 				break;
+			}
 			case CoreTypes::R4:
 				return;
 			case CoreTypes::R8:
@@ -740,15 +754,19 @@ namespace RTJ::Hex::X86
 			case CoreTypes::I4:
 				ASM(CVTTSD2SI_RM, converted, origin); break;
 			case CoreTypes::I2:
+			{
 				auto i4 = REGV(converted.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::R8, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::I1, i4, converted);
 				break;
+			}
 			case CoreTypes::I1:
+			{
 				auto i4 = REGV(converted.Register, CoreTypes::I4);
 				CodeGenForConvertCore(CoreTypes::R8, CoreTypes::I4, origin, i4);
 				CodeGenForConvertCore(CoreTypes::I4, CoreTypes::I1, i4, converted);
 				break;
+			}
 			case CoreTypes::R4:
 				ASM(CVTSD2SS_RM, converted, origin); break;
 			case CoreTypes::R8:
