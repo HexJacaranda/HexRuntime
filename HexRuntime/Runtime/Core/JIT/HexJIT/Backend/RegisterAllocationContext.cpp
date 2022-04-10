@@ -56,6 +56,11 @@ namespace RTJ::Hex
 		Bit::SetZero(mRegisterPool, allocatedRegister);
 	}
 
+	bool RegisterAllocationContext::CanAllocateFor(UInt64 mask) const
+	{
+		return mRegisterPool & mask;
+	}
+
 	std::tuple<std::optional<UInt8>, bool>
 		RegisterAllocationContext::AllocateRegisterFor(UInt16 variable, UInt64 mask) const
 	{

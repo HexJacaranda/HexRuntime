@@ -18,6 +18,7 @@ namespace RTJ::Hex
 		void TryInvalidateFor(UInt16 variable);
 		void TransferRegisterFor(UInt16 variable, UInt8 newRegister);
 		void Establish(UInt16 variable, UInt8 allocatedRegister);
+		bool CanAllocateFor(UInt64 mask) const;
 		std::tuple<std::optional<UInt8>, bool> AllocateRegisterFor(UInt16 variable, UInt64 mask) const;
 		std::unordered_map<UInt16, UInt8> const& GetMapping()const;
 		UInt64 GetUsedRegisterRecord()const;

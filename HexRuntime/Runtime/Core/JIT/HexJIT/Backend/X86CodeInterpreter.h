@@ -33,12 +33,12 @@
 #define MAGIC_F(VALUE) ((InstructionFlags::MagicRegUse) | (VALUE << InstructionFlags::MagicRegShift))
 #define NO_F 0
 #define NO_REXW_F InstructionFlags::REXWNotRequiredFor64
+#define REX_POS_F(VALUE) (VALUE << InstructionFlags::REXPositionShift)
 
 #define I_F InstructionFlags::I_
 #define R_F InstructionFlags::R_
 #define M_F InstructionFlags::M_
 #define RMI_F InstructionFlags::RMI
-
 
 #define NREG RTP::Register::X86::RegisterSet<RTP::CurrentWidth>
 #define NREG64 RTP::Register::X86::RegisterSet<RTP::Platform::Bit64>
@@ -47,14 +47,14 @@ namespace RTJ::Hex::X86
 {
 	struct InstructionFlags
 	{
-	public:
 		ETY = UInt16;
-
+		//Bits [0 - 3)
 		VAL SSE = 0b001;
 		VAL AVX = 0b010;
 		VAL OpRegEnc = 0b100;
 
-		VAL OperandMSK = 0b111000;
+		//Bits [3 - 7)
+		VAL OperandMSK = 0b1111000;
 		VAL MR = 0b0000000;
 		VAL RM = 0b0001000;
 		VAL RI = 0b0010000;
@@ -66,11 +66,15 @@ namespace RTJ::Hex::X86
 		VAL NO_OPRD = 0b0111000;
 		VAL RMI = 0b1000000;
 
-		VAL MagicRegMSK = 0b01110000000;
-		VAL MagicRegUse = 0b10000000000;
+		//Bits [7 - 11)
+		VAL MagicRegMSK = 0b0000001110000000u;
+		VAL MagicRegUse = 0b0000010000000000u;
 		VAL MagicRegShift = 7;
 
-		VAL REXWNotRequiredFor64 = 0b1000000000000000;
+		//Bits [11 - 14)
+		VAL REXPositionMSK = 0b0011100000000000u;
+		VAL REXPositionShift = 11;
+		VAL REXWNotRequiredFor64 = 0b1000000000000000u;
 	};
 
 	/* M = Memory / Register
@@ -92,7 +96,7 @@ namespace RTJ::Hex::X86
 
 		INS_3(MOVSD_RM, RM_F | SSE_F, 0xF2, 0x0F, 0x10);
 		INS_3(MOVSD_MR, MR_F | SSE_F, 0xF2, 0x0F, 0x11);
-		
+
 		INS_3(MOVSS_RM, RM_F | SSE_F, 0xF3, 0x0F, 0x10);
 		INS_3(MOVSS_MR, MR_F | SSE_F, 0xF3, 0x0F, 0x11);
 
@@ -213,13 +217,68 @@ namespace RTJ::Hex::X86
 		INS_1(POP_R_IU, R_F | OP_REG_F | NO_REXW_F, 0x58);
 
 		INS_1(LEA_IU, RM_F, 0x8D);
+
+		INS_1(SHL_M1_I1, M_F | MAGIC_F(4), 0xD0);
+		INS_1(SHL_MI_I1, M_F | MAGIC_F(4), 0xC0);
+		INS_1(SHL_MR_I1, MR_F | MAGIC_F(4), 0xD2);
+
+		INS_1(SHL_M1_IU, M_F | MAGIC_F(4), 0xD1);
+		INS_1(SHL_MI_IU, M_F | MAGIC_F(4), 0xC1);
+		INS_1(SHL_MR_IU, MR_F | MAGIC_F(4), 0xD3);
+
+		INS_1(SHR_M1_I1, M_F | MAGIC_F(5), 0xD0);
+		INS_1(SHR_MI_I1, M_F | MAGIC_F(5), 0xC0);
+		INS_1(SHR_MR_I1, MR_F | MAGIC_F(5), 0xD2);
+
+		INS_1(SHR_M1_IU, M_F | MAGIC_F(5), 0xD1);
+		INS_1(SHR_MI_IU, M_F | MAGIC_F(5), 0xC1);
+		INS_1(SHR_MR_IU, MR_F | MAGIC_F(5), 0xD3);
+
+		INS_1(SAR_M1_I1, M_F | MAGIC_F(7), 0xD0);
+		INS_1(SAR_MI_I1, M_F | MAGIC_F(7), 0xC0);
+		INS_1(SAR_MR_I1, MR_F | MAGIC_F(7), 0xD2);
+
+		INS_1(SAR_M1_IU, M_F | MAGIC_F(7), 0xD1);
+		INS_1(SAR_MI_IU, M_F | MAGIC_F(7), 0xC1);
+		INS_1(SAR_MR_IU, MR_F | MAGIC_F(7), 0xD3);
+
+		INS_2(MOVSX_RM_I2_I1, RM_F, 0x0F, 0xBE);
+		INS_2(MOVSX_RM_I4_I1, RM_F, 0x0F, 0xBE);
+		INS_2(MOVSX_RM_I8_I1, RM_F, 0x0F, 0xBE);
+
+		INS_2(MOVSX_RM_I4_I2, RM_F, 0x0F, 0xBF);
+		INS_2(MOVSX_RM_I8_I2, RM_F, 0x0F, 0xBF);
+		INS_1(MOVSX_RM_I8_I4, RM_F, 0x63);
+
+		INS_2(MOVZX_RM_I2_I1, RM_F, 0x0F, 0xB6);
+		INS_2(MOVZX_RM_I4_I1, RM_F, 0x0F, 0xB6);
+		INS_2(MOVZX_RM_I8_I1, RM_F, 0x0F, 0xB6);
+
+		INS_2(MOVZX_RM_I4_I2, RM_F, 0x0F, 0xB7);
+		INS_2(MOVZX_RM_I8_I2, RM_F, 0x0F, 0xB7);
+
+		INS_3(CVTSI2SS_RM, RM_F | REX_POS_F(1), 0xF3, 0x0F, 0x2A);
+		INS_3(CVTSI2SD_RM, RM_F | REX_POS_F(1), 0xF3, 0x0F, 0x2A);
+
+		INS_2(CVTDQ2PS_RM, RM_F, 0x0F, 0x5B);
+		INS_3(CVTDQ2PD_RM, RM_F, 0xF3, 0x0F, 0xE6);
+
+		INS_3(CVTTSS2SI_RM, RM_F | REX_POS_F(1), 0xF3, 0x0F, 0x2C);
+		INS_3(CVTTSD2SI_RM, RM_F | REX_POS_F(1), 0xF2, 0x0F, 0x2C);
+
+		INS_3(CVTSS2SD_RM, RM_F, 0xF3, 0x0F, 0x5A);
+		INS_3(CVTSD2SS_RM, RM_F, 0xF2, 0x0F, 0x5A);
+
+		INS_3(MOVD_RM, RM_F, 0x66, 0x0F, 0x6E);
+		INS_3(MOVQ_RM, RM_F | REX_POS_F(1), 0x66, 0x0F, 0x6E);
 	};
 
 	struct Instruction
 	{
 		const UInt8* Opcode;
 		UInt8 Length;
-		UInt8 CoreType;
+		//This should only be used when there is no operand but you still want to imply the property of operand
+		std::optional<UInt8> CoreType;
 		UInt16 Flags;
 		UInt8 GetMagicRegisterValue()const {
 			return (InstructionFlags::MagicRegMSK & Flags) >> InstructionFlags::MagicRegShift;
@@ -287,12 +346,14 @@ namespace RTJ::Hex::X86
 	{
 		OperandPreference Kind = OperandPreference::Empty;
 		bool UseRIPAddressing = false;
+		//Only I1 - I8 and R4 - R8 allowed
+		UInt8 UnifiedCoreType = CoreTypes::I1;
 		union 
 		{
 			UInt8 ImmediateCoreType;
 			//This is used to ref the variable when Kind is displacement
 			std::optional<UInt16> RefVariable;
-		};	
+		};
 		union
 		{
 			UInt8 Register;
@@ -325,10 +386,11 @@ namespace RTJ::Hex::X86
 		bool IsEmpty()const {
 			return Kind == OperandPreference::Empty;
 		}
-		static Operand FromRegister(UInt8 value)
+		static Operand FromRegister(UInt8 value, UInt8 coreType)
 		{
 			Operand ret{ OperandPreference::Register };
 			ret.Register = value;
+			ret.UnifiedCoreType = UnifyCoreType(coreType);
 			return ret;
 		}
 		template<class ImmediateT>
@@ -337,18 +399,61 @@ namespace RTJ::Hex::X86
 			Operand ret{ OperandPreference::Immediate };
 			ret.Immediate = ConstantStorage::From(value);
 			ret.ImmediateCoreType = coreType;
+			ret.UnifiedCoreType = UnifyCoreType(coreType);
 			return ret;
 		}
-		static Operand FromDisplacement(UInt8 base, Int32 offset)
+		static Operand FromDisplacement(UInt8 base, Int32 offset, UInt8 coreType)
 		{
 			Operand ret{ OperandPreference::Displacement };
 			ret.M.Base = base;
 			ret.M.Displacement = offset;
+			ret.UnifiedCoreType = UnifyCoreType(coreType);
 			return ret;
 		}
 		static Operand Empty()
 		{
 			return { OperandPreference::Empty };
+		}
+		template<class Fn>
+		void ForEachRegister(Fn&& action) const {
+			switch (Kind)
+			{
+			case OperandPreference::Register:
+				std::forward<Fn>(action)(Register); 
+				break;
+			case OperandPreference::SIB:
+				if (M.SIB.Index.has_value())
+					std::forward<Fn>(action)(M.SIB.Index.value());
+				if (M.SIB.Base.has_value())
+					std::forward<Fn>(action)(M.SIB.Base.value());
+				break;
+			case OperandPreference::Displacement:
+				if (M.Base.has_value())
+					std::forward<Fn>(action)(M.Base.value());
+				break;
+			}
+		}
+
+		static UInt8 UnifyCoreType(UInt8 coreType)
+		{
+			switch (coreType)
+			{
+			case CoreTypes::Bool:
+			case CoreTypes::U1:
+				return CoreTypes::I1;
+			case CoreTypes::Char:
+			case CoreTypes::U2:
+				return CoreTypes::I2;
+			case CoreTypes::U4:
+				return CoreTypes::I4;
+			case CoreTypes::U8:
+				return CoreTypes::I8;
+			default:
+				if (CoreTypes::IsCategoryRef(coreType))
+					return CoreTypes::Ref;
+			}
+
+			return coreType;
 		}
 	};
 
@@ -655,7 +760,14 @@ namespace RTJ::Hex::X86
 			UInt8 options = OperandOptions::None,
 			std::optional<UInt64> maskOpt = {});
 
-		Operand UseObjectAddressOfLocal(RegisterConflictSession& session,
+		Operand UseArrayOffsetOf(
+			RegisterConflictSession& session,
+			ArrayOffsetOfNode* offset,
+			UInt8 options = OperandOptions::None,
+			std::optional<UInt64> maskOpt = {});
+
+		Operand UseObjectAddressOfLocal(
+			RegisterConflictSession& session,
 			LocalVariableNode* local,
 			UInt8 options = OperandOptions::None,
 			std::optional<UInt64> maskOpt = {});
@@ -693,11 +805,14 @@ namespace RTJ::Hex::X86
 		void CodeGenForJcc(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForBooleanStore(TreeNode* expression);
 		void CodeGenForShift(Int32 localCount, LocalVariableNode* locals[2], ConstantNode* constant);
+		void CodeGenForConvert(ConvertNode* conv);
+		Operand CodeGenForConvert(UInt8 from, UInt8 to, TreeNode* expression);
+		void CodeGenForConvertCore(UInt8 from, UInt8 to, Operand const& origin, Operand const& converted);
 		bool ShouldStoreBoolean(UInt16 variable);
 		bool IsUsedByAdjacentJcc(UInt16 variable);
 
 		void CodeGenForBinary(BinaryNodeAccessProxy* binaryNode);
-		void CodeGenFor(UnaryArithmeticNode* unaryNode);
+		void CodeGenForUnary(UnaryArithmeticNode* unaryNode);
 		void PreCodeGenForJcc(TreeNode* conditionValue);
 		void PreCodeGenForRet(TreeNode* returnValue);
 		void CodeGenFor(TreeNode* node);
@@ -716,11 +831,17 @@ namespace RTJ::Hex::X86
 		/// <summary>
 		/// Prologue code for preserve register and allocating stack space
 		/// </summary>
-		void GeneratePrologue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters);
+		void GeneratePrologue(
+			RTEE::StackFrameInfo* info,
+			std::vector<UInt8> const& nonVolatileRegisters,
+			Int32& xmmIndex);
 		/// <summary>
 		/// Epilogue code for restore register and deallocating stack space
 		/// </summary>
-		void GenerateEpilogue(RTEE::StackFrameInfo* info, std::vector<UInt8> const& nonVolatileRegisters);
+		void GenerateEpilogue(
+			RTEE::StackFrameInfo* info, 
+			std::vector<UInt8> const& nonVolatileRegisters, 
+			Int32 xmmIndex);
 		/// <summary>
 		/// Set up the RegisterAllocationContext from calling convention
 		/// </summary>

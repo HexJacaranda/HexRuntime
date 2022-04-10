@@ -452,7 +452,7 @@ namespace RTJ::Hex
 		ConvertNode(
 			TreeNode* value,
 			UInt8 to)
-			: UnaryNode(NodeKinds::UnaryArithmetic),
+			: UnaryNode(NodeKinds::Convert),
 			Value(value),
 			To(to) {}
 		TreeNode* Value;

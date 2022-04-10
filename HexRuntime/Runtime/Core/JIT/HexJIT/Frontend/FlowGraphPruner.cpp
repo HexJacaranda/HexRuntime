@@ -32,6 +32,7 @@ namespace RTJ::Hex {
 				{
 					abandonedTarget = basicBlock->BranchedBB;
 					basicBlock->BranchKind = PPKind::Sequential;
+					basicBlock->BranchedBB = nullptr;
 				}
 				//Remove BBIn from abandoned target BB
 				RemoveBBFrom(abandonedTarget->BBIn, basicBlock);
@@ -107,5 +108,8 @@ namespace RTJ::Hex {
 	{
 		for (auto&& bb : mContext->BBs)
 			PruneFlowGraph(bb);
+		MarkBB();
+		FixBBRelation();
+		return mContext->BBs.front();
 	}
 }

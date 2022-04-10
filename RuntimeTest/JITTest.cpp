@@ -280,8 +280,8 @@ namespace RuntimeTest
 			auto bb = PassThrough<ILTransformer, SSABuilder, ConstantFolder, FlowGraphPruner>();
 			ViewIR(bb);
 
-			Assert::AreEqual(PPKind::Unconditional, bb->BranchKind, L"First bb should be unconditional");
-			Assert::AreEqual(bb->BranchedBB, bb->Next, L"Branch should be next BB");
+			Assert::AreEqual(PPKind::Sequential, bb->BranchKind, L"First bb should be sequential");
+			Assert::IsNull(bb->BranchedBB, L"Branch should be next BB");
 		}
 
 		TEST_METHOD(SSAReducingTest)
@@ -324,7 +324,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenTest1");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenTest1.bin");
 			Assert::AreEqual(5, method());
@@ -337,7 +337,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenTest2");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenTest2.bin");
 			Assert::AreEqual(5, method(0, 0, 2, 3));
@@ -350,7 +350,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenTest3");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenTest3.bin");
 			Int32 ret = method(0, 0, 2, 3);
@@ -363,7 +363,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenFloatImm");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenFloatImm.bin");
 			Float ret = method();
@@ -376,7 +376,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenDoubleImm");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenDoubleImm.bin");
 			auto ret = method();
@@ -389,7 +389,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenIntAdd");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenIntAdd.bin");
 			auto ret = method(1);
@@ -402,7 +402,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenIntSub");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenIntSub.bin");
 			auto ret = method(1);
@@ -415,7 +415,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenIntMul");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenIntMul.bin");
 			auto ret = method(1);
@@ -428,7 +428,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenIntDiv");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenIntDiv.bin");
 			auto ret = method(5);
@@ -441,7 +441,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenFloatAdd");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenFloatAdd.bin");
 			auto ret = method(2.0f);
@@ -454,7 +454,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenFloatSub");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenFloatSub.bin");
 			auto ret = method(4.0f);
@@ -467,7 +467,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenFloatMul");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenFloatMul.bin");
 			auto ret = method(2.0f);
@@ -480,7 +480,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenFloatDiv");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenFloatDiv.bin");
 			auto ret = method(5.0f);
@@ -493,7 +493,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenDoubleAdd");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenDoubleAdd.bin");
 			auto ret = method(2.0);
@@ -506,7 +506,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenDoubleSub");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenDoubleSub.bin");
 			auto ret = method(4.0);
@@ -519,7 +519,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenDoubleMul");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenDoubleMul.bin");
 			auto ret = method(2.0);
@@ -532,7 +532,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenDoubleDiv");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenDoubleDiv.bin");
 			auto ret = method(5.0);
@@ -545,7 +545,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenIntMod");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenIntMod.bin");
 			auto ret = method(7, 3);
@@ -558,7 +558,7 @@ namespace RuntimeTest
 			SetUpMethod(L"CodeGenJcc");
 			auto bb = PassThrough<ILTransformer, Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenJcc.bin");
 			auto ret = method(2, 2);
@@ -575,7 +575,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenJcc1.bin");
 			auto ret = method(2, 2);
@@ -592,7 +592,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenBoolAnd.bin");
 			auto ret = method(true, false);
@@ -607,7 +607,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenBoolOr.bin");
 			auto ret = method(false, true);
@@ -622,7 +622,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenBoolXor.bin");
 			auto ret = method(false, true);
@@ -637,7 +637,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenIntNeg.bin");
 			auto ret = method(-1);
@@ -652,7 +652,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenFloatNeg.bin");
 			auto ret = method(3.14f);
@@ -667,7 +667,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenDoubleNeg.bin");
 			auto ret = method(2.718);
@@ -682,7 +682,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Morpher, Linearizer>();
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
 
 			Fn method = (Fn)DumpNativeCode("CodeGenPreserveArg.bin");
 			auto ret = method(false, true);
@@ -739,7 +739,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Linearizer>(Context);
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
 
 			Fn method = (Fn)Dump();
 			auto ret = method();
@@ -757,7 +757,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Linearizer>(Context);
 			ViewIR(bb);
-			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+			PassThrough<FlowGraphPruner, FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
 
 			Fn method = (Fn)Dump();
 			auto ret = method();

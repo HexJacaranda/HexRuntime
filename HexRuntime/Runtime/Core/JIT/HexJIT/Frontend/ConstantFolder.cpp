@@ -295,6 +295,9 @@ namespace RTJ::Hex
 			{
 				FoldConstant(stmtIterator->Now);
 			}
+
+			if (bbIterator->BranchConditionValue != nullptr)
+				FoldConstant(bbIterator->BranchConditionValue);
 		}
 		return bbHead;
 	}

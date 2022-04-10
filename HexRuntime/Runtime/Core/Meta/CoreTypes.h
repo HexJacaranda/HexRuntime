@@ -170,6 +170,11 @@ namespace RTC
 		{
 			return coreType >= SIMD128;
 		}
+		inline static UInt8 GetSignedType(UInt8 coreType) {
+			if (U1 <= coreType && coreType <= U8)
+				return I1 + (coreType - U1);
+			return coreType;
+		}
 		static Int32 GetCoreTypeSize(UInt8 coreType) {
 			if (coreType <= Char)
 				return SizeOfSpecialCoreType[coreType];
