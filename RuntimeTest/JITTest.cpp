@@ -688,6 +688,81 @@ namespace RuntimeTest
 			auto ret = method(false, true);
 			Assert::AreEqual(true, ret);
 		}
+
+		TEST_METHOD(CodeGenI16ToI32)
+		{
+			using Fn = Int32(__fastcall*)(Int16);
+			SetUpMethod(L"CodeGenI16ToI32");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenI16ToI32.bin");
+			auto ret = method(16);
+			Assert::AreEqual(16, ret);
+		}
+
+		TEST_METHOD(CodeGenI8ToI32)
+		{
+			using Fn = Int32(__fastcall*)(Int8);
+			SetUpMethod(L"CodeGenI8ToI32");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenI8ToI32.bin");
+			auto ret = method(16);
+			Assert::AreEqual(16, ret);
+		}
+
+		TEST_METHOD(CodeGenDoubleToI32)
+		{
+			using Fn = Int32(__fastcall*)(Double);
+			SetUpMethod(L"CodeGenDoubleToI32");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenDoubleToI32.bin");
+			auto ret = method(3.2);
+			Assert::AreEqual(3, ret);
+		}
+
+		TEST_METHOD(CodeGenI32ToDouble)
+		{
+			using Fn = Double(__fastcall*)(Int32);
+			SetUpMethod(L"CodeGenI32ToDouble");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenI32ToDouble.bin");
+			auto ret = method(2);
+			Assert::AreEqual(2.0, ret);
+		}
+
+		TEST_METHOD(CodeGenI32ToI16)
+		{
+			using Fn = Int16(__fastcall*)(Int32);
+			SetUpMethod(L"CodeGenI32ToI16");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenI32ToI16.bin");
+			auto ret = method(0xFFFF);
+			Assert::AreEqual((Int16)0xFFFF, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest::assembly = nullptr;
@@ -757,7 +832,7 @@ namespace RuntimeTest
 			ViewIR(bb);
 			PassThrough<Linearizer>(Context);
 			ViewIR(bb);
-			PassThrough<FlowGraphPruner, FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
 
 			Fn method = (Fn)Dump();
 			auto ret = method();

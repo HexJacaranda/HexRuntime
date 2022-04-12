@@ -527,6 +527,56 @@
             .ret
         }
     }
+
+    .method public static int32 CodeGenI16ToI32(int16 x) managed
+    {
+        .code
+        {
+           .ldarg x
+           .conv int32
+           .ret
+        }
+    }
+
+    .method public static int32 CodeGenI8ToI32(int8 x) managed
+    {
+        .code
+        {
+           .ldarg x
+           .conv int32
+           .ret
+        }
+    }
+
+    .method public static int32 CodeGenDoubleToI32(double x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .conv int32
+            .ret
+        }
+    }
+
+    .method public static double CodeGenI32ToDouble(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .conv double
+            .ret
+        }
+    }
+
+    .method public static int16 CodeGenI32ToI16(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .conv int16
+            .ret
+        }
+    }
 }
 
 .struct public instance Struct

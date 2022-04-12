@@ -610,7 +610,7 @@ namespace RTJ::Hex::X86
 		Operand converted{};
 
 		if (isCompatible && canBeReused)
-			converted = origin;
+			converted = Operand::FromRegister(origin.Register, to);
 		else
 		{
 			auto mask = GetMaskFor(to);
@@ -2794,23 +2794,23 @@ namespace RTJ::Hex::X86
 		//REX Prefix determination
 		UInt8 REX = 0u;
 		UInt8 Operand16Prefix = 0u;
-
 		{
+			Int32 i2Count = 0;
+			Int32 operandCount = 0;
 			//If operand use extended registers
 			bool use64Reg = false;
 			auto setPrefixAccordingToUnifiedCoreType = [&](UInt8 unified) {
 				switch (unified)
 				{
+				case CoreTypes::I2:
+					i2Count++; 
+					break;
 				case CoreTypes::Ref:
 				case CoreTypes::InteriorRef:
 					if (!x64) break;
 				case CoreTypes::I8:
 					if (!(instruction.Flags & NO_REXW_F))
 						REX |= 0x48;
-					break;
-				case CoreTypes::I2:
-					Operand16Prefix = 0x66;
-					REX |= 0x40;
 					break;
 				}
 			};
@@ -2819,6 +2819,7 @@ namespace RTJ::Hex::X86
 			{
 				if (operand.IsEmpty())
 					return;
+				operandCount++;
 				setPrefixAccordingToUnifiedCoreType(operand.UnifiedCoreType);
 				operand.ForEachRegister(
 					[&](UInt8 reg)
@@ -2833,6 +2834,8 @@ namespace RTJ::Hex::X86
 			{
 				//Only instruction without operand can use implication core type
 				setPrefixAccordingToUnifiedCoreType(instruction.CoreType.value());
+				if (instruction.CoreType.value() == CoreTypes::I2)
+					Operand16Prefix = 0x66;
 			}
 			else
 			{
@@ -2840,6 +2843,8 @@ namespace RTJ::Hex::X86
 				setPrefix(right);
 			}
 
+			if (i2Count > 0 && (i2Count == operandCount))
+				Operand16Prefix = 0x66;
 
 			if (use64Reg)
 				REX |= 0x40;

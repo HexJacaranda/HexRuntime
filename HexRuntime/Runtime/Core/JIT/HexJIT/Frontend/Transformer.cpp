@@ -381,7 +381,7 @@ RTJ::Hex::ConvertNode* RTJ::Hex::ILTransformer::GenerateConvert()
 {
 	auto value = Pop();
 	UInt8 to = ReadAs<UInt8>();
-	if (CoreTypes::IsValidCoreType(to))
+	if (!CoreTypes::IsValidCoreType(to))
 		THROW("Invalid cast between primitive types");
 
 	auto ret = new (POOL) ConvertNode(value, to);
