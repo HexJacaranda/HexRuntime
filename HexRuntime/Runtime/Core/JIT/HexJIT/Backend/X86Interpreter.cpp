@@ -560,9 +560,117 @@ namespace RTJ::Hex::X86
 		}
 	}
 
-	void X86NativeCodeGenerator::CodeGenForShift(Int32 localCount, LocalVariableNode* locals[2], ConstantNode* constant)
+	void X86NativeCodeGenerator::CodeGenForShift(
+		Int32 localCount,
+		LocalVariableNode* locals[2],
+		ConstantNode* constant,
+		bool immLeft,
+		UInt8 opcode)
 	{
+		bool byOne = false;
+		bool useImm = false;
+		UInt8 coreType = CoreTypes::I1;
+		Operand left{};
+		Operand right{};
 
+		RCS(session);
+		if (localCount == 1)
+		{
+			auto local = locals[0];
+			if (immLeft)
+			{
+				coreType = constant->CoreType;
+
+				left = UseOperandFrom(session, constant, OperandOptions::ForceRegister);
+				right = UseOperandFrom(session, local, OperandOptions::ForceRegister, MSK_REG(NREG::CX));
+				if (right.UnifiedCoreType != CoreTypes::I2)
+				{
+					auto converted = Operand::FromRegister(right.Register, CoreTypes::I2);
+					CodeGenForConvertCore(right.UnifiedCoreType, CoreTypes::I2, right, converted);
+					right = converted;
+				}
+
+				RE_REG = left.Register;
+			}
+			else
+			{
+				coreType = local->TypeInfo->GetCoreType();
+				left = UseOperandFrom(session, local, OperandOptions::ForceRegister);			
+				right = Operand::FromImmediate(constant->I1, CoreTypes::I1);
+				if (constant->I1 == 1)
+					byOne = true;
+				useImm = true;
+
+				INVALIDATE_VAR(local->LocalIndex);
+				RE_REG = left.Register;			
+			}
+		}
+		else if (localCount == 2)
+		{
+			left = UseOperandFrom(session, locals[0], OperandOptions::ForceRegister);
+			right = UseOperandFrom(session, locals[1], OperandOptions::ForceRegister, MSK_REG(NREG::CX));
+			if (right.UnifiedCoreType != CoreTypes::I2)
+			{
+				auto converted = Operand::FromRegister(right.Register, CoreTypes::I2);
+				CodeGenForConvertCore(right.UnifiedCoreType, CoreTypes::I2, right, converted);
+				right = converted;
+			}
+
+			INVALIDATE_VAR(locals[0]->LocalIndex);
+			RE_REG = left.Register;
+		}
+
+		Instruction instruction{};
+		if (opcode == OpCodes::Shr)
+		{
+			switch (coreType)
+			{
+			case CoreTypes::I1:
+				if (byOne) USE_INS(SAR_M1_I1)
+				else if (useImm) USE_INS(SAR_MI_I1)
+				else USE_INS(SAR_MR_I1)
+					break;
+			case CoreTypes::U1:
+				if (byOne) USE_INS(SHR_M1_I1)
+				else if (useImm) USE_INS(SHR_MI_I1)
+				else USE_INS(SHR_MR_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+				if (byOne) USE_INS(SAR_M1_IU)
+				else if (useImm) USE_INS(SAR_MI_IU)
+				else USE_INS(SAR_MR_IU)
+					break;
+			case CoreTypes::U2:			
+			case CoreTypes::U4:			
+			case CoreTypes::U8:
+				if (byOne) USE_INS(SHR_M1_IU)
+				else if (useImm) USE_INS(SHR_MI_IU)
+				else USE_INS(SHR_MR_IU)
+					break;
+			}
+		}
+		else
+		{
+			switch (Operand::UnifyCoreType(coreType))
+			{
+			case CoreTypes::I1:
+				if (byOne) USE_INS(SHL_M1_I1)
+				else if (useImm) USE_INS(SHL_MI_I1)
+				else USE_INS(SHL_MR_I1)
+					break;
+			case CoreTypes::I2:
+			case CoreTypes::I4:
+			case CoreTypes::I8:
+				if (byOne) USE_INS(SHL_M1_IU)
+				else if (useImm) USE_INS(SHL_MI_IU)
+				else USE_INS(SHL_MR_IU)
+					break;
+			}
+		}
+
+		Emit(instruction, left, right);
 	}
 
 	void X86NativeCodeGenerator::CodeGenForConvert(ConvertNode* conv)
@@ -2490,7 +2598,7 @@ namespace RTJ::Hex::X86
 				case OpCodes::Shl:
 				case OpCodes::Shr:
 					//Special treat for shift
-					CodeGenForShift(localCount, locals, constant);
+					return CodeGenForShift(localCount, locals, constant, immLeft, binaryArithmetic->Opcode);
 					break;
 				}
 			}

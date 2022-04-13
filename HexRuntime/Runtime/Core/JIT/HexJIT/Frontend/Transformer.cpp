@@ -361,8 +361,13 @@ RTJ::Hex::BinaryArithmeticNode* RTJ::Hex::ILTransformer::GenerateBinaryArithmeti
 {
 	auto right = Pop();
 	auto left = Pop();
-	if (left->TypeInfo != right->TypeInfo)
-		THROW("Unconsistency of binary operators");
+
+	if (opcode != OpCodes::Shl && opcode != OpCodes::Shr)
+	{
+		if (left->TypeInfo != right->TypeInfo)
+			THROW("Unconsistency of binary operators");
+
+	}
 
 	auto node = new (POOL) BinaryArithmeticNode(left, right, opcode);
 	node->TypeInfo = left->TypeInfo;
@@ -643,6 +648,8 @@ RTJ::Hex::Statement* RTJ::Hex::ILTransformer::TransformToUnpartitionedStatements
 		case OpCodes::And:
 		case OpCodes::Or:
 		case OpCodes::Xor:
+		case OpCodes::Shr:
+		case OpCodes::Shl:
 			Push(GenerateBinaryArithmetic(instruction));
 			break;
 

@@ -577,6 +577,39 @@
             .ret
         }
     }
+
+    .method public static int32 CodeGenRightShift(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 2
+            .shr
+            .ret
+        }
+    }
+
+    .method public static uint32 CodeGenUnsignedRightShift(uint32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 2
+            .shr
+            .ret
+        }
+    }
+
+    .method public static int32 CodeGenLeftShift(int32 x) managed
+    {
+        .code
+        {
+            .ldarg x
+            .ldc int32 2
+            .shl
+            .ret
+        }
+    }
 }
 
 .struct public instance Struct

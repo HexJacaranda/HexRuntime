@@ -219,27 +219,27 @@ namespace RTJ::Hex::X86
 		INS_1(LEA_IU, RM_F, 0x8D);
 
 		INS_1(SHL_M1_I1, M_F | MAGIC_F(4), 0xD0);
-		INS_1(SHL_MI_I1, M_F | MAGIC_F(4), 0xC0);
+		INS_1(SHL_MI_I1, MI_F | MAGIC_F(4), 0xC0);
 		INS_1(SHL_MR_I1, MR_F | MAGIC_F(4), 0xD2);
 
 		INS_1(SHL_M1_IU, M_F | MAGIC_F(4), 0xD1);
-		INS_1(SHL_MI_IU, M_F | MAGIC_F(4), 0xC1);
+		INS_1(SHL_MI_IU, MI_F | MAGIC_F(4), 0xC1);
 		INS_1(SHL_MR_IU, MR_F | MAGIC_F(4), 0xD3);
 
 		INS_1(SHR_M1_I1, M_F | MAGIC_F(5), 0xD0);
-		INS_1(SHR_MI_I1, M_F | MAGIC_F(5), 0xC0);
+		INS_1(SHR_MI_I1, MI_F | MAGIC_F(5), 0xC0);
 		INS_1(SHR_MR_I1, MR_F | MAGIC_F(5), 0xD2);
 
 		INS_1(SHR_M1_IU, M_F | MAGIC_F(5), 0xD1);
-		INS_1(SHR_MI_IU, M_F | MAGIC_F(5), 0xC1);
+		INS_1(SHR_MI_IU, MI_F | MAGIC_F(5), 0xC1);
 		INS_1(SHR_MR_IU, MR_F | MAGIC_F(5), 0xD3);
 
 		INS_1(SAR_M1_I1, M_F | MAGIC_F(7), 0xD0);
-		INS_1(SAR_MI_I1, M_F | MAGIC_F(7), 0xC0);
+		INS_1(SAR_MI_I1, MI_F | MAGIC_F(7), 0xC0);
 		INS_1(SAR_MR_I1, MR_F | MAGIC_F(7), 0xD2);
 
 		INS_1(SAR_M1_IU, M_F | MAGIC_F(7), 0xD1);
-		INS_1(SAR_MI_IU, M_F | MAGIC_F(7), 0xC1);
+		INS_1(SAR_MI_IU, MI_F | MAGIC_F(7), 0xC1);
 		INS_1(SAR_MR_IU, MR_F | MAGIC_F(7), 0xD3);
 
 		INS_2(MOVSX_RM_I2_I1, RM_F, 0x0F, 0xBE);
@@ -804,7 +804,11 @@ namespace RTJ::Hex::X86
 		void CodeGenForJmp(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForJcc(BasicBlock* basicBlock, Int32 estimatedOffset);
 		void CodeGenForBooleanStore(TreeNode* expression);
-		void CodeGenForShift(Int32 localCount, LocalVariableNode* locals[2], ConstantNode* constant);
+		void CodeGenForShift(Int32 localCount,
+			LocalVariableNode* locals[2],
+			ConstantNode* constant,
+			bool immLeft,
+			UInt8 opcode);
 		void CodeGenForConvert(ConvertNode* conv);
 		Operand CodeGenForConvert(UInt8 from, UInt8 to, TreeNode* expression);
 		void CodeGenForConvertCore(UInt8 from, UInt8 to, Operand const& origin, Operand const& converted);

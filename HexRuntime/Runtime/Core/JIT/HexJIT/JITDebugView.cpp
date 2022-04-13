@@ -129,6 +129,10 @@ namespace RTJ::Hex
 				opText = L"or"; break;
 			case OpCodes::Xor:
 				opText = L"xor"; break;
+			case OpCodes::Shl:
+				opText = L"shl"; break;
+			case OpCodes::Shr:
+				opText = L"shr"; break;
 			default:
 				opText = L"unknown binary operator"; break;
 			}

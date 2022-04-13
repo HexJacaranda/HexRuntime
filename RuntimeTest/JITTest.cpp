@@ -763,6 +763,51 @@ namespace RuntimeTest
 			auto ret = method(0xFFFF);
 			Assert::AreEqual((Int16)0xFFFF, ret);
 		}
+
+		TEST_METHOD(CodeGenRightShift)
+		{
+			using Fn = Int32(__fastcall*)(Int32);
+			SetUpMethod(L"CodeGenRightShift");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenRightShift.bin");
+			auto ret = method(16);
+			Assert::AreEqual(4, ret);
+		}
+
+		TEST_METHOD(CodeGenUnsignedRightShift)
+		{
+			using Fn = UInt32(__fastcall*)(UInt32);
+			SetUpMethod(L"CodeGenUnsignedRightShift");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenUnsignedRightShift.bin");
+			auto ret = method(16u);
+			Assert::AreEqual(4u, ret);
+		}
+
+		TEST_METHOD(CodeGenLeftShift)
+		{
+			using Fn = Int32(__fastcall*)(Int32);
+			SetUpMethod(L"CodeGenLeftShift");
+			auto bb = PassThrough<ILTransformer>();
+			ViewIR(bb);
+			PassThrough<Morpher, Linearizer>();
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>();
+
+			Fn method = (Fn)DumpNativeCode("CodeGenLeftShift.bin");
+			auto ret = method(4);
+			Assert::AreEqual(16, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest::assembly = nullptr;
