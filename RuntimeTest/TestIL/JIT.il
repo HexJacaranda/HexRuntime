@@ -670,5 +670,31 @@
             .ret
         }
     }
+
+    .method public static float TestNestLocalStruct() managed
+    {
+        .local
+        {
+            [JIT][Test]Struct X
+            float& Z
+        }
+        .code
+        {
+            .ldloc X
+            .ldflda [JIT][Test]Struct::Z
+            .ldflda [JIT][Test]Struct2::X
+            .stloc Z
+            
+            .ldloc Z
+            .ldc float 2.0
+            .stta
+
+            .ldloc X
+            .ldfld [JIT][Test]Struct::Z
+            .ldfld [JIT][Test]Struct2::X
+            .ret
+        }
+    }
+
 }
 

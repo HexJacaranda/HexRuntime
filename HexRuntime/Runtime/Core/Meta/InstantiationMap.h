@@ -15,14 +15,14 @@ namespace RTM
 	struct TypedTokenHash
 	{
 		std::size_t operator()(TypedToken const& token)const {
-			return ComputeHashCode(token);
+			return ComputeHashCode(token.Kind) + ComputeHashCode(token.Token);
 		}
 	};
 
 	struct TypedTokenEqual
 	{
 		bool operator()(TypedToken const& left, TypedToken const& right)const {
-			return std::memcmp(&left, &right, sizeof(TypedToken)) == 0;
+			return left.Kind == right.Kind && left.Token == right.Token;
 		}
 	};
 

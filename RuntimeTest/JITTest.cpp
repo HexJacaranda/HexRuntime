@@ -884,6 +884,24 @@ namespace RuntimeTest
 
 			Assert::AreEqual(2.0f, ret);
 		}
+
+		TEST_METHOD(TestNestLocalStruct)
+		{
+			SetUpMethod(L"TestNestLocalStruct");
+			using Fn = Float(__fastcall*)();
+			auto bb = PassThrough<ILTransformer>(Context);
+			ViewIR(bb);
+			PassThrough<Morpher>(Context);
+			ViewIR(bb);
+			PassThrough<Linearizer>(Context);
+			ViewIR(bb);
+			PassThrough<FlowGraphPruner, LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+
+			Fn method = (Fn)Dump();
+			auto ret = method();
+
+			Assert::AreEqual(2.0f, ret);
+		}
 	};
 
 	RTM::AssemblyContext* JITTest2::Assembly = nullptr;

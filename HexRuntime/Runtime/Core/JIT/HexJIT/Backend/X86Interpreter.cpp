@@ -1616,18 +1616,11 @@ namespace RTJ::Hex::X86
 		TraverseTree(mContext->Traversal.Space, mContext->Traversal.Count, target, 
 			[&](TreeNode* value) 
 			{
-				if (ValueIs(value, NodeKinds::LocalVariable))
+				if (value->Is(NodeKinds::LocalVariable))
 				{
-					auto load = value->As<LoadNode>();
-					switch (load->Mode)
-					{
-					case AccessMode::Address:
-					case AccessMode::Content:
-						auto local = ValueAs<LocalVariableNode>(value);
-						if (CoreTypes::IsStruct(local->TypeInfo->GetCoreType()))
-							MarkVariableGenerateLayout(local->LocalIndex);
-						break;
-					}
+					auto local = value->As<LocalVariableNode>();
+					if (CoreTypes::IsStruct(local->TypeInfo->GetCoreType()))
+						MarkVariableGenerateLayout(local->LocalIndex);
 				}
 			});
 	}
@@ -2911,7 +2904,7 @@ namespace RTJ::Hex::X86
 				switch (unified)
 				{
 				case CoreTypes::I2:
-					i2Count++; 
+					i2Count++;
 					break;
 				case CoreTypes::Ref:
 				case CoreTypes::InteriorRef:
@@ -2957,7 +2950,7 @@ namespace RTJ::Hex::X86
 			if (use64Reg)
 				REX |= 0x40;
 		}
-		
+
 		//Write 66H to use 16bit operand
 		if (Operand16Prefix > 0u)
 			WritePage(mEmitPage, Operand16Prefix);
@@ -2983,7 +2976,7 @@ namespace RTJ::Hex::X86
 			//Write opcodes
 			opcodeRegBytePos = WritePage(mEmitPage, instruction.Opcode, instruction.Length) + instruction.Length - 1;
 		}
-				
+
 		//Prepare for register reencoding
 		UInt8 opcodeRegByte = instruction.Opcode[instruction.Length - 1];
 
@@ -3001,7 +2994,7 @@ namespace RTJ::Hex::X86
 		std::optional<ConstantStorage> Immediate{};
 
 		//Return 3 bits encoded register and mark REX prefix if possible 
-		auto encodeRegIdentity = [&](UInt8 rexBit, UInt8 registerIdentity) 
+		auto encodeRegIdentity = [&](UInt8 rexBit, UInt8 registerIdentity)
 		{
 			constexpr UInt8 LegacyRegisterMask = 0b111;
 			UInt8 realRegister = registerIdentity;
@@ -3020,8 +3013,14 @@ namespace RTJ::Hex::X86
 			return registerToEncode;
 		};
 
-		auto handleDisplacement = [&](std::optional<Int32> displacement) -> UInt8
+		auto handleDisplacement = [&](std::optional<Int32> displacement, bool forceDisp32 = false) -> UInt8
 		{
+			if (forceDisp32)
+			{
+				Disp32 = displacement;
+				return AddressingMode::RegisterAddressingDisp32;
+			}
+
 			if (displacement.value_or(0) == 0)
 			{
 				//Special expression for [reg]
@@ -3085,7 +3084,7 @@ namespace RTJ::Hex::X86
 				}
 				else
 				{
-					modRM = handleDisplacement(operand.M.Displacement);
+					modRM = handleDisplacement(operand.M.Displacement, trackingVariable.has_value());
 					modRM |= encodeRegIdentity(REXBit::B, operand.M.Base.value_or(RegisterOrMemory::Disp32));
 				}
 
@@ -3095,7 +3094,7 @@ namespace RTJ::Hex::X86
 			{
 				if (REX > 0 && operand.M.SIB.Index == NREG::SP)
 					THROW("Unable to use RSP in SIB as index");
-				modRM = handleDisplacement(operand.M.Displacement);	
+				modRM = handleDisplacement(operand.M.Displacement);
 				if (operand.M.Displacement.value_or(0) == 0 && (
 					operand.M.SIB.Base == NREG::BP ||
 					operand.M.SIB.Base == NREG64::R13))
@@ -3157,7 +3156,7 @@ namespace RTJ::Hex::X86
 			ImmediateCoreType = operand.ImmediateCoreType;
 			Immediate = operand.Immediate;
 		};
-		
+
 		switch (operandType)
 		{
 		case RM_F:
@@ -3230,12 +3229,13 @@ namespace RTJ::Hex::X86
 		//Cannot occur at the same time
 		if (Disp8.has_value())
 		{
+			auto disp = Disp8.value();
 			if (IS_TRK(Displacement))			
 			{
 				REP_TRK(Displacement) = mEmitPage->CurrentOffset();
 				REP_TRK_SIZE(Displacement) = sizeof(UInt8);
 			}
-			WritePage(mEmitPage, Disp8.value());
+			WritePage(mEmitPage, disp);
 		}
 		else if (Disp32.has_value())
 		{

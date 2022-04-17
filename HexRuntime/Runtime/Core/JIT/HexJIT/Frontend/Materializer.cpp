@@ -281,8 +281,42 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
 		MORPH_FIELD(node->Source);
 	});
 
-	auto offset = new (POOL) OffsetOfNode(node->Source->As<LocalVariableNode>(), node->Field->GetOffset());
-	offset->SetType(node->TypeInfo);							
+	auto source = node->Source;
+	if (source->Is(NodeKinds::Load))
+	{
+		auto sourceCoreType = source->TypeInfo->GetCoreType();
+		if (CoreTypes::IsStruct(sourceCoreType) || sourceCoreType == CoreTypes::InteriorRef)
+		{
+			if (ValueIs(source, NodeKinds::OffsetOf))
+			{
+				auto originOffset = ValueAs<OffsetOfNode>(source);
+				auto offset = new (POOL) OffsetOfNode(
+					node->Source->As<LocalVariableNode>(),
+					node->Field->GetOffset());
+
+				offset->SetType(node->TypeInfo);
+				//Collapse offset
+				offset->Base = originOffset->Base;
+				offset->Offset += originOffset->Offset;
+
+				return offset;
+			}
+			else if (ValueIs(source, NodeKinds::ArrayOffsetOf))
+			{
+				auto originOffset = ValueAs<ArrayOffsetOfNode>(source);
+				originOffset->SetType(node->TypeInfo);
+				originOffset->BaseOffset += node->Field->GetOffset();
+
+				return originOffset;
+			}
+		}
+	}
+
+	auto offset = new (POOL) OffsetOfNode(
+		node->Source->As<LocalVariableNode>(),
+		node->Field->GetOffset());
+
+	offset->SetType(node->TypeInfo);
 	return offset;
 }
 
