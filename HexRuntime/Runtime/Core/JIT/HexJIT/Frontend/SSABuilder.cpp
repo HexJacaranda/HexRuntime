@@ -258,6 +258,15 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 			mJITContext->Traversal.Count,
 			node, 
 			[&](TreeNode*& value) {
+				if (value->Is(NodeKinds::Load))
+				{
+					auto load = value->As<LoadNode>();
+					if (load->Source->Is(NodeKinds::LocalVariable) &&
+						load->Mode == AccessMode::Value)
+					{
+
+					}
+				}
 				if (ValueIs(value, NodeKinds::LocalVariable))
 				{
 					auto local = ValueAs<LocalVariableNode>(value);

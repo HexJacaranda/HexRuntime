@@ -30,11 +30,24 @@ namespace RTJ::Hex
 			break;
 		}
 		case NodeKinds::Use:
-			output << L"use (ssa)" << std::endl;  break;
+		{
+			output << L"use (ssa)" << std::endl; 
+			break;
+		}
 		case NodeKinds::ValueDef:
 			output << L"value def (ssa)" << std::endl; break;
 		case NodeKinds::ValueUse:
-			output << L"value use (ssa)" << std::endl; break;
+		{
+			output << L"value use (ssa)";
+			auto use = node->As<SSA::ValueUse>();
+			if (use->Def->Origin->Is(NodeKinds::LocalVariable))
+			{
+				auto local = use->Def->Origin->As<LocalVariableNode>();
+				output << L" - local " << local->LocalIndex;
+			}
+			output << std::endl;
+			break;
+		}
 		case NodeKinds::Convert:
 			output << L"convert" << std::endl; break;
 		case NodeKinds::Cast:
@@ -221,8 +234,8 @@ namespace RTJ::Hex
 					ViewIRNode(output, nextPrefix, proxy->Second, true);
 					break;
 				}
-					//Unary access
-					CASE_UNARY
+				//Unary access
+				CASE_UNARY
 				{
 					UnaryNodeAccessProxy * proxy = (UnaryNodeAccessProxy*)node;
 					ViewIRNode(output, nextPrefix, proxy->Value, true);

@@ -2,7 +2,7 @@
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSAReducer::Reduce(SSA::ValueUse* use)
 {
-	return use->Def->Value;
+	return use->Def->Origin;
 }
 
 RTJ::Hex::TreeNode* RTJ::Hex::SSAReducer::Reduce(SSA::ValueDef* def)
