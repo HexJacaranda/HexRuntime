@@ -24,6 +24,8 @@ namespace RTJ::Hex
 		TreeNode* Fold(SSA::ValueDef* def);
 		//Generic fold
 		TreeNode* Fold(TreeNode* node);
+		//Fold convert
+		TreeNode* Fold(ConvertNode* node);
 		//Call for each root node of stmt
 		void FoldConstant(TreeNode*& stmtRoot);
 	public:

@@ -270,9 +270,75 @@ namespace RTJ::Hex
 			return Fold(node->As<SSA::ValueDef>());
 		case NodeKinds::ValueUse:
 			return Fold(node->As<SSA::ValueUse>());
+		case NodeKinds::Convert:
+			return Fold(node->As<ConvertNode>());
 		default:
 			return node;
 		}
+	}
+
+	TreeNode* ConstantFolder::Fold(ConvertNode* node)
+	{
+#define CONVERT(VALUE) switch(node->To) {\
+				case CoreTypes::Bool:\
+					constant->Bool = !!VALUE; break;\
+				case CoreTypes::Char:\
+					constant->Char = (wchar_t)VALUE;  break; \
+				case CoreTypes::I1:\
+					constant->I1 = (Int8)VALUE;  break; \
+				case CoreTypes::I2:\
+					constant->I2 = (Int16)VALUE;  break; \
+				case CoreTypes::I4:\
+					constant->I4 = (Int32)VALUE;  break; \
+				case CoreTypes::I8:\
+					constant->I8 = (Int64)VALUE;  break; \
+				case CoreTypes::U1:\
+					constant->U1 = (UInt8)VALUE;  break; \
+				case CoreTypes::U2:\
+					constant->U2 = (UInt16)VALUE;  break; \
+				case CoreTypes::U4:\
+					constant->U4 = (UInt32)VALUE;  break; \
+				case CoreTypes::U8:\
+					constant->U8 = (UInt64)VALUE;  break; \
+				case CoreTypes::R4:\
+					constant->R4 = (Float)VALUE;  break; \
+				case CoreTypes::R8:\
+					constant->R8 = (Double)VALUE;  break; \
+		}
+
+		if (!node->Value->Is(NodeKinds::Constant))
+			return node;
+		auto origin = node->Value->As<ConstantNode>();
+		auto constant = new (POOL) ConstantNode(node->To);
+		switch (origin->CoreType)
+		{
+		case CoreTypes::Bool:
+			CONVERT(origin->Bool); break;
+		case CoreTypes::Char:
+			CONVERT(origin->Char); break;
+		case CoreTypes::I1:
+			CONVERT(origin->I1); break;
+		case CoreTypes::I2:
+			CONVERT(origin->I2); break;
+		case CoreTypes::I4:
+			CONVERT(origin->I4); break;
+		case CoreTypes::I8:
+			CONVERT(origin->I8); break;
+		case CoreTypes::U1:
+			CONVERT(origin->U1); break;
+		case CoreTypes::U2:
+			CONVERT(origin->U2); break;
+		case CoreTypes::U4:
+			CONVERT(origin->U4); break;
+		case CoreTypes::U8:
+			CONVERT(origin->U8); break;
+		case CoreTypes::R4:
+			CONVERT(origin->R4); break;
+		case CoreTypes::R8:
+			CONVERT(origin->R8); break;
+		}
+
+		return constant->SetType(node->TypeInfo);
 	}
 
 	void ConstantFolder::FoldConstant(TreeNode*& stmtRoot)
