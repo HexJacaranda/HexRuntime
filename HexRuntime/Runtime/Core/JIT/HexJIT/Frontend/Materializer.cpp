@@ -284,31 +284,38 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(InstanceFieldNode* node)
 	auto source = node->Source;
 	if (source->Is(NodeKinds::Load))
 	{
-		auto sourceCoreType = source->TypeInfo->GetCoreType();
-		if (CoreTypes::IsStruct(sourceCoreType) || sourceCoreType == CoreTypes::InteriorRef)
+		auto load = source->As<LoadNode>();
+		switch (load->Mode) {
+		case AccessMode::Address:
+		case AccessMode::Value:
 		{
-			if (ValueIs(source, NodeKinds::OffsetOf))
+			auto sourceCoreType = source->TypeInfo->GetCoreType();
+			if (CoreTypes::IsStruct(sourceCoreType) || sourceCoreType == CoreTypes::InteriorRef)
 			{
-				auto originOffset = ValueAs<OffsetOfNode>(source);
-				auto offset = new (POOL) OffsetOfNode(
-					node->Source->As<LocalVariableNode>(),
-					node->Field->GetOffset());
+				if (ValueIs(source, NodeKinds::OffsetOf))
+				{
+					auto originOffset = ValueAs<OffsetOfNode>(source);
+					auto offset = new (POOL) OffsetOfNode(
+						node->Source->As<LocalVariableNode>(),
+						node->Field->GetOffset());
 
-				offset->SetType(node->TypeInfo);
-				//Collapse offset
-				offset->Base = originOffset->Base;
-				offset->Offset += originOffset->Offset;
+					offset->SetType(node->TypeInfo);
+					//Collapse offset
+					offset->Base = originOffset->Base;
+					offset->Offset += originOffset->Offset;
 
-				return offset;
+					return offset;
+				}
+				else if (ValueIs(source, NodeKinds::ArrayOffsetOf))
+				{
+					auto originOffset = ValueAs<ArrayOffsetOfNode>(source);
+					originOffset->SetType(node->TypeInfo);
+					originOffset->BaseOffset += node->Field->GetOffset();
+
+					return originOffset;
+				}
 			}
-			else if (ValueIs(source, NodeKinds::ArrayOffsetOf))
-			{
-				auto originOffset = ValueAs<ArrayOffsetOfNode>(source);
-				originOffset->SetType(node->TypeInfo);
-				originOffset->BaseOffset += node->Field->GetOffset();
-
-				return originOffset;
-			}
+		}
 		}
 	}
 
