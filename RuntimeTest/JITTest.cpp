@@ -11,6 +11,7 @@
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/SSABuilder.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/ConstantFolder.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/FlowGraphPruner.h"
+#include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/StoreEliminationh.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/SSAReducer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Backend/Linearizer.h"
 #include "../HexRuntime/Runtime/Core/JIT/HexJIT/Frontend/Materializer.h"
@@ -901,6 +902,26 @@ namespace RuntimeTest
 			auto ret = method();
 
 			Assert::AreEqual(2.0f, ret);
+		}
+
+		TEST_METHOD(TestStoreElimination)
+		{
+			SetUpMethod(L"TestStoreElimination");
+			using Fn = Int32(__fastcall*)(Int32, Int32);
+			auto bb = PassThrough<ILTransformer>(Context);
+			ViewIR(bb);
+			PassThrough<Morpher, SSABuilder>(Context);
+			ViewIR(bb);
+			PassThrough<StoreElimination, FlowGraphPruner, SSAReducer>(Context);
+			ViewIR(bb);
+			PassThrough<Linearizer>(Context);
+			ViewIR(bb);
+			PassThrough<LivenessAnalyzer, X86::X86NativeCodeGenerator>(Context);
+
+			Fn method = (Fn)Dump();
+			auto ret = method(1, 2);
+
+			Assert::AreEqual(1, ret);
 		}
 	};
 

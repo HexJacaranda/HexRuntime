@@ -3,6 +3,7 @@
 #include "IR.h"
 #include "Backend\RegisterAllocationContext.h"
 #include <string>
+#include <sstream>
 
 namespace RTJ::Hex
 {

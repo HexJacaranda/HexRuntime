@@ -39,7 +39,7 @@ void RTJ::Hex::SSABuilder::InitializeLocalsAndArguments()
 	constexpr Int32 basicBlockIndex = 0;
 	for (Int32 i = 0; i < mJITContext->ArgumentAttaches.size(); ++i)
 		mVariableDefinition[(UInt16)i | LocalVariableNode::ArgumentFlag][basicBlockIndex] =
-		new (POOL) SSA::ValueDef(&SSA::UndefinedValueNode::Instance(), new (POOL) ArgumentNode(i));
+		new (POOL) SSA::ValueDef(&SSA::UndefinedValueNode::Instance(), new (POOL) ArgumentNode(i), nullptr);
 
 	//Method to get default value node
 	auto getDefaultValue = [&](Int32 index) -> TreeNode* {
@@ -61,7 +61,7 @@ void RTJ::Hex::SSABuilder::InitializeLocalsAndArguments()
 
 	for (Int32 i = 0; i < mJITContext->LocalAttaches.size(); ++i)
 		mVariableDefinition[(UInt16)i][basicBlockIndex] =
-		new (POOL) SSA::ValueDef(getDefaultValue(i), new (POOL) LocalVariableNode(i));
+		new (POOL) SSA::ValueDef(getDefaultValue(i), new (POOL) LocalVariableNode(i), nullptr);
 }
 
 bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)
@@ -74,10 +74,10 @@ bool RTJ::Hex::SSABuilder::IsVariableTrackable(LocalVariableNode* local)
 		return mJITContext->LocalAttaches[index].IsTrackable();
 }
 
-void RTJ::Hex::SSABuilder::WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value)
+void RTJ::Hex::SSABuilder::WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value, Statement* stmt)
 {
-	auto use = new (POOL) SSA::ValueDef(value, local);
-	mVariableDefinition[local->LocalIndex][blockIndex] = use;
+	auto def = new (POOL) SSA::ValueDef(value, local, stmt);
+	mVariableDefinition[local->LocalIndex][blockIndex] = def;
 }
 
 bool RTJ::Hex::SSABuilder::IsUseUndefined(TreeNode* node)
@@ -163,10 +163,10 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::ReadVariableLookUp(LocalVariableNode* 
 	else
 	{
 		auto phi = mJITContext->Memory->New<SSA::PhiNode>(block, local);
-		WriteVariable(local, blockIndex, phi);
+		WriteVariable(local, blockIndex, phi, nullptr);
 		value = AddPhiOperands(local, blockIndex, phi);
 	}
-	WriteVariable(local, blockIndex, value);
+	WriteVariable(local, blockIndex, value, nullptr);
 	return value;
 }
 
@@ -224,9 +224,7 @@ RTJ::Hex::TreeNode* RTJ::Hex::SSABuilder::TryRemoveRedundantPhiNode(SSA::PhiNode
 RTJ::Hex::SSABuilder::SSABuilder(HexJITContext* jitContext) :
 	mJITContext(jitContext),
 	mTarget(jitContext->BBs.front()) 
-{
-
-}
+{}
 
 RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 {
@@ -234,51 +232,50 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 	DecideSSATrackability();
 	InitializeLocalsAndArguments();
 
-	auto readWrite = [&](TreeNode*& node, Int32 bbIndex) {
-		//The store node is always a stmt
-		if (node->Kind == NodeKinds::Store)
-		{
+	auto write = [&](Statement* stmt, Int32 bbIndex) {
+		auto&& node = stmt->Now;
+		do {
+			//The store node is always a stmt
+			if (!node->Is(NodeKinds::Store))
+				break;
 			auto store = node->As<StoreNode>();
-			auto kind = store->Destination->Kind;
-			auto index = -1;
-
+			if (store->Mode != AccessMode::Value)
+				break;
 			LocalVariableNode* local = nullptr;
-			if (kind == NodeKinds::LocalVariable)
-			{
-				local = store->Destination->As<LocalVariableNode>();
-				index = local->LocalIndex;
-			}
-				
-			if (index != -1 && IsVariableTrackable(local))
-				WriteVariable(local, bbIndex, store->Source);
-		}
+			if (!store->Destination->Is(NodeKinds::LocalVariable))
+				break;
 
-		TraverseTreeBottomUp(
+			local = store->Destination->As<LocalVariableNode>();
+			if (!IsVariableTrackable(local))
+				break;
+
+			WriteVariable(local, bbIndex, store->Source, stmt);
+		} while (false);
+	};
+
+	auto read = [&](TreeNode*& node, Int32 bbIndex) {
+		TraverseTree(
 			mJITContext->Traversal.Space,
 			mJITContext->Traversal.Count,
 			node, 
 			[&](TreeNode*& value) {
-				if (value->Is(NodeKinds::Load))
-				{
+				do {
+					if (!value->Is(NodeKinds::Load))
+						break;
 					auto load = value->As<LoadNode>();
-					if (load->Source->Is(NodeKinds::LocalVariable) &&
-						load->Mode == AccessMode::Value)
-					{
-
-					}
-				}
-				if (ValueIs(value, NodeKinds::LocalVariable))
-				{
+					if (!ValueIs(load, NodeKinds::LocalVariable) || load->Mode != AccessMode::Value)
+						break;
 					auto local = ValueAs<LocalVariableNode>(value);
-					if (IsVariableTrackable(local)) {
-						auto readValue = ReadVariable(local, bbIndex);
-						if (IsUseUndefined(readValue))
-							//Use origin node
-							value = local;
-						else
-							value = readValue;
-					}
-				}
+					if (!IsVariableTrackable(local))
+						break;
+
+					auto readValue = ReadVariable(local, bbIndex);
+					if (IsUseUndefined(readValue))
+						//Use origin node
+						load->Source = local;
+					else
+						load->Source = readValue;
+				} while (false);
 			});
 	};
 
@@ -291,11 +288,15 @@ RTJ::Hex::BasicBlock* RTJ::Hex::SSABuilder::PassThrough()
 			stmtIterator != nullptr && stmtIterator->Now != nullptr;
 			stmtIterator = stmtIterator->Next)
 		{
-			readWrite(stmtIterator->Now, bbIterator->Index);
+			write(stmtIterator, bbIterator->Index);
+			read(stmtIterator->Now, bbIterator->Index);
 		}
 		//Flow control value may also involve r/w
 		if (bbIterator->BranchConditionValue != nullptr)
-			readWrite(bbIterator->BranchConditionValue, bbIterator->Index);
+			read(bbIterator->BranchConditionValue, bbIterator->Index);
 	}
+
+	//Pass to store elimination
+	mJITContext->SSAVariableDefinition = std::move(mVariableDefinition);
 	return mTarget;
 }

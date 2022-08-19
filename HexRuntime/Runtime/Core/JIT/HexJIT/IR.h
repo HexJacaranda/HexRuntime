@@ -772,12 +772,14 @@ namespace RTJ::Hex
 			TreeNode* Value;
 			TreeNode* Origin;
 			ValueUse* UseChain = nullptr;
+			Statement* StoreStmt;
 			Int32 Count = 0;
 		public:
-			ValueDef(TreeNode* value, TreeNode* origin) :
+			ValueDef(TreeNode* value, TreeNode* origin, Statement* storeStmt) :
 				UnaryNode(NodeKinds::ValueDef),
 				Value(value),
-				Origin(origin) {}
+				Origin(origin),
+				StoreStmt(storeStmt) {}
 		};
 
 		struct ValueUse : UnaryNode
@@ -862,6 +864,81 @@ namespace RTJ::Hex
 			case NodeKinds::Use: \
 			case NodeKinds::ValueDef: \
 			case NodeKinds::ValueUse:
+
+	template<class Fn, class T>
+	concept InterruptableTraverseFn = requires(Fn && action, T & element, bool result) {
+		result = std::forward<Fn>(action)(element);
+	};
+
+	template<InterruptableTraverseFn<TreeNode*> Fn>
+	static void TraverseTreeWithInterruptableFn(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action) {
+		if (source == nullptr)
+			return;
+		using NodeReference = TreeNode**;
+		NodeReference* stack = (NodeReference*)stackSpace;
+
+		Int32 index = 0;
+
+		auto pushStack = [&](NodeReference value) {
+			if (index < upperBound)
+				stack[index++] = value;
+		};
+
+		auto popStack = [&]() -> NodeReference {
+			return stack[--index];
+		};
+
+		//Push stack first
+		pushStack(&source);
+
+		while (index > 0)
+		{
+			auto&& current = *popStack();
+			//Do custom action
+			if (!std::forward<Fn>(action)(current)) {
+				return;
+			}
+			switch (current->Kind)
+			{
+				//Binary access
+				CASE_BINARY
+				{
+					BinaryNodeAccessProxy * proxy = (BinaryNodeAccessProxy*)current;
+					pushStack(&proxy->First);
+					pushStack(&proxy->Second);
+					break;
+				}
+					//Unary access
+					CASE_UNARY
+				{
+					UnaryNodeAccessProxy * proxy = (UnaryNodeAccessProxy*)current;
+					pushStack(&proxy->Value);
+					break;
+				}
+			case NodeKinds::MorphedCall:
+				{
+					auto call = current->As<MorphedCallNode>();
+					pushStack(&call->Origin);
+				}
+				//Multiple access 
+				CASE_MULTIPLE
+				{
+					MultipleNodeAccessProxy * proxy = (MultipleNodeAccessProxy*)current;
+					ForeachInlined(proxy->Values, proxy->Count,
+						[&](TreeNode*& node)
+						{
+							pushStack(&node);
+						});
+					break;
+				}
+					CASE_POTENTIAL_CIRCULAR_REF
+				{
+
+				}
+			}
+		}
+	}
+
 
 	template<class Fn>
 	static void TraverseTree(Int8* stackSpace, Int32 upperBound, TreeNode*& source, Fn&& action)

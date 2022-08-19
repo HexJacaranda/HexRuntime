@@ -92,15 +92,13 @@ RTJ::Hex::TreeNode* RTJ::Hex::Morpher::Morph(CallNode* node)
 		callingConv = CALLING_CONV_OF(ManagedVirtualCall);
 	}
 
-	auto argument = new (POOL) LoadNode(AccessMode::Value, methodConstant);
-
 	ForeachInlined(node->Arguments, node->ArgumentCount, 
 		[&](TreeNode*& node) 
 		{
 			node = Morph(node);
 		});
 
-	return (new (POOL) MorphedCallNode(node, nativeMethod, callingConv, argument))
+	return (new (POOL) MorphedCallNode(node, nativeMethod, callingConv, methodConstant))
 		->SetType(node->TypeInfo);
 }
 

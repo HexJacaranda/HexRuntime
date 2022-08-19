@@ -3,6 +3,7 @@
 #include "TypeDescriptor.h"
 #include <unordered_map>
 #include <deque>
+#include <optional>
 
 namespace RTM
 {

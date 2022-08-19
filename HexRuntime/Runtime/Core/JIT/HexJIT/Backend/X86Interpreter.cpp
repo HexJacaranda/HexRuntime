@@ -976,7 +976,7 @@ namespace RTJ::Hex::X86
 			if (IsAsRefSemantic(localIndex))
 			{
 				MARK_UNSPILLABLE(currentRegister.value());
-				Operand::FromRegister(currentRegister.value(), CoreTypes::InteriorRef);
+				return Operand::FromRegister(currentRegister.value(), CoreTypes::InteriorRef);
 			}
 			LandVariableFor(localIndex);
 		}
@@ -1666,7 +1666,7 @@ namespace RTJ::Hex::X86
 		{
 			Int32 current = mProloguePage->CurrentOffset();
 			//Compute estimated offset first
-			for (auto&& bb : mContext->BBs | std::views::filter(BasicBlock::ReachableFn))
+			for (auto&& bb : mContext->AliveBBs)
 			{
 				estimatedOffset[bb->Index] = current;
 				current += bb->NativeCodeSize;
@@ -1687,8 +1687,7 @@ namespace RTJ::Hex::X86
 
 		{
 			Int32 current = mProloguePage->CurrentOffset();
-			for (auto&& bb : mContext->BBs |
-				std::views::filter(BasicBlock::ReachableFn))
+			for (auto&& bb : mContext->AliveBBs)
 			{
 				if (bb->BranchedBB == bb->Next)
 					continue;

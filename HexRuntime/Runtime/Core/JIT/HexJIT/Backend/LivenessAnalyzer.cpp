@@ -70,7 +70,7 @@ namespace RTJ::Hex
 			{
 				auto&& basicBlock = mContext->BBs[i];
 				//Reduce computation for stable BB
-				if (!stableMap.Test(i) && !basicBlock->IsUnreachable())
+				if (!stableMap.Test(i))
 				{
 					auto&& oldIn = basicBlock->VariablesLiveIn;
 					auto&& oldOut = basicBlock->VariablesLiveOut;

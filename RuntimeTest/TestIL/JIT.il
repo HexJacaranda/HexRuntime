@@ -696,5 +696,23 @@
         }
     }
 
+    .method public static int32 TestStoreElimination(int32 x, int32 y) managed
+    {
+        .code
+        {
+            .ldc int32 2
+            .ldarg x
+            .add
+
+            .conv float
+            .ldc float 3.0
+            .add
+            .conv int32       
+            .starg y
+
+            .ldarg x
+            .ret
+        }
+    }
 }
 

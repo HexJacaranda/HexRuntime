@@ -122,6 +122,22 @@ namespace RT
 				previous->Next = current;
 			}
 		}
+
+		template<class NodeT>
+		static void RemoveTwoWay(NodeT*& head, NodeT* current) {
+			if (head == current) {
+				head = head->Next;
+				if (head != nullptr)
+					head->Prev = nullptr;
+			}
+			else {
+				auto prev = current->Prev;
+				auto next = current->Next;
+
+				prev->Next = next;
+				next->Prev = prev;
+			}
+		}
 	};
 
 	template<class T>

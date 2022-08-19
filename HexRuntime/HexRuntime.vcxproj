@@ -44,6 +44,7 @@
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\FlowGraphPruner.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Materializer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\SSABuilder.h" />
+    <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\StoreEliminationh.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\Frontend\Transformer.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJIT.h" />
     <ClInclude Include="Runtime\Core\JIT\HexJIT\HexJITContext.h" />
@@ -117,6 +118,7 @@
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Backend\X86Interpreter.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\EmitPage.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\FlowGraphPruner.cpp" />
+    <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\StoreEliminationh.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\JITDebugView.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\WindowsEmitPageProvider.cpp" />
     <ClCompile Include="Runtime\Core\JIT\HexJIT\Frontend\EvaluationStack.cpp" />
@@ -261,7 +263,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;SPDLOG_FMT_EXTERNAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>

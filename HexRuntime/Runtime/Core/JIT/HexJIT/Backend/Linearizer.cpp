@@ -127,8 +127,10 @@ RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, OffsetOf
 
 RTJ::Hex::FlattenResult RTJ::Hex::Linearizer::Flatten(TreeNode* parent, LocalVariableNode* node, bool shouldKeep)
 {
-	RTAssert(parent != nullptr);
 	StmtList retStmts{};
+	if (parent == nullptr) {
+		return { retStmts, node };
+	}
 
 	if (shouldKeep || (parent != nullptr && parent->Is(NodeKinds::Store)))
 		return { retStmts, node };

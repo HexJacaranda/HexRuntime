@@ -70,6 +70,7 @@ namespace RTJ::Hex
 	using LocalAttached = LocalVariableAttached<RTM::MethodLocalVariableDescriptor>;
 	using ArgumentAttached = LocalVariableAttached<RTM::MethodArgumentDescriptor>;
 
+	using DefinitionMap = std::unordered_map<UInt16, std::unordered_map<Int32, SSA::ValueDef*>>;
 	struct HexJITContext 
 	{
 		/// <summary>
@@ -105,6 +106,8 @@ namespace RTJ::Hex
 			Int8* Space;
 			Int32 Count;
 		} Traversal;
+
+		DefinitionMap SSAVariableDefinition;
 
 		EmitPage* NativeCode = nullptr;
 		RTM::Type* GetLocalType(UInt16 localIndex)

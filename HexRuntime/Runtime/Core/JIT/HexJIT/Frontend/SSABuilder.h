@@ -16,7 +16,6 @@ namespace RTJ::Hex
 		BasicBlock* mTarget = nullptr;
 		HexJITContext* mJITContext;
 
-		using DefinitionMap = std::unordered_map<UInt16, std::unordered_map<Int32, SSA::ValueDef*>>;
 		DefinitionMap mVariableDefinition;
 		std::unordered_map<SSA::PhiNode*, SSA::Use*> mPhiUsage;
 	private:
@@ -47,7 +46,7 @@ namespace RTJ::Hex
 		TreeNode* TrackPhiUsage(TreeNode* phi);
 		void UpdatePhiUsage(SSA::PhiNode* origin, TreeNode* target);
 
-		void WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value);
+		void WriteVariable(LocalVariableNode* local, Int32 blockIndex, TreeNode* value, Statement* stmt);
 		TreeNode* ReadVariable(LocalVariableNode* local, Int32 blockIndex);
 		TreeNode* ReadVariableLookUp(LocalVariableNode* local, Int32 blockIndex);
 		TreeNode* AddPhiOperands(LocalVariableNode* local, Int32 blockIndex, SSA::PhiNode* phiNode);

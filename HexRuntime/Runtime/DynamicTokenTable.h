@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <shared_mutex>
 #include <deque>
+#include <optional>
 
 namespace RT
 {
